@@ -42,3 +42,31 @@ Stage Summary:
 - History tab shows "this note" + "recent activity" without duplicates
 - Lint passes with 0 errors, 0 warnings
 - Dev server runs cleanly with no runtime errors
+
+---
+Task ID: second-brain-v2
+Agent: main (Super Z)
+Task: Address three user requests: (1) wire up mock features to real implementations, (2) add folder-like structure with nesting, (3) add PARA method organization.
+
+Work Log:
+- Updated types/index.ts: added Folder interface (id, name, parentId, paraType, expanded), added folderId + pinned fields to Note, kept legacy `collection` for v1→v2 migration, added PARA_FOLDERS constant with 4 top-level types (projects/areas/resources/archives)
+- Rewrote utils/seedData.ts: created 10 folders (4 PARA roots + 6 sub-folders: Areas/Strategy, Resources/PKM, Resources/Learning, Resources/Reading, Resources/Research, Resources/Journal). Reorganized 6 seed notes into PARA structure: Zettelkasten+PARA → Resources/PKM, Decision Fatigue → Areas/Strategy, Spaced Repetition → Resources/Learning, Progressive Summarisation → Resources/Reading, Expertise Invisibility → Resources/Research. Added todayDateKey() helper for journal entries.
+- Updated hooks/useNotes.ts: bumped storage key to v2, added v1→v2 migration logic (maps legacy collection → seed folder id, preserves pinned status), added folder CRUD (createFolder, renameFolder, deleteFolder with cascade-to-Resources fallback, toggleFolderExpanded), added moveNote and togglePinned
+- Rewrote components/second-brain/FileTree.tsx: nested folder rendering with expand/collapse chevrons, PARA folders styled uppercase + purple icon, hover-revealed +note/+folder/delete actions on each folder, double-click folder to rename inline, drag-and-drop notes between folders, Pinned section at top, tag view toggle (Folders/Tags tabs in header), tag view groups notes by tag with expand/collapse
+- Created src/app/api/ai/ask/route.ts: real AI endpoint using z-ai-web-dev-sdk, takes note title/body/tags + question + history, returns LLM response with PKM-aware system prompt
+- Created components/second-brain/AskAIModal.tsx: chat-style modal with suggested questions, multi-turn conversation, loading state, error handling, Enter-to-send / Shift+Enter for newline
+- Updated components/second-brain/ContextPanel.tsx: wired all 4 suggestion card types to real actions (missing link → insert [[Title]] at cursor, synthesis ready → create new note with template body listing related notes, review due → schedule review toast, open question → create new note with question as title), wired action buttons (export as essay, ask AI about this)
+- Updated components/second-brain/CommandPalette.tsx: added New folder, Daily journal, Ask AI commands; added folders prop
+- Rewrote src/app/page.tsx: wired all new functionality including handleCreateJournal (creates/opens today's journal note in Journal folder with template body), handleExportEssay (compiles note + all wiki-linked notes into single .md download), handleInsertLink (inserts [[Title]] at textarea cursor position), handleDraftSynthesis (creates new note with template body listing same-tag notes), handleAnswerInNewNote (creates note with question as title), handleScheduleReview (toast), folder CRUD handlers, icon rail actions (Graph view → context tab, AI synthesis → opens AskAI modal, Tags → switches file tree to tag view, Daily journal → creates journal note), ⌘J shortcut for journal, toast notification system
+- Fixed bug: ActionButton component had onClick prop declared but never attached to <button> — added onClick={onClick}
+- Fixed lint: added missing deps to useMemo dependency array in CommandPalette
+
+Stage Summary:
+- All 3 user requests addressed:
+  1. Mock features now real: AI chat via z-ai-web-dev-sdk API route, export-as-essay compiles linked notes, suggestion cards perform real actions (insert link at cursor, draft synthesis, answer in new note, schedule review), icon rail buttons all functional (Graph view, AI synthesis opens modal, Tags switches view, Daily journal creates timestamped note)
+  2. Folder structure: nested folders with expand/collapse, hover actions (+note, +folder, delete), double-click to rename, drag-and-drop notes between folders, Pinned section
+  3. PARA method: 4 top-level folders (Projects, Areas, Resources, Archives) with sub-folders, 6 seed notes reorganized into PARA structure
+- localStorage v2 with automatic v1 migration (preserves user notes, maps collections to folders)
+- Lint passes with 0 errors, 0 warnings
+- Dev server runs cleanly
+- All features verified end-to-end via Agent Browser: AI returns real responses, export compiles 4 related notes, insert link adds [[Decision Fatigue]] to body, draft synthesis creates "Synthesis — Zettelkasten Method" note, answer in new note creates note with question as title, daily journal creates "Journal — 2026-06-29", tag view groups notes by tag

@@ -1,25 +1,28 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, FileText, Plus, Share2, Download, Hash, CornerDownLeft, ArrowUp, ArrowDown, X } from 'lucide-react';
-import { Note } from '@/types';
+import { Search, FileText, Plus, Share2, Download, Hash, CornerDownLeft, ArrowUp, ArrowDown, X, FolderPlus, Sparkles } from 'lucide-react';
+import { Note, Folder } from '@/types';
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
   notes: Note[];
+  folders: Folder[];
   onOpenNote: (id: string) => void;
   onCreateNote: () => void;
   onOpenGraph: () => void;
   onExport: () => void;
+  onCreateFolder: () => void;
+  onAskAI: () => void;
 }
 
 interface CommandItem {
   id: string;
-  type: 'note' | 'command';
+  type: 'note' | 'command' | 'folder';
   label: string;
   hint?: string;
-  icon: 'note' | 'new' | 'graph' | 'export';
+  icon: 'note' | 'new' | 'graph' | 'export' | 'folder-new' | 'ai' | 'folder';
   action: () => void;
 }
 
@@ -27,10 +30,13 @@ export function CommandPalette({
   open,
   onClose,
   notes,
+  folders,
   onOpenNote,
   onCreateNote,
   onOpenGraph,
   onExport,
+  onCreateFolder,
+  onAskAI,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -55,10 +61,44 @@ export function CommandPalette({
         id: 'cmd-new',
         type: 'command',
         label: 'New note',
-        hint: 'create blank note',
+        hint: 'create blank note · ⌘T',
         icon: 'new',
         action: () => {
           onCreateNote();
+          onClose();
+        },
+      },
+      {
+        id: 'cmd-folder',
+        type: 'command',
+        label: 'New folder',
+        hint: 'create a new top-level folder',
+        icon: 'folder-new',
+        action: () => {
+          onCreateFolder();
+          onClose();
+        },
+      },
+      {
+        id: 'cmd-journal',
+        type: 'command',
+        label: 'Daily journal',
+        hint: "open or create today's journal · ⌘J",
+        icon: 'new',
+        action: () => {
+          // Reuse the journal handler via a custom event
+          window.dispatchEvent(new CustomEvent('sb-create-journal'));
+          onClose();
+        },
+      },
+      {
+        id: 'cmd-ai',
+        type: 'command',
+        label: 'Ask AI about this note',
+        hint: 'open the AI chat modal',
+        icon: 'ai',
+        action: () => {
+          onAskAI();
           onClose();
         },
       },
@@ -99,7 +139,7 @@ export function CommandPalette({
     }));
 
     return [...cmds, ...noteItems];
-  }, [notes, onCreateNote, onOpenGraph, onExport, onOpenNote, onClose]);
+  }, [notes, onCreateNote, onOpenGraph, onExport, onOpenNote, onClose, onCreateFolder, onAskAI]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return items;
@@ -250,6 +290,9 @@ export function CommandPalette({
                 it.icon === 'note' ? FileText :
                 it.icon === 'new' ? Plus :
                 it.icon === 'graph' ? Share2 :
+                it.icon === 'folder-new' ? FolderPlus :
+                it.icon === 'ai' ? Sparkles :
+                it.icon === 'folder' ? FileText :
                 Download;
               return (
                 <div

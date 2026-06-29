@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Note } from '@/types';
-import { generateSuggestions, relativeTime, formatDate } from '@/utils/markdown';
+import { generateSuggestions, relativeTime, formatDate, extractWikiLinks } from '@/utils/markdown';
 import { ArrowUpRight } from 'lucide-react';
 
 interface ContextPanelProps {
@@ -11,10 +11,29 @@ interface ContextPanelProps {
   activeTab: 'ai' | 'graph' | 'history';
   onTabChange: (t: 'ai' | 'graph' | 'history') => void;
   onOpenNote: (id: string) => void;
+  onAskAI: () => void;
+  onExportEssay: () => void;
+  onInsertLink: (linkTitle: string) => void;
+  onDraftSynthesis: () => void;
+  onAnswerInNewNote: (question: string) => void;
+  onScheduleReview: () => void;
   history: { id: string; noteId: string; text: string; timestamp: number }[];
 }
 
-export function ContextPanel({ note, allNotes, activeTab, onTabChange, onOpenNote, history }: ContextPanelProps) {
+export function ContextPanel({
+  note,
+  allNotes,
+  activeTab,
+  onTabChange,
+  onOpenNote,
+  onAskAI,
+  onExportEssay,
+  onInsertLink,
+  onDraftSynthesis,
+  onAnswerInNewNote,
+  onScheduleReview,
+  history,
+}: ContextPanelProps) {
   const suggestions = useMemo(() => generateSuggestions(note, allNotes), [note, allNotes]);
 
   // Mini graph data: nodes for current + neighbors + second-degree
@@ -111,7 +130,20 @@ export function ContextPanel({ note, allNotes, activeTab, onTabChange, onOpenNot
       </div>
 
       <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-        {activeTab === 'ai' && <AIPanel note={note} suggestions={suggestions} graphData={graphData} onOpenNote={onOpenNote} />}
+        {activeTab === 'ai' && (
+          <AIPanel
+            note={note}
+            suggestions={suggestions}
+            graphData={graphData}
+            onOpenNote={onOpenNote}
+            onAskAI={onAskAI}
+            onExportEssay={onExportEssay}
+            onInsertLink={onInsertLink}
+            onDraftSynthesis={onDraftSynthesis}
+            onAnswerInNewNote={onAnswerInNewNote}
+            onScheduleReview={onScheduleReview}
+          />
+        )}
         {activeTab === 'graph' && <GraphPanel note={note} allNotes={allNotes} onOpenNote={onOpenNote} />}
         {activeTab === 'history' && <HistoryPanel note={note} history={history} onOpenNote={onOpenNote} />}
       </div>
@@ -126,11 +158,23 @@ function AIPanel({
   suggestions,
   graphData,
   onOpenNote,
+  onAskAI,
+  onExportEssay,
+  onInsertLink,
+  onDraftSynthesis,
+  onAnswerInNewNote,
+  onScheduleReview,
 }: {
   note: Note;
   suggestions: ReturnType<typeof generateSuggestions>;
   graphData: { neighbors: Note[]; distant: Note[] };
   onOpenNote: (id: string) => void;
+  onAskAI: () => void;
+  onExportEssay: () => void;
+  onInsertLink: (linkTitle: string) => void;
+  onDraftSynthesis: () => void;
+  onAnswerInNewNote: (question: string) => void;
+  onScheduleReview: () => void;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -151,9 +195,22 @@ function AIPanel({
 
       {/* Suggestion cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {suggestions.map((s, i) => (
-          <SuggestionCard key={i} suggestion={s} />
-        ))}
+        {suggestions.map((s, i) => {
+          let onClick: (() => void) | undefined;
+          if (s.type === 'missing link' && s.action.startsWith('insert')) {
+            // Extract the title from the description (the quoted name before "appears")
+            const match = s.description.match(/^"([^"]+)"/);
+            const title = match ? match[1] : '';
+            onClick = () => onInsertLink(title);
+          } else if (s.type === 'synthesis ready') {
+            onClick = onDraftSynthesis;
+          } else if (s.type === 'review due') {
+            onClick = onScheduleReview;
+          } else if (s.type === 'open question') {
+            onClick = () => onAnswerInNewNote(s.description);
+          }
+          return <SuggestionCard key={i} suggestion={s} onClick={onClick} />;
+        })}
       </div>
 
       {/* Mini knowledge graph */}
@@ -175,8 +232,8 @@ function AIPanel({
 
       {/* Action buttons */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-        <ActionButton label="export as essay" />
-        <ActionButton label="ask AI about this" />
+        <ActionButton label="export as essay" onClick={onExportEssay} />
+        <ActionButton label="ask AI about this" onClick={onAskAI} />
       </div>
     </div>
   );
@@ -184,24 +241,29 @@ function AIPanel({
 
 function SuggestionCard({
   suggestion,
+  onClick,
 }: {
   suggestion: ReturnType<typeof generateSuggestions>[number];
+  onClick?: () => void;
 }) {
   return (
     <div
+      onClick={onClick}
       style={{
         background: 'var(--bg2)',
         border: '1px solid var(--bd)',
         borderRadius: 4,
         padding: '7px 10px',
-        cursor: 'pointer',
+        cursor: onClick ? 'pointer' : 'default',
         transition: 'background 0.12s, border 0.12s',
       }}
       onMouseEnter={(e) => {
+        if (!onClick) return;
         e.currentTarget.style.background = 'var(--acc-bg)';
         e.currentTarget.style.borderColor = 'var(--acc)';
       }}
       onMouseLeave={(e) => {
+        if (!onClick) return;
         e.currentTarget.style.background = 'var(--bg2)';
         e.currentTarget.style.borderColor = 'var(--bd)';
       }}
@@ -237,9 +299,10 @@ function SuggestionCard({
   );
 }
 
-function ActionButton({ label }: { label: string }) {
+function ActionButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
+      onClick={onClick}
       style={{
         background: 'var(--bg2)',
         border: '1px solid var(--bd)',

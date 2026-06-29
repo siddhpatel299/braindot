@@ -1,4 +1,4 @@
-import { Note, NoteCollection } from '@/types';
+import { Note, Folder, ParaType } from '@/types';
 
 // Helper to build consistent timestamps (June 2026, recent)
 const ts = (daysAgo: number, hoursAgo: number = 0): string => {
@@ -21,6 +21,21 @@ export const SEED_NOTE_IDS = {
   expertiseInvisibility:  'nt_expertise_invisibility',
 } as const;
 
+// Stable folder IDs
+export const SEED_FOLDER_IDS = {
+  projects:   'fld_para_projects',
+  areas:      'fld_para_areas',
+  resources:  'fld_para_resources',
+  archives:   'fld_para_archives',
+  // sub-folders
+  areasStrategy:    'fld_areas_strategy',
+  resourcesPkm:     'fld_resources_pkm',
+  resourcesLearning:'fld_resources_learning',
+  resourcesReading: 'fld_resources_reading',
+  resourcesResearch:'fld_resources_research',
+  journal:          'fld_resources_journal',
+} as const;
+
 interface SeedSpec {
   id: string;
   filename: string;
@@ -29,7 +44,8 @@ interface SeedSpec {
   tags: string[];
   body: string;
   status: 'draft' | 'evergreen';
-  collection: NoteCollection;
+  folderId: string;
+  pinned: boolean;
   createdDaysAgo: number;
   updatedHoursAgo: number;
 }
@@ -68,7 +84,8 @@ Three tiers: fleeting notes (capture, review within 48 hours), literature notes 
 
 The [[progressive-summarisation]] technique is a complementary way to surface what matters inside literature notes before they are promoted.`,
     status: 'evergreen',
-    collection: 'pinned',
+    folderId: SEED_FOLDER_IDS.resourcesPkm,
+    pinned: true,
     createdDaysAgo: 47,
     updatedHoursAgo: 26,
   },
@@ -101,7 +118,8 @@ PARA organizes where things live. Zettelkasten organizes how things connect. The
 
 When I find myself reaching for a new folder, I check whether I am actually creating structure or just hiding decision fatigue. Usually the answer is the latter, and [[progressive-summarisation]] is the better tool.`,
     status: 'draft',
-    collection: 'learning',
+    folderId: SEED_FOLDER_IDS.resourcesPkm,
+    pinned: false,
     createdDaysAgo: 32,
     updatedHoursAgo: 5,
   },
@@ -137,7 +155,8 @@ Every note you write carries an implicit question: where does this go? If the an
 
 The [[spaced-repetition]] insight — that the brain consolidates memories over time — has a parallel here: the brain also consolidates decisions. A choice you make once is cheap. A choice you make a thousand times is a system, and systems deserve more design attention than they get.`,
     status: 'evergreen',
-    collection: 'strategy',
+    folderId: SEED_FOLDER_IDS.areasStrategy,
+    pinned: false,
     createdDaysAgo: 28,
     updatedHoursAgo: 11,
   },
@@ -173,7 +192,8 @@ This is why the [[zettelkasten-method]] practice of revisiting and linking old n
 
 The [[expertise-invisibility]] problem is the mirror image: experts have automated so much that they can no longer retrieve the steps of their own reasoning. Spaced repetition is one tool for keeping the steps accessible.`,
     status: 'draft',
-    collection: 'research',
+    folderId: SEED_FOLDER_IDS.resourcesLearning,
+    pinned: false,
     createdDaysAgo: 21,
     updatedHoursAgo: 2,
   },
@@ -209,7 +229,8 @@ Progressive summarisation is the reading layer of the [[para-method]] system: it
 
 The fourth pass is the one that connects to [[decision-fatigue]]-aware design: do not do it on a schedule, do it when you reach for the note for some other reason. The decision to summarize should be organic, not calendar-driven.`,
     status: 'draft',
-    collection: 'reading',
+    folderId: SEED_FOLDER_IDS.resourcesReading,
+    pinned: false,
     createdDaysAgo: 18,
     updatedHoursAgo: 49,
   },
@@ -245,10 +266,28 @@ It is also why the [[zettelkasten-method]] practice of writing atomic notes is h
 
 The [[decision-fatigue]] angle is real too: experts make decisions without noticing them, which is efficient for the expert and confusing for everyone downstream. A second brain is partly a translation layer — it makes expert decisions legible to future, less-expert versions of yourself.`,
     status: 'draft',
-    collection: 'research',
+    folderId: SEED_FOLDER_IDS.resourcesResearch,
+    pinned: false,
     createdDaysAgo: 12,
     updatedHoursAgo: 30,
   },
+];
+
+// Build the folder tree: 4 PARA roots + sub-folders
+export const SEED_FOLDERS: Folder[] = [
+  // PARA top-level
+  { id: SEED_FOLDER_IDS.projects,   name: 'Projects',  parentId: null, paraType: 'projects',  createdAt: ts(60), expanded: true },
+  { id: SEED_FOLDER_IDS.areas,      name: 'Areas',     parentId: null, paraType: 'areas',     createdAt: ts(60), expanded: true },
+  { id: SEED_FOLDER_IDS.resources,  name: 'Resources', parentId: null, paraType: 'resources', createdAt: ts(60), expanded: true },
+  { id: SEED_FOLDER_IDS.archives,   name: 'Archives',  parentId: null, paraType: 'archives',  createdAt: ts(60), expanded: false },
+  // Sub-folders under Areas
+  { id: SEED_FOLDER_IDS.areasStrategy,    name: 'Strategy',    parentId: SEED_FOLDER_IDS.areas,     createdAt: ts(45), expanded: true },
+  // Sub-folders under Resources
+  { id: SEED_FOLDER_IDS.resourcesPkm,     name: 'PKM',         parentId: SEED_FOLDER_IDS.resources, createdAt: ts(45), expanded: true },
+  { id: SEED_FOLDER_IDS.resourcesLearning,name: 'Learning',    parentId: SEED_FOLDER_IDS.resources, createdAt: ts(45), expanded: true },
+  { id: SEED_FOLDER_IDS.resourcesReading, name: 'Reading',     parentId: SEED_FOLDER_IDS.resources, createdAt: ts(45), expanded: true },
+  { id: SEED_FOLDER_IDS.resourcesResearch,name: 'Research',    parentId: SEED_FOLDER_IDS.resources, createdAt: ts(45), expanded: true },
+  { id: SEED_FOLDER_IDS.journal,          name: 'Journal',     parentId: SEED_FOLDER_IDS.resources, createdAt: ts(45), expanded: false },
 ];
 
 export const SEED_NOTES: Note[] = SPECS.map((s) => {
@@ -261,16 +300,31 @@ export const SEED_NOTES: Note[] = SPECS.map((s) => {
     subtitle: s.subtitle,
     tags: s.tags,
     body: s.body,
-    backlinks: [], // filled in below
+    backlinks: [],
     createdAt: created,
     updatedAt: updated,
     wordCount: wc(s.body),
     status: s.status,
-    collection: s.collection,
+    folderId: s.folderId,
+    pinned: s.pinned,
   };
 });
 
 // Helper for new note IDs
 export function generateNoteId(): string {
   return 'nt_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+// Helper for new folder IDs
+export function generateFolderId(): string {
+  return 'fld_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+// Today's date as YYYY-MM-DD for journal entries
+export function todayDateKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
