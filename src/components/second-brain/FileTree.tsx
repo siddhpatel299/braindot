@@ -176,13 +176,13 @@ export function FileTree({
         title={`${n.title}\nRight-click to ${n.pinned ? 'unpin' : 'pin'}`}
       >
         {n.pinned ? (
-          <Pin size={10} style={{ flexShrink: 0, opacity: 0.7, color: 'var(--amb)' }} />
+          <Pin size={12} style={{ flexShrink: 0, opacity: 0.7, color: 'var(--amb)' }} />
         ) : (
-          <FileText size={10} style={{ flexShrink: 0, opacity: 0.7 }} />
+          <FileText size={12} style={{ flexShrink: 0, opacity: 0.7 }} />
         )}
         <span
           style={{
-            fontSize: 11,
+            fontSize: 13,
             flex: 1,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -193,12 +193,12 @@ export function FileTree({
         </span>
         <span
           style={{
-            fontSize: 9,
+            fontSize: 10,
             background: 'var(--bg3)',
             color: 'var(--t3)',
-            padding: '1px 5px',
+            padding: '1px 6px',
             borderRadius: 3,
-            minWidth: 16,
+            minWidth: 18,
             textAlign: 'center',
           }}
         >
@@ -297,8 +297,8 @@ export function FileTree({
                 background: 'var(--bg3)',
                 border: '1px solid var(--acc)',
                 color: 'var(--t1)',
-                fontSize: 11,
-                padding: '1px 4px',
+                fontSize: 13,
+                padding: '1px 5px',
                 borderRadius: 2,
                 outline: 'none',
                 fontFamily: 'inherit',
@@ -307,7 +307,7 @@ export function FileTree({
           ) : (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 13,
                 flex: 1,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -323,7 +323,7 @@ export function FileTree({
           )}
           <span
             style={{
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--t3)',
               opacity: 0.6,
             }}
@@ -438,7 +438,7 @@ export function FileTree({
             )}
             <span
               style={{
-                fontSize: 9,
+                fontSize: 11,
                 textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 fontWeight: 600,
@@ -446,7 +446,7 @@ export function FileTree({
             >
               {tag}
             </span>
-            <span style={{ fontSize: 9, color: 'var(--t3)', opacity: 0.6 }}>
+            <span style={{ fontSize: 11, color: 'var(--t3)', opacity: 0.6 }}>
               {tagNotes.length}
             </span>
           </button>
@@ -459,8 +459,8 @@ export function FileTree({
   return (
     <div
       style={{
-        width: 220,
-        minWidth: 220,
+        width: 240,
+        minWidth: 240,
         height: '100%',
         background: 'var(--bg1)',
         borderRight: '1px solid var(--bd)',
@@ -486,31 +486,31 @@ export function FileTree({
             onClick={() => onViewChange('folders')}
             title="Folder view"
             style={{
-              height: 20, padding: '0 6px', borderRadius: 3,
+              height: 22, padding: '0 8px', borderRadius: 3,
               background: view === 'folders' ? 'var(--bg3)' : 'transparent',
               border: '1px solid ' + (view === 'folders' ? 'var(--bd2)' : 'transparent'),
               color: view === 'folders' ? 'var(--t1)' : 'var(--t3)',
-              fontSize: 9, fontFamily: 'inherit', cursor: 'pointer',
+              fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
               textTransform: 'uppercase', letterSpacing: '0.06em',
               display: 'flex', alignItems: 'center', gap: 3,
             }}
           >
-            <FolderIcon size={9} /> Folders
+            <FolderIcon size={11} /> Folders
           </button>
           <button
             onClick={() => onViewChange('tags')}
             title="Tag view"
             style={{
-              height: 20, padding: '0 6px', borderRadius: 3,
+              height: 22, padding: '0 8px', borderRadius: 3,
               background: view === 'tags' ? 'var(--bg3)' : 'transparent',
               border: '1px solid ' + (view === 'tags' ? 'var(--bd2)' : 'transparent'),
               color: view === 'tags' ? 'var(--t1)' : 'var(--t3)',
-              fontSize: 9, fontFamily: 'inherit', cursor: 'pointer',
+              fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
               textTransform: 'uppercase', letterSpacing: '0.06em',
               display: 'flex', alignItems: 'center', gap: 3,
             }}
           >
-            <Tag size={9} /> Tags
+            <Tag size={11} /> Tags
           </button>
         </div>
         <button
@@ -539,7 +539,7 @@ export function FileTree({
                 <div
                   style={{
                     padding: '6px 12px 4px',
-                    fontSize: 9,
+                    fontSize: 11,
                     textTransform: 'uppercase',
                     letterSpacing: '0.09em',
                     color: 'var(--t3)',

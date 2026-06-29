@@ -70,3 +70,70 @@ Stage Summary:
 - Lint passes with 0 errors, 0 warnings
 - Dev server runs cleanly
 - All features verified end-to-end via Agent Browser: AI returns real responses, export compiles 4 related notes, insert link adds [[Decision Fatigue]] to body, draft synthesis creates "Synthesis — Zettelkasten Method" note, answer in new note creates note with question as title, daily journal creates "Journal — 2026-06-29", tag view groups notes by tag
+
+---
+Task ID: second-brain-v3
+Agent: main (Super Z)
+Task: Fix two user complaints: (1) text is too small everywhere, (2) no formatting toolbar for bold/italic/underline/code blocks.
+
+Work Log:
+- Increased font sizes globally:
+  - Editor body: 12px → 14px
+  - Editor headings: 14px → 15px
+  - Note title: 24px → 28px
+  - Subtitle: 13px → 15px
+  - Tags/metadata: 10px → 11px
+  - Backlinks label: 9px → 11px, backlink entries: 11px → 13px
+  - File tree note titles: 11px → 13px
+  - File tree folder names: 11px → 13px
+  - File tree section labels (PINNED, tag names): 9px → 11px
+  - File tree Folders/Tags tab buttons: 9px → 11px (and button height 20→22px)
+  - Status bar: 10px → 11px (and height 24→28px)
+  - Command bar search: 11px → 13px (and height 44→48px, input 30→34px)
+  - Command bar streak/version: 10px → 12px
+  - Command bar new note button: 11px → 13px
+  - Editor tabs: 10px → 12px (and height 28→32px)
+  - Context panel tabs: 10px → 12px
+  - Context panel suggestion cards: 10.5px → 12px body, 9→10px type label, 9.5→11px action
+  - Context panel history entries: 10px → 12px
+  - Context panel section headers: 9px → 11px
+- Built new FormattingToolbar component with 14 buttons in 4 groups:
+  - Headings: H1, H2, H3 (insert # / ## / ### at line start, replacing existing heading)
+  - Inline: Bold (**), Italic (*), Underline (<u></u>), Strikethrough (~~), Inline code (`)
+  - Block: Code block (```), Bullet list (- ), Numbered list (1. ), Quote (> )
+  - Links: Wiki-link ([[...]]), Markdown link [text](url)
+  - All buttons wrap the selected text, or insert a placeholder if no selection
+  - Toolbar is sticky above the editor body, below the tab bar
+- Added markdown rendering for new token types in utils/markdown.ts:
+  - <u>underline</u> → .sb-tok-underline (text-decoration: underline)
+  - ~~strikethrough~~ → .sb-tok-strike (text-decoration: line-through)
+  - `inline code` → .sb-tok-code (green text on dark bg with border)
+  - ```code block``` → .sb-tok-codeblock (dark box with border, green text, monospace)
+- Added CSS styles for all new tokens in globals.css
+- Added keyboard shortcuts in EditorCanvas handleKeyDown:
+  - ⌘B → bold (**)
+  - ⌘I → italic (*)
+  - ⌘U → underline (<u></u>)
+  - ⌘Shift+K → inline code (`) (⌘K alone is the command palette)
+  - Tab → insert 2 spaces (existing)
+- Increased file tree width: 220px → 240px
+- Increased context panel width: 240px → 260px
+- Increased icon rail buttons: 32×32 → 36×36px, icons 16→18px
+
+Stage Summary:
+- All text is now readable (body 14px, sidebar 13px, status bar 11px — was 12/11/10px)
+- Formatting toolbar with 14 buttons visible above editor body
+- All formatting types render correctly in the overlay:
+  - **bold** → white text
+  - *italic* → purple text
+  - <u>underline</u> → underlined text
+  - ~~strikethrough~~ → line-through text
+  - `inline code` → green text in bordered box
+  - ```code block``` → dark box with green text
+  - ## Headings → uppercase with horizontal rule
+  - - bullets → em-dash in muted color
+  - > [!callout] → purple-bordered callout box
+  - [[wiki-links]] → purple underlined clickable
+- Keyboard shortcuts ⌘B/⌘I/⌘U/⌘Shift+K all verified working
+- Lint passes with 0 errors, 0 warnings
+- All features verified end-to-end via Agent Browser

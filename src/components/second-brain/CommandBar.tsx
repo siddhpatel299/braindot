@@ -14,31 +14,31 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
   return (
     <div
       style={{
-        height: 44,
+        height: 48,
         background: 'var(--bg1)',
         borderBottom: '1px solid var(--bd)',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 12px',
-        gap: 12,
+        padding: '0 14px',
+        gap: 14,
       }}
     >
       {/* Search input */}
       <div
         style={{
           flex: 1,
-          height: 30,
+          height: 34,
           background: 'var(--bg3)',
           border: '1px solid var(--bd2)',
           borderRadius: 4,
           display: 'flex',
           alignItems: 'center',
-          padding: '0 10px',
-          gap: 8,
+          padding: '0 12px',
+          gap: 10,
           maxWidth: 720,
         }}
       >
-        <Search size={13} color="var(--t3)" strokeWidth={1.75} />
+        <Search size={15} color="var(--t3)" strokeWidth={1.75} />
         <input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -50,7 +50,6 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
             border: 'none',
             outline: 'none',
             color: 'var(--t1)',
-            fontSize: 11,
             fontFamily: 'inherit',
             caretColor: 'var(--acc2)',
           }}
@@ -69,13 +68,13 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
           onClick={onOpenPalette}
           title="Open command palette (⌘K)"
           style={{
-            height: 18,
-            padding: '0 6px',
+            height: 22,
+            padding: '0 8px',
             background: 'var(--bg4)',
             border: '1px solid var(--bd2)',
             borderRadius: 3,
             color: 'var(--t2)',
-            fontSize: 9,
+            fontSize: 11,
             fontFamily: 'inherit',
             cursor: 'pointer',
             display: 'flex',
@@ -93,21 +92,21 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
         <div
           title="Writing streak"
           style={{
-            height: 24,
-            padding: '0 8px',
+            height: 28,
+            padding: '0 10px',
             background: 'var(--amb-bg)',
             border: '1px solid #4a3010',
             borderRadius: 4,
             color: 'var(--amb)',
-            fontSize: 10,
+            fontSize: 12,
             fontFamily: 'inherit',
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
+            gap: 5,
             fontWeight: 600,
           }}
         >
-          <Flame size={11} strokeWidth={2} />
+          <Flame size={13} strokeWidth={2} />
           {streak}d
         </div>
 
@@ -115,13 +114,13 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
         <div
           title="Workspace version"
           style={{
-            height: 24,
-            padding: '0 8px',
+            height: 28,
+            padding: '0 10px',
             background: 'var(--bg2)',
             border: '1px solid var(--bd2)',
             borderRadius: 4,
             color: 'var(--t2)',
-            fontSize: 10,
+            fontSize: 12,
             fontFamily: 'inherit',
             display: 'flex',
             alignItems: 'center',
@@ -135,13 +134,13 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
         <button
           onClick={onCreate}
           style={{
-            height: 28,
-            padding: '0 12px',
+            height: 32,
+            padding: '0 14px',
             background: 'var(--acc)',
             color: '#fff',
             border: 'none',
             borderRadius: 4,
-            fontSize: 11,
+            fontSize: 13,
             fontFamily: 'inherit',
             cursor: 'pointer',
             display: 'flex',
@@ -158,7 +157,7 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
             e.currentTarget.style.background = 'var(--acc)';
           }}
         >
-          <Plus size={12} strokeWidth={2.5} />
+          <Plus size={14} strokeWidth={2.5} />
           new note
         </button>
       </div>

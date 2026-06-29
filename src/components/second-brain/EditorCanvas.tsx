@@ -4,7 +4,8 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown';
 import { useEditor } from '@/hooks/useEditor';
-import { ArrowLeft, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { FormattingToolbar } from './FormattingToolbar';
 
 interface EditorCanvasProps {
   note: Note;
@@ -88,8 +89,34 @@ export function EditorCanvas({
     [onOpenNoteByTitle],
   );
 
-  const handleTabKey = useCallback(
+  const wrapSelection = useCallback(
+    (prefix: string, suffix: string, placeholder: string = 'text') => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const selected = editor.body.slice(start, end);
+      const text = selected || placeholder;
+      const inserted = prefix + text + suffix;
+      const next = editor.body.slice(0, start) + inserted + editor.body.slice(end);
+      editor.updateBody(next);
+      requestAnimationFrame(() => {
+        if (selected) {
+          ta.selectionStart = start;
+          ta.selectionEnd = start + inserted.length;
+        } else {
+          ta.selectionStart = start + prefix.length;
+          ta.selectionEnd = start + prefix.length + placeholder.length;
+        }
+        ta.focus();
+      });
+    },
+    [editor],
+  );
+
+  const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const meta = e.metaKey || e.ctrlKey;
       if (e.key === 'Tab') {
         e.preventDefault();
         const ta = e.currentTarget;
@@ -97,13 +124,28 @@ export function EditorCanvas({
         const end = ta.selectionEnd;
         const next = editor.body.slice(0, start) + '  ' + editor.body.slice(end);
         editor.updateBody(next);
-        // restore selection after react re-render
         requestAnimationFrame(() => {
           ta.selectionStart = ta.selectionEnd = start + 2;
         });
+        return;
+      }
+      // Formatting shortcuts
+      if (meta && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        wrapSelection('**', '**', 'bold text');
+      } else if (meta && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        wrapSelection('*', '*', 'italic text');
+      } else if (meta && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        wrapSelection('<u>', '</u>', 'underlined');
+      } else if (meta && e.shiftKey && e.key.toLowerCase() === 'k') {
+        // Cmd+Shift+K — inline code (Cmd+K alone is the command palette)
+        e.preventDefault();
+        wrapSelection('`', '`', 'code');
       }
     },
-    [editor],
+    [editor, wrapSelection],
   );
 
   // Backlinks for this note: use the precomputed backlinks field, then
@@ -125,12 +167,19 @@ export function EditorCanvas({
         overflow: 'hidden',
       }}
     >
+      {/* Formatting toolbar */}
+      <FormattingToolbar
+        textareaRef={textareaRef}
+        body={editor.body}
+        onBodyChange={editor.updateBody}
+      />
+
       <div
         className="sb-scroll"
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '32px 48px 80px',
+          padding: '28px 48px 80px',
         }}
       >
         {/* Note header: tags + metadata */}
@@ -149,11 +198,11 @@ export function EditorCanvas({
               <span
                 key={t}
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   color: c.color,
                   background: c.bg,
                   border: `1px solid ${c.border}`,
-                  padding: '2px 7px',
+                  padding: '3px 8px',
                   borderRadius: 3,
                   fontFamily: 'inherit',
                 }}
@@ -162,23 +211,23 @@ export function EditorCanvas({
               </span>
             );
           })}
-          <span style={{ color: 'var(--t3)', fontSize: 10 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 10 }}>{formatDate(note.updatedAt)}</span>
-          <span style={{ color: 'var(--t3)', fontSize: 10 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 10 }}>{countWords(note.body)} words</span>
-          <span style={{ color: 'var(--t3)', fontSize: 10 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 10 }}>{backlinks.length} backlinks</span>
-          <span style={{ color: 'var(--t3)', fontSize: 10 }}>·</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{formatDate(note.updatedAt)}</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{countWords(note.body)} words</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{backlinks.length} backlinks</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
           <button
             onClick={() => onToggleEvergreen(note.id)}
             title="Toggle evergreen status"
             style={{
-              fontSize: 10,
+              fontSize: 11,
               color: note.status === 'evergreen' ? 'var(--grn)' : 'var(--t3)',
               background: note.status === 'evergreen' ? 'var(--grn-bg)' : 'transparent',
               border:
                 note.status === 'evergreen' ? '1px solid #1a4a2a' : '1px solid var(--bd2)',
-              padding: '2px 7px',
+              padding: '3px 8px',
               borderRadius: 3,
               cursor: 'pointer',
               display: 'inline-flex',
@@ -189,12 +238,12 @@ export function EditorCanvas({
           >
             {note.status === 'evergreen' ? (
               <>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--grn)' }} />
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--grn)' }} />
                 evergreen
               </>
             ) : (
               <>
-                <RefreshCw size={9} />
+                <RefreshCw size={11} />
                 draft
               </>
             )}
@@ -212,7 +261,7 @@ export function EditorCanvas({
             border: 'none',
             outline: 'none',
             color: 'var(--t1)',
-            fontSize: 24,
+            fontSize: 28,
             fontWeight: 700,
             letterSpacing: '-0.02em',
             padding: 0,
@@ -233,7 +282,7 @@ export function EditorCanvas({
             border: 'none',
             outline: 'none',
             color: 'var(--t3)',
-            fontSize: 13,
+            fontSize: 15,
             fontStyle: 'italic',
             padding: 0,
             marginBottom: 28,
@@ -259,7 +308,7 @@ export function EditorCanvas({
             className="sb-editor-textarea"
             value={editor.body}
             onChange={(e) => editor.updateBody(e.target.value)}
-            onKeyDown={handleTabKey}
+            onKeyDown={handleKeyDown}
             placeholder="# Start writing your note…"
             spellCheck={false}
             rows={1}
@@ -273,27 +322,27 @@ export function EditorCanvas({
             background: 'var(--bg2)',
             border: '1px solid var(--bd)',
             borderRadius: 4,
-            padding: '10px 14px',
+            padding: '12px 16px',
           }}
         >
           <div
             style={{
-              fontSize: 9,
+              fontSize: 11,
               textTransform: 'uppercase',
               letterSpacing: '0.09em',
               color: 'var(--t3)',
-              marginBottom: 8,
+              marginBottom: 10,
               fontWeight: 600,
             }}
           >
             backlinks — {backlinks.length} {backlinks.length === 1 ? 'note' : 'notes'} reference this
           </div>
           {backlinks.length === 0 ? (
-            <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic' }}>
+            <div style={{ fontSize: 13, color: 'var(--t3)', fontStyle: 'italic' }}>
               no backlinks yet. link this note from elsewhere with [[{note.title}]].
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {backlinks.map((b) => (
                 <button
                   key={b.id}
@@ -303,7 +352,7 @@ export function EditorCanvas({
                     border: 'none',
                     padding: 0,
                     color: 'var(--t2)',
-                    fontSize: 11,
+                    fontSize: 13,
                     cursor: 'pointer',
                     textAlign: 'left',
                     display: 'flex',
@@ -318,7 +367,7 @@ export function EditorCanvas({
                     e.currentTarget.style.color = 'var(--t2)';
                   }}
                 >
-                  <ArrowLeft size={11} style={{ opacity: 0.6 }} />
+                  <ArrowLeft size={13} style={{ opacity: 0.6 }} />
                   {b.title}
                 </button>
               ))}
@@ -330,7 +379,7 @@ export function EditorCanvas({
         <div
           style={{
             marginTop: 16,
-            fontSize: 9,
+            fontSize: 11,
             color: 'var(--t3)',
             opacity: 0.7,
             fontStyle: 'italic',

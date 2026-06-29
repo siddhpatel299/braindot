@@ -78,8 +78,8 @@ export function ContextPanel({
   return (
     <div
       style={{
-        width: 240,
-        minWidth: 240,
+        width: 260,
+        minWidth: 260,
         height: '100%',
         background: 'var(--bg1)',
         borderLeft: '1px solid var(--bd)',
@@ -108,7 +108,7 @@ export function ContextPanel({
                 border: 'none',
                 borderBottom: isActive ? '2px solid var(--acc)' : '2px solid transparent',
                 color: isActive ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 10,
+                fontSize: 12,
                 textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 cursor: 'pointer',
@@ -190,7 +190,7 @@ function AIPanel({
             boxShadow: '0 0 6px rgba(124,110,247,0.6)',
           }}
         />
-        <span style={{ fontSize: 10, color: 'var(--acc2)', letterSpacing: '0.04em' }}>live suggestions</span>
+        <span style={{ fontSize: 11, color: 'var(--acc2)', letterSpacing: '0.04em' }}>live suggestions</span>
       </div>
 
       {/* Suggestion cards */}
@@ -217,7 +217,7 @@ function AIPanel({
       <div>
         <div
           style={{
-            fontSize: 9,
+            fontSize: 11,
             textTransform: 'uppercase',
             letterSpacing: '0.09em',
             color: 'var(--t3)',
@@ -270,7 +270,7 @@ function SuggestionCard({
     >
       <div
         style={{
-          fontSize: 9,
+          fontSize: 10,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
           color: 'var(--t3)',
@@ -280,12 +280,12 @@ function SuggestionCard({
       >
         {suggestion.type}
       </div>
-      <div style={{ fontSize: 10.5, color: 'var(--t2)', lineHeight: 1.45, marginBottom: 4 }}>
+      <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, marginBottom: 5 }}>
         {suggestion.description}
       </div>
       <div
         style={{
-          fontSize: 9.5,
+          fontSize: 11,
           color: 'var(--acc)',
           display: 'flex',
           alignItems: 'center',
@@ -307,9 +307,9 @@ function ActionButton({ label, onClick }: { label: string; onClick: () => void }
         background: 'var(--bg2)',
         border: '1px solid var(--bd)',
         borderRadius: 3,
-        padding: '7px 10px',
+        padding: '8px 11px',
         color: 'var(--t2)',
-        fontSize: 10,
+        fontSize: 11,
         cursor: 'pointer',
         fontFamily: 'inherit',
         textAlign: 'left',
@@ -490,7 +490,7 @@ function GraphPanel({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div
         style={{
-          fontSize: 9,
+          fontSize: 11,
           textTransform: 'uppercase',
           letterSpacing: '0.09em',
           color: 'var(--t3)',
@@ -550,7 +550,7 @@ function GraphPanel({
           );
         })}
       </svg>
-      <div style={{ fontSize: 9, color: 'var(--t3)', lineHeight: 1.6 }}>
+      <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.6 }}>
         {edges.length} connections across {allNotes.length} notes. Click any node to open it.
       </div>
     </div>
@@ -577,7 +577,7 @@ function HistoryPanel({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <div
         style={{
-          fontSize: 9,
+          fontSize: 11,
           textTransform: 'uppercase',
           letterSpacing: '0.09em',
           color: 'var(--t3)',
@@ -588,7 +588,7 @@ function HistoryPanel({
         this note
       </div>
       {noteHistory.length === 0 ? (
-        <div style={{ fontSize: 10, color: 'var(--t3)', fontStyle: 'italic' }}>no recorded edits yet</div>
+        <div style={{ fontSize: 12, color: 'var(--t3)', fontStyle: 'italic' }}>no recorded edits yet</div>
       ) : (
         noteHistory.slice(0, 8).map((h) => (
           <HistoryRow key={h.id} text={h.text} timestamp={h.timestamp} />
@@ -597,7 +597,7 @@ function HistoryPanel({
 
       <div
         style={{
-          fontSize: 9,
+          fontSize: 11,
           textTransform: 'uppercase',
           letterSpacing: '0.09em',
           color: 'var(--t3)',
@@ -608,7 +608,7 @@ function HistoryPanel({
         recent activity
       </div>
       {recent.length === 0 ? (
-        <div style={{ fontSize: 10, color: 'var(--t3)', fontStyle: 'italic' }}>no other recent activity</div>
+        <div style={{ fontSize: 12, color: 'var(--t3)', fontStyle: 'italic' }}>no other recent activity</div>
       ) : (
         recent.map((h) => (
           <button
@@ -642,7 +642,7 @@ function HistoryRow({ text, timestamp }: { text: string; timestamp: number }) {
   return (
     <div
       style={{
-        fontSize: 10,
+        fontSize: 12,
         color: 'var(--t3)',
         lineHeight: 1.5,
         padding: '2px 0',

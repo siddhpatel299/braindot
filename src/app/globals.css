@@ -114,7 +114,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .sb-editor-wrap {
   position: relative;
   font-family: 'JetBrains Mono', 'Fira Mono', monospace;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
   letter-spacing: 0;
   tab-size: 2;
@@ -164,7 +164,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 /* Token styles inside .sb-editor-pre */
 .sb-tok-h {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   text-transform: uppercase;
   color: var(--t2);
   letter-spacing: 0.05em;
@@ -190,6 +190,35 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   color: var(--acc2);
   font-style: italic;
 }
+.sb-tok-underline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--t1);
+}
+.sb-tok-strike {
+  text-decoration: line-through;
+  color: var(--t3);
+}
+.sb-tok-code {
+  background: var(--bg3);
+  color: var(--grn);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.92em;
+  border: 1px solid var(--bd);
+}
+.sb-tok-codeblock {
+  display: block;
+  background: var(--bg1);
+  border: 1px solid var(--bd);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  color: var(--grn);
+  font-size: 12px;
+  white-space: pre;
+  overflow-x: auto;
+}
 .sb-tok-wiki {
   color: var(--acc2);
   text-decoration: underline;
@@ -210,7 +239,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   padding: 10px 14px;
   margin: 10px 0;
   color: #9994cc;
-  font-size: 11px;
+  font-size: 13px;
   border-radius: 0 4px 4px 0;
   white-space: normal;
 }

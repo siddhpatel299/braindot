@@ -35,7 +35,7 @@ export function EditorTabs({
   return (
     <div
       style={{
-        height: 34,
+        height: 38,
         background: 'var(--bg1)',
         borderBottom: '1px solid var(--bd)',
         display: 'flex',
@@ -75,10 +75,10 @@ export function EditorTabs({
             }}
             onClick={() => onSelect(n.id)}
             style={{
-              height: 28,
-              minWidth: 140,
-              maxWidth: 220,
-              padding: '0 8px 0 10px',
+              height: 32,
+              minWidth: 160,
+              maxWidth: 240,
+              padding: '0 10px 0 12px',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
@@ -92,7 +92,7 @@ export function EditorTabs({
               marginRight: 2,
               borderRadius: '4px 4px 0 0',
               cursor: 'pointer',
-              fontSize: 10,
+              fontSize: 12,
               fontFamily: 'inherit',
               position: 'relative',
               opacity: isDragOver ? 0.6 : 1,

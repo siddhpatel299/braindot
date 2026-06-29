@@ -74,6 +74,10 @@ function escapeHtml(s: string): string {
  *  - ## Heading  → .sb-tok-h (with horizontal rule via ::after)
  *  - **bold**    → .sb-tok-bold
  *  - _italic_ or *italic*  → .sb-tok-italic
+ *  - <u>underline</u>      → .sb-tok-underline
+ *  - ~~strikethrough~~     → .sb-tok-strike
+ *  - `inline code`         → .sb-tok-code
+ *  - ``` code block ```    → .sb-tok-codeblock
  *  - [[wiki-link]] → .sb-tok-wiki (data attribute so we can click)
  *  - > [!callout]  blocks → .sb-tok-callout with .sb-tok-callout-label
  *  - - bullet     → bullet char in .sb-tok-bullet
@@ -106,8 +110,14 @@ export function renderMarkdownOverlay(body: string): string {
       /\[\[([^\]]+)\]\]/g,
       (_m, p1) => `<span class="sb-tok-wiki" data-wiki="${escapeHtml(p1)}">[[${escapeHtml(p1)}]]</span>`,
     );
+    // inline code  `text`  — must be before bold/italic so they don't clash
+    s = s.replace(/`([^`\n]+)`/g, '<span class="sb-tok-code">`$1`</span>');
     // bold  **text**
     s = s.replace(/\*\*([^*]+)\*\*/g, '<span class="sb-tok-bold">**$1**</span>');
+    // strikethrough  ~~text~~
+    s = s.replace(/~~([^~\n]+)~~/g, '<span class="sb-tok-strike">~~$1~~</span>');
+    // underline  <u>text</u>  (HTML-style; we don't use _underline_ to avoid clashing with italic)
+    s = s.replace(/&lt;u&gt;([^&\n]+)&lt;\/u&gt;/g, '<span class="sb-tok-underline">&lt;u&gt;$1&lt;/u&gt;</span>');
     // italic _text_ or *text*  (single underscores or single asterisks, not double)
     s = s.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<span class="sb-tok-italic">*$2*</span>');
     s = s.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<span class="sb-tok-italic">_$2_</span>');
@@ -118,6 +128,23 @@ export function renderMarkdownOverlay(body: string): string {
 
   while (i < lines.length) {
     const line = lines[i];
+
+    // Code block: starts with ``` and ends with ```
+    if (/^```/.test(line)) {
+      const lang = line.replace(/^```/, '').trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      // skip closing ```
+      if (i < lines.length) i++;
+      const langLabel = lang ? `<span class="sb-tok-callout-label">${escapeHtml(lang)}</span>` : '';
+      const codeHtml = escapeHtml(codeLines.join('\n'));
+      out.push(`<span class="sb-tok-codeblock">${langLabel}${codeHtml}</span>`);
+      continue;
+    }
 
     // Callout block: starts with > [!type], continues with > lines
     const calloutStart = line.match(/^>\s*\[!([^\]]+)\]/);

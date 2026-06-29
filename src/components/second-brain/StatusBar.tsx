@@ -20,49 +20,49 @@ export function StatusBar({
   return (
     <div
       style={{
-        height: 24,
+        height: 28,
         background: 'var(--bg1)',
         borderTop: '1px solid var(--bd)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 12px',
-        fontSize: 10,
+        padding: '0 14px',
+        fontSize: 11,
         fontFamily: 'inherit',
         color: 'var(--t3)',
         flexShrink: 0,
       }}
     >
       {/* Left */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: dirty ? 'var(--amb)' : 'var(--grn)' }}>
-          <Check size={10} strokeWidth={2.5} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: dirty ? 'var(--amb)' : 'var(--grn)' }}>
+          <Check size={12} strokeWidth={2.5} />
           {dirty ? 'unsaved' : 'autosaved'}
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Link2 size={10} strokeWidth={2} />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Link2 size={12} strokeWidth={2} />
           {linkCount} links
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <AlignLeft size={10} strokeWidth={2} />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <AlignLeft size={12} strokeWidth={2} />
           {wordCount} words
         </span>
       </div>
 
       {/* Right */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--acc2)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--acc2)' }}>
           <span
             className="sb-pulse"
             style={{
-              width: 5,
-              height: 5,
+              width: 6,
+              height: 6,
               borderRadius: '50%',
               background: 'var(--acc)',
-              boxShadow: '0 0 5px rgba(124,110,247,0.6)',
+              boxShadow: '0 0 6px rgba(124,110,247,0.6)',
             }}
           />
-          <Sparkles size={9} />
+          <Sparkles size={11} />
           AI active
         </span>
         <span style={{ color: 'var(--t2)' }}>⌘K to command</span>

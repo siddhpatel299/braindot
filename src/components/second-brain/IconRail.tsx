@@ -33,9 +33,9 @@ function RailButton({ icon: Icon, label, active, onClick }: RailButtonProps) {
       aria-label={label}
       title={label}
       style={{
-        width: 32,
-        height: 32,
-        borderRadius: 4,
+        width: 36,
+        height: 36,
+        borderRadius: 5,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -58,7 +58,7 @@ function RailButton({ icon: Icon, label, active, onClick }: RailButtonProps) {
         }
       }}
     >
-      <Icon size={16} strokeWidth={1.75} />
+      <Icon size={18} strokeWidth={1.75} />
     </button>
   );
 }
