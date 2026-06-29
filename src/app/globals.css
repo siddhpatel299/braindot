@@ -1,0 +1,254 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: 'JetBrains Mono', 'Fira Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
+}
+
+/* ===== Second Brain Design System ===== */
+:root {
+  --bg:       #0c0c0e;
+  --bg1:      #111113;
+  --bg2:      #171719;
+  --bg3:      #1e1e21;
+  --bg4:      #26262a;
+  --bd:       #252528;
+  --bd2:      #333338;
+  --t1:       #f0f0f2;
+  --t2:       #888894;
+  --t3:       #444450;
+  --acc:      #7c6ef7;
+  --acc2:     #b0a8fb;
+  --acc-bg:   #1a1830;
+  --grn:      #34d399;
+  --grn-bg:   #0a1f16;
+  --amb:      #fbbf24;
+  --amb-bg:   #1c1608;
+  --red:      #f87171;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--t1);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-feature-settings: "calt" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#__next, body > div:first-child {
+  height: 100vh;
+}
+
+/* Force monospace on EVERYTHING */
+button, input, textarea, select, div, span, p, h1, h2, h3, h4, h5, h6,
+li, a, label, code, pre, th, td, small, strong, em, b, i {
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
+}
+
+/* Animations */
+@keyframes sb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes sb-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes sb-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sb-pulse {
+  animation: sb-pulse 2s ease-in-out infinite;
+}
+
+.sb-blink {
+  animation: sb-blink 1.1s step-end infinite;
+}
+
+.sb-fade-in {
+  animation: sb-fade-in 0.12s ease-out;
+}
+
+/* Scrollbars */
+.sb-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.sb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sb-scroll::-webkit-scrollbar-thumb {
+  background: var(--bg3);
+  border-radius: 4px;
+}
+.sb-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--bd2);
+}
+.sb-scroll-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.sb-scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--bg3);
+  border-radius: 2px;
+}
+
+/* Markdown editor overlay technique */
+.sb-editor-wrap {
+  position: relative;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  letter-spacing: 0;
+  tab-size: 2;
+}
+
+.sb-editor-textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--acc2);
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.sb-editor-textarea::selection {
+  background: rgba(124, 110, 247, 0.25);
+}
+
+.sb-editor-pre {
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: var(--t2);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Token styles inside .sb-editor-pre */
+.sb-tok-h {
+  display: block;
+  font-size: 14px;
+  text-transform: uppercase;
+  color: var(--t2);
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-top: 18px;
+  margin-bottom: 6px;
+  position: relative;
+}
+.sb-tok-h::after {
+  content: '';
+  display: inline-block;
+  height: 1px;
+  width: 100%;
+  background: var(--bd);
+  vertical-align: middle;
+  margin-left: 12px;
+}
+.sb-tok-bold {
+  color: var(--t1);
+  font-weight: 700;
+}
+.sb-tok-italic {
+  color: var(--acc2);
+  font-style: italic;
+}
+.sb-tok-wiki {
+  color: var(--acc2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.sb-tok-wiki:hover {
+  color: var(--t1);
+}
+.sb-tok-bullet {
+  color: var(--t3);
+}
+.sb-tok-callout {
+  display: block;
+  background: var(--acc-bg);
+  border-left: 2px solid var(--acc);
+  padding: 10px 14px;
+  margin: 10px 0;
+  color: #9994cc;
+  font-size: 11px;
+  border-radius: 0 4px 4px 0;
+  white-space: normal;
+}
+.sb-tok-callout-label {
+  display: block;
+  text-transform: uppercase;
+  font-size: 9px;
+  color: var(--acc2);
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.sb-tok-meta {
+  color: var(--t3);
+}
+
+/* Selection style for sidebar items */
+.sb-note-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Reset focus rings on the app (we want minimal chrome) */
+button:focus, input:focus, textarea:focus {
+  outline: none;
+}
+
+/* Hide scrollbar but keep functionality where needed */
+.sb-no-scrollbar::-webkit-scrollbar { display: none; }
+.sb-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Tab close button: show on tab hover */
+.sb-tab-close { opacity: 0 !important; }
+div:hover > .sb-tab-close { opacity: 0.6 !important; }
+div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) !important; }
+
+/* Make the editor canvas wrap shrink-to-fit so the textarea overlay technique works */
+.sb-editor-wrap > textarea.sb-editor-textarea,
+.sb-editor-wrap > pre.sb-editor-pre {
+  font-variant-ligatures: none;
+}
