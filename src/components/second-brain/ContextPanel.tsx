@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Note } from '@/types';
 import { generateSuggestions, relativeTime, formatDate, extractWikiLinks } from '@/utils/markdown';
+import { forceDirectedLayout } from '@/utils/graph';
 import { ArrowUpRight } from 'lucide-react';
 
 interface ContextPanelProps {
@@ -454,37 +455,45 @@ function GraphPanel({
   allNotes: Note[];
   onOpenNote: (id: string) => void;
 }) {
-  const W = 216;
-  const H = 280;
+  const W = 232;
+  const H = 300;
 
-  // Build edges from wiki-links
+  // Build edges from wiki-links (deduplicated)
   const titleToId = new Map<string, string>();
-  for (const n of allNotes) titleToId.set(n.title.toLowerCase(), n.id);
-
+  for (const n of allNotes) {
+    titleToId.set(n.title.toLowerCase(), n.id);
+    titleToId.set(n.filename.toLowerCase().replace(/\.md$/, ''), n.id);
+  }
   const edges: { from: string; to: string }[] = [];
+  const seenEdges = new Set<string>();
   for (const n of allNotes) {
     const re = /\[\[([^\]]+)\]\]/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(n.body)) !== null) {
       const targetId = titleToId.get(m[1].toLowerCase());
       if (targetId && targetId !== n.id) {
-        edges.push({ from: n.id, to: targetId });
+        const key = [n.id, targetId].sort().join('→');
+        if (!seenEdges.has(key)) {
+          seenEdges.add(key);
+          edges.push({ from: n.id, to: targetId });
+        }
       }
     }
   }
 
-  // Position nodes in a circle
-  const positions = new Map<string, { x: number; y: number }>();
-  const cx = W / 2;
-  const cy = H / 2;
-  const r = 100;
-  allNotes.forEach((n, i) => {
-    const angle = (i / allNotes.length) * Math.PI * 2 - Math.PI / 2;
-    positions.set(n.id, {
-      x: cx + Math.cos(angle) * r,
-      y: cy + Math.sin(angle) * r,
-    });
-  });
+  // Use force-directed layout
+  const layout = useMemo(() => {
+    return forceDirectedLayout(
+      allNotes.map((n) => n.id),
+      edges,
+      note.id,
+      W,
+      H,
+      300,
+    );
+  }, [allNotes, edges, note.id]);
+
+  const nodeMap = new Map(layout.nodes.map((n) => [n.id, n]));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -499,59 +508,65 @@ function GraphPanel({
       >
         full graph — {allNotes.length} notes
       </div>
-      <svg width={W} height={H} style={{ display: 'block', background: 'var(--bg)' }}>
+      <svg width={W} height={H} style={{ display: 'block', background: 'var(--bg)', borderRadius: 4 }}>
         {/* Edges */}
-        {edges.map((e, i) => {
-          const from = positions.get(e.from);
-          const to = positions.get(e.to);
-          if (!from || !to) return null;
+        {layout.edges.map((e, i) => {
+          const a = nodeMap.get(e.from);
+          const b = nodeMap.get(e.to);
+          if (!a || !b) return null;
           const isCurrent = e.from === note.id || e.to === note.id;
           return (
             <line
               key={i}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
               stroke={isCurrent ? 'var(--acc)' : '#3d378a'}
-              strokeWidth={isCurrent ? 1 : 0.5}
-              strokeDasharray={isCurrent ? '' : '2 2'}
-              opacity={isCurrent ? 0.8 : 0.5}
+              strokeWidth={isCurrent ? 1.2 : 0.6}
+              opacity={isCurrent ? 0.85 : 0.5}
             />
           );
         })}
         {/* Nodes */}
-        {allNotes.map((n) => {
-          const p = positions.get(n.id)!;
+        {layout.nodes.map((n) => {
+          const noteData = allNotes.find((x) => x.id === n.id);
           const isCurrent = n.id === note.id;
+          const r = isCurrent ? 7 : Math.max(3, n.radius);
+          const fill = isCurrent ? 'var(--acc)' : n.degree > 0 ? '#534AB7' : '#3d378a';
           return (
             <g
               key={n.id}
               style={{ cursor: 'pointer' }}
               onClick={() => onOpenNote(n.id)}
             >
+              {n.degree > 0 && !isCurrent && (
+                <circle cx={n.x} cy={n.y} r={r + 3} fill="none" stroke="#3d378a" strokeWidth={0.5} opacity={0.4} />
+              )}
               <circle
-                cx={p.x}
-                cy={p.y}
-                r={isCurrent ? 6 : 3.5}
-                fill={isCurrent ? 'var(--acc)' : '#534AB7'}
+                cx={n.x}
+                cy={n.y}
+                r={r}
+                fill={fill}
               />
-              <text
-                x={p.x + 7}
-                y={p.y + 2}
-                fontSize={7}
-                fill={isCurrent ? 'var(--acc2)' : 'var(--t3)'}
-                fontFamily="JetBrains Mono"
-                fontWeight={isCurrent ? 600 : 400}
-              >
-                {n.title.slice(0, 14)}
-              </text>
+              {(isCurrent || n.degree >= 2) && noteData && (
+                <text
+                  x={n.x + r + 4}
+                  y={n.y + 3}
+                  fontSize={8}
+                  fill={isCurrent ? 'var(--acc2)' : 'var(--t3)'}
+                  fontFamily="JetBrains Mono"
+                  fontWeight={isCurrent ? 600 : 400}
+                >
+                  {noteData.title.slice(0, 14)}
+                </text>
+              )}
             </g>
           );
         })}
       </svg>
       <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.6 }}>
-        {edges.length} connections across {allNotes.length} notes. Click any node to open it.
+        {edges.length} connections across {allNotes.length} notes. Node size = connection count. Click any node to open it.
       </div>
     </div>
   );

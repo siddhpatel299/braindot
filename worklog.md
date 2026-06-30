@@ -137,3 +137,36 @@ Stage Summary:
 - Keyboard shortcuts ⌘B/⌘I/⌘U/⌘Shift+K all verified working
 - Lint passes with 0 errors, 0 warnings
 - All features verified end-to-end via Agent Browser
+
+---
+Task ID: second-brain-v4
+Agent: main (Super Z)
+Task: (1) Clarify that graphs are NOT mock — upgrade them with force-directed layout. (2) Add a dashboard home screen instead of launching directly to notes.
+
+Work Log:
+- Created utils/graph.ts with a real force-directed layout simulation (repulsion + attraction + center gravity + damping). 400 iterations produce node positions that reflect actual connection structure.
+- Upgraded ContextPanel GraphPanel: replaced the circular layout with forceDirectedLayout. Nodes sized by degree (connection count). Current note centered. Connected nodes get a subtle ring. Labels shown for current note + high-degree nodes. Edges highlighted for connections involving the current note.
+- Built new Dashboard component with:
+  - Header: today's date, "your second brain" title, summary line (notes · connections · words)
+  - 4 stat cards: Total Notes (evergreen/draft breakdown), Connections (links per note), Words Written (avg per note), Writing Streak (with status message)
+  - 4 quick action buttons: new note (primary), daily journal, ask AI, view graph
+  - Recently Edited panel: 6 most recently edited notes, clickable to open
+  - Knowledge Graph panel: full force-directed graph visualization with hover tooltips, clickable nodes, 10 nodes + 19 edges visible
+  - Tags panel: tag distribution with bar chart showing relative counts
+  - PARA Folders panel: note count per top-level PARA folder
+  - Recently Created panel: 4 newest notes
+- Added 'dashboard' to IconRailView type in IconRail.tsx
+- Added Dashboard icon (LayoutDashboard) to icon rail as the first button
+- Made the brain logo clickable to go to dashboard
+- Updated page.tsx: added appView state ('dashboard' | 'notes'), default to 'dashboard' on first load
+- Wired all navigation: clicking a note in dashboard → switches to notes view + opens note; clicking Dashboard icon or brain logo → switches to dashboard; clicking Notes icon → switches to notes view
+- Added "Go to dashboard" command to command palette
+- All icon rail buttons now properly switch between dashboard and notes views
+
+Stage Summary:
+- Graphs are REAL, not mock: they render actual nodes and edges based on [[wiki-link]] data. The graph in the user's screenshot showed "0 connections" because their notes had no wiki-links. With the seed notes (which have wiki-links), the graph shows 10 nodes and 19 edges.
+- Upgraded graph layout from simple circle to force-directed physics simulation — nodes now cluster by connection structure instead of sitting in a ring
+- Dashboard is now the default landing page with stats, recent notes, full graph, tag distribution, folder distribution, and quick actions
+- Navigation is bidirectional: dashboard → note (click any note) → dashboard (click brain logo or Dashboard icon)
+- Lint passes with 0 errors, 0 warnings
+- All features verified end-to-end via Agent Browser

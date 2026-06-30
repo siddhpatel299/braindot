@@ -9,9 +9,10 @@ import {
   Tags,
   Search,
   Brain,
+  LayoutDashboard,
 } from 'lucide-react';
 
-export type IconRailView = 'notes' | 'graph' | 'journal' | 'ai' | 'tags' | 'search';
+export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'journal' | 'ai' | 'tags' | 'search';
 
 interface IconRailProps {
   active: IconRailView;
@@ -67,8 +68,8 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
   return (
     <div
       style={{
-        width: 46,
-        minWidth: 46,
+        width: 50,
+        minWidth: 50,
         height: '100%',
         background: 'var(--bg1)',
         borderRight: '1px solid var(--bd)',
@@ -79,23 +80,38 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
         gap: 6,
       }}
     >
-      {/* Logo */}
-      <div
+      {/* Logo — clickable to go to dashboard */}
+      <button
+        onClick={() => onSelect('dashboard')}
+        title="Dashboard"
+        aria-label="Dashboard"
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: 6,
+          width: 32,
+          height: 32,
+          borderRadius: 7,
           background: 'var(--acc)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: 10,
+          marginBottom: 8,
           boxShadow: '0 0 0 1px rgba(124,110,247,0.4), 0 0 16px rgba(124,110,247,0.18)',
+          cursor: 'pointer',
+          border: 'none',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 0 0 1px rgba(124,110,247,0.6), 0 0 20px rgba(124,110,247,0.3)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 0 0 1px rgba(124,110,247,0.4), 0 0 16px rgba(124,110,247,0.18)';
         }}
       >
-        <Brain size={16} color="#0c0c0e" strokeWidth={2.25} />
-      </div>
+        <Brain size={18} color="#0c0c0e" strokeWidth={2.25} />
+      </button>
 
+      <RailButton icon={LayoutDashboard} label="Dashboard" active={active === 'dashboard'} onClick={() => onSelect('dashboard')} />
       <RailButton icon={StickyNote} label="Notes" active={active === 'notes'} onClick={() => onSelect('notes')} />
       <RailButton icon={Share2} label="Graph view" active={active === 'graph'} onClick={() => onSelect('graph')} />
       <RailButton icon={CalendarDays} label="Daily journal" active={active === 'journal'} onClick={() => onSelect('journal')} />
@@ -121,15 +137,15 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
       <div
         title="You"
         style={{
-          width: 28,
-          height: 28,
+          width: 30,
+          height: 30,
           borderRadius: '50%',
           background: '#1D9E75',
           color: '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 700,
           letterSpacing: '0.04em',
           cursor: 'pointer',

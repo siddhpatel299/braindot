@@ -58,6 +58,17 @@ export function CommandPalette({
   const items: CommandItem[] = useMemo(() => {
     const cmds: CommandItem[] = [
       {
+        id: 'cmd-dashboard',
+        type: 'command',
+        label: 'Go to dashboard',
+        hint: 'open the home screen',
+        icon: 'new',
+        action: () => {
+          window.dispatchEvent(new CustomEvent('sb-go-dashboard'));
+          onClose();
+        },
+      },
+      {
         id: 'cmd-new',
         type: 'command',
         label: 'New note',

@@ -16,6 +16,7 @@ import { ContextPanel } from '@/components/second-brain/ContextPanel';
 import { StatusBar } from '@/components/second-brain/StatusBar';
 import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
+import { Dashboard } from '@/components/second-brain/Dashboard';
 
 interface HistoryEntry {
   id: string;
@@ -44,6 +45,7 @@ export default function Home() {
   } = useNotes();
 
   const [iconView, setIconView] = useState<IconRailView>('notes');
+  const [appView, setAppView] = useState<'dashboard' | 'notes'>('dashboard');
   const [search, setSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [contextTab, setContextTab] = useState<'ai' | 'graph' | 'history'>('ai');
@@ -129,6 +131,7 @@ export default function Home() {
   // ---------- Actions ----------
   const handleOpenNote = useCallback((id: string) => {
     openTab(id);
+    setAppView('notes');
   }, [openTab]);
 
   const handleOpenNoteByTitle = useCallback((title: string) => {
@@ -139,6 +142,7 @@ export default function Home() {
     if (n) {
       linkedOpenRef.current = n.id;
       openTab(n.id);
+      setAppView('notes');
     }
   }, [openTab, state.notes]);
 
@@ -146,6 +150,7 @@ export default function Home() {
     const fid = folderId || SEED_FOLDER_IDS.resourcesPkm;
     const n = createNote(fid);
     createdOpenRef.current = n.id;
+    setAppView('notes');
     return n;
   }, [createNote]);
 
@@ -335,17 +340,22 @@ export default function Home() {
     setIconView(v);
     if (v === 'search') {
       setPaletteOpen(true);
+    } else if (v === 'dashboard') {
+      setAppView('dashboard');
     } else if (v === 'ai') {
       setContextTab('ai');
       setAskAIOpen(true);
     } else if (v === 'graph') {
+      setAppView('notes');
       setContextTab('graph');
     } else if (v === 'journal') {
       handleCreateJournal();
     } else if (v === 'tags') {
+      setAppView('notes');
       setFileTreeView('tags');
       showToast('switched to tag view');
     } else if (v === 'notes') {
+      setAppView('notes');
       setFileTreeView('folders');
     }
   }, [handleCreateJournal, showToast]);
@@ -385,6 +395,16 @@ export default function Home() {
     window.addEventListener('sb-create-journal', handler);
     return () => window.removeEventListener('sb-create-journal', handler);
   }, [handleCreateJournal]);
+
+  // Listen for dashboard event from command palette
+  useEffect(() => {
+    const handler = () => {
+      setAppView('dashboard');
+      setIconView('dashboard');
+    };
+    window.addEventListener('sb-go-dashboard', handler);
+    return () => window.removeEventListener('sb-go-dashboard', handler);
+  }, []);
 
   // ---------- Backlink + word count for status bar ----------
   const { backlinks, totalConnections } = useBacklinks(state.notes);
@@ -449,63 +469,82 @@ export default function Home() {
           onOpenPalette={() => setPaletteOpen(true)}
         />
 
-        <FileTree
-          notes={state.notes}
-          folders={state.folders}
-          activeId={activeNote?.id || ''}
-          filter={search}
-          view={fileTreeView}
-          onViewChange={setFileTreeView}
-          onSelect={handleOpenNote}
-          onCreateNote={(folderId) => handleCreateNote(folderId)}
-          onCreateFolder={handleCreateFolder}
-          onRenameFolder={renameFolder}
-          onDeleteFolder={deleteFolder}
-          onToggleFolder={toggleFolderExpanded}
-          onMoveNote={moveNote}
-          onTogglePinned={togglePinned}
-        />
-
-        {/* Editor area: tabs + canvas */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <EditorTabs
+        {appView === 'dashboard' ? (
+          <Dashboard
             notes={state.notes}
-            openTabs={state.openTabs}
-            activeTab={state.activeTab}
-            dirtyIds={dirtyIds}
-            onSelect={setActiveTab}
-            onClose={handleCloseTab}
-            onCreate={() => handleCreateNote()}
-            onReorder={reorderTabs}
+            folders={state.folders}
+            streak={state.streak}
+            totalConnections={state.totalConnections}
+            onOpenNote={handleOpenNote}
+            onCreateNote={() => handleCreateNote()}
+            onCreateJournal={handleCreateJournal}
+            onAskAI={() => setAskAIOpen(true)}
+            onViewGraph={() => {
+              setAppView('notes');
+              setContextTab('graph');
+            }}
           />
-          {activeNote && (
-            <EditorCanvas
+        ) : (
+          <>
+            <FileTree
+              notes={state.notes}
+              folders={state.folders}
+              activeId={activeNote?.id || ''}
+              filter={search}
+              view={fileTreeView}
+              onViewChange={setFileTreeView}
+              onSelect={handleOpenNote}
+              onCreateNote={(folderId) => handleCreateNote(folderId)}
+              onCreateFolder={handleCreateFolder}
+              onRenameFolder={renameFolder}
+              onDeleteFolder={deleteFolder}
+              onToggleFolder={toggleFolderExpanded}
+              onMoveNote={moveNote}
+              onTogglePinned={togglePinned}
+            />
+
+            {/* Editor area: tabs + canvas */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              <EditorTabs
+                notes={state.notes}
+                openTabs={state.openTabs}
+                activeTab={state.activeTab}
+                dirtyIds={dirtyIds}
+                onSelect={setActiveTab}
+                onClose={handleCloseTab}
+                onCreate={() => handleCreateNote()}
+                onReorder={reorderTabs}
+              />
+              {activeNote && (
+                <EditorCanvas
+                  note={activeNote}
+                  allNotes={state.notes}
+                  dirty={editor.dirty}
+                  editor={editor}
+                  onSave={updateNote}
+                  onOpenNote={handleOpenNote}
+                  onOpenNoteByTitle={handleOpenNoteByTitle}
+                  onToggleEvergreen={handleToggleEvergreen}
+                />
+              )}
+            </div>
+
+            <ContextPanel
               note={activeNote}
               allNotes={state.notes}
-              dirty={editor.dirty}
-              editor={editor}
-              onSave={updateNote}
+              activeTab={contextTab}
+              onTabChange={setContextTab}
               onOpenNote={handleOpenNote}
-              onOpenNoteByTitle={handleOpenNoteByTitle}
-              onToggleEvergreen={handleToggleEvergreen}
+              onAskAI={() => setAskAIOpen(true)}
+              onExportEssay={handleExportEssay}
+              onInsertLink={handleInsertLink}
+              onDraftSynthesis={handleDraftSynthesis}
+              onAnswerInNewNote={handleAnswerInNewNote}
+              onScheduleReview={handleScheduleReview}
+              history={history}
             />
-          )}
-        </div>
-
-        <ContextPanel
-          note={activeNote}
-          allNotes={state.notes}
-          activeTab={contextTab}
-          onTabChange={setContextTab}
-          onOpenNote={handleOpenNote}
-          onAskAI={() => setAskAIOpen(true)}
-          onExportEssay={handleExportEssay}
-          onInsertLink={handleInsertLink}
-          onDraftSynthesis={handleDraftSynthesis}
-          onAnswerInNewNote={handleAnswerInNewNote}
-          onScheduleReview={handleScheduleReview}
-          history={history}
-        />
+          </>
+        )}
       </div>
 
       {/* Bottom: status bar */}
