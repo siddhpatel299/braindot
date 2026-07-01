@@ -33,6 +33,15 @@ function loadState(): PersistedState {
   if (typeof window === 'undefined') {
     return seedState();
   }
+  // Check for new user FIRST — before looking at existing localStorage
+  const isNewUser = localStorage.getItem('second-brain-new-user') === 'true';
+  const isDemo = localStorage.getItem('second-brain-demo') === 'true';
+  if (isNewUser && !isDemo) {
+    localStorage.removeItem('second-brain-new-user');
+    // Also clear any existing state so the new user doesn't get old data
+    localStorage.removeItem(STORAGE_KEY);
+    return newUserState();
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -91,6 +100,8 @@ function loadState(): PersistedState {
 }
 
 function seedState(): PersistedState {
+  // Demo mode or default — full seed data
+  // New-user check is ONLY in loadState(), NOT here
   const notes = SEED_NOTES.map((n) => ({ ...n }));
   const folders = SEED_FOLDERS.map((f) => ({ ...f }));
   const backlinks = computeBacklinks(notes);
@@ -108,6 +119,89 @@ function seedState(): PersistedState {
   };
 }
 
+function newUserState(): PersistedState {
+  // New user — empty vault with 3 template notes and PARA folders
+  const now = new Date().toISOString();
+  const templateNotes: Note[] = [
+    {
+      id: 'tpl_welcome',
+      filename: 'welcome-to-second-brain.md',
+      title: 'Welcome to Second Brain',
+      subtitle: 'Your knowledge, connected.',
+      tags: ['strategy', 'learning'],
+      body: `# Welcome to Second Brain
+
+This is your first note. It lives in your **Resources** folder under **PKM**.
+
+## What is this app?
+
+Second Brain is a PKM workspace where notes connect to each other, your reading flows into your vault, and AI helps you see patterns.
+
+## How to get started
+
+1. **Create a note** — click "+ new note" or press ⌘T
+2. **Write in markdown** — use the formatting toolbar for bold, italic, headings
+3. **Link notes** — type [[note-title]] to create a wiki-link
+4. **Open command palette** — press ⌘K to search and navigate
+5. **Explore the dashboard** — click the brain logo (top-left)
+
+> [!callout]
+> The best way to learn is to start writing. Create a note about something you learned today.
+
+## Tips
+
+- Press **⌘K** for the command palette
+- Type **/** in the editor to insert embeds
+- Switch between **edit** and **preview** modes using the tabs above the editor`,
+      backlinks: [],
+      createdAt: now,
+      updatedAt: now,
+      wordCount: 0,
+      status: 'evergreen',
+      folderId: SEED_FOLDER_IDS.resourcesPkm,
+      pinned: true,
+    },
+    {
+      id: 'tpl_first_note',
+      filename: 'my-first-note.md',
+      title: 'My First Note',
+      subtitle: 'Start here — write something you learned today.',
+      tags: [],
+      body: `# My First Note
+
+Write something you learned today. It doesn't have to be profound — just one idea, in your own words.
+
+## What did I learn?
+
+[Start typing here. Delete this placeholder and write your thought.]
+
+## How does this connect?
+
+Use [[wiki-links]] to connect this note to other notes. For example, link to [[welcome-to-second-brain]].`,
+      backlinks: [],
+      createdAt: now,
+      updatedAt: now,
+      wordCount: 0,
+      status: 'draft',
+      folderId: SEED_FOLDER_IDS.resourcesPkm,
+      pinned: false,
+    },
+  ].map(n => ({ ...n, wordCount: n.body.split(/\s+/).filter(Boolean).length }));
+
+  const backlinks = computeBacklinks(templateNotes);
+  for (const n of templateNotes) n.backlinks = backlinks[n.id] || [];
+
+  return {
+    notes: templateNotes,
+    folders: SEED_FOLDERS.map((f) => ({ ...f })),
+    openTabs: [templateNotes[0].id],
+    activeTab: templateNotes[0].id,
+    streak: 0, // new users start at 0
+    totalConnections: 0,
+    lastEditDay: todayKey(),
+  };
+}
+
 function saveState(state: PersistedState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -117,17 +211,24 @@ function saveState(state: PersistedState) {
 }
 
 export function useNotes() {
-  const [state, setState] = useState<PersistedState>(() => loadState());
+  const [state, setState] = useState<PersistedState>(() => {
+    // During SSR or first render, return empty state — real loading happens in useEffect
+    if (typeof window === 'undefined') return seedState();
+    return seedState();
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  // hydrate from localStorage on mount (avoids SSR mismatch)
+  // hydrate from localStorage on mount — this is where the REAL state loading happens
   useEffect(() => {
-    setState(loadState()); // eslint-disable-line react-hooks/set-state-in-effect
+    const loaded = loadState(); // This checks new-user flag, demo flag, existing state, etc.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setState(loaded);
     setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
-  // Debounced save
+  // Debounced save — only save AFTER hydration is complete
   useEffect(() => {
     if (!hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);

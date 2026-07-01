@@ -1,11 +1,137 @@
 'use client';
 
-import { useRef, useEffect, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown';
 import { useEditor } from '@/hooks/useEditor';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare } from 'lucide-react';
 import { FormattingToolbar } from './FormattingToolbar';
+
+type ViewMode = 'edit' | 'preview';
+
+// Simple markdown-to-HTML for preview mode
+function renderMarkdownHtml(body: string): string {
+  const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = body.split('\n');
+  const blocks: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Code block
+    if (/^```/.test(line)) {
+      const lang = line.replace(/^```/, '').trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length) i++;
+      const langLabel = lang ? `<div style="font-size:10px;text-transform:uppercase;color:var(--t3);margin-bottom:6px;font-weight:600">${escapeHtml(lang)}</div>` : '';
+      blocks.push(`<pre style="background:var(--bg1);border:1px solid var(--bd);border-radius:5px;padding:12px 14px;margin:12px 0;overflow-x:auto"><code style="color:var(--grn);font-size:13px;white-space:pre">${langLabel}${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+      continue;
+    }
+
+    // Callout
+    const calloutMatch = line.match(/^>\s*\[!([^\]]+)\]/);
+    if (calloutMatch) {
+      const calloutType = calloutMatch[1].toLowerCase();
+      const calloutBody: string[] = [];
+      const rest = line.replace(/^>\s*\[![^\]]+\]\s*/, '');
+      if (rest.trim()) calloutBody.push(rest);
+      i++;
+      while (i < lines.length && /^>/.test(lines[i])) {
+        calloutBody.push(lines[i].replace(/^>\s?/, ''));
+        i++;
+      }
+      blocks.push(`<div style="background:var(--acc-bg);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:10px 14px;margin:12px 0"><div style="font-size:10px;text-transform:uppercase;color:var(--acc2);font-weight:600;margin-bottom:4px">${escapeHtml(calloutType)}</div><div style="color:#9994cc;font-size:13px">${calloutBody.map(l => renderInline(l)).join('<br/>')}</div></div>`);
+      continue;
+    }
+
+    // Blockquote
+    if (/^>\s/.test(line)) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ''));
+        i++;
+      }
+      blocks.push(`<blockquote style="border-left:3px solid var(--bd2);padding-left:14px;margin:12px 0;color:var(--t3);font-style:italic">${quoteLines.map(l => `<p>${renderInline(l)}</p>`).join('')}</blockquote>`);
+      continue;
+    }
+
+    // Headings
+    const hMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (hMatch) {
+      const level = hMatch[1].length;
+      const text = renderInline(hMatch[2]);
+      const sizes = ['22px', '18px', '16px', '15px', '14px', '13px'];
+      blocks.push(`<h${level} style="font-size:${sizes[level-1]};font-weight:700;color:var(--t1);margin-top:24px;margin-bottom:12px;letter-spacing:-0.01em">${text}</h${level}>`);
+      i++;
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^---+\s*$/.test(line) || /^\*\*\*+\s*$/.test(line)) {
+      blocks.push('<hr style="border:none;border-top:1px solid var(--bd);margin:20px 0" />');
+      i++;
+      continue;
+    }
+
+    // Bullet list
+    if (/^\s*[-*+]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
+        items.push(`<li style="list-style:none;position:relative;padding-left:14px;margin-bottom:4px">${renderInline(lines[i].replace(/^\s*[-*+]\s+/, ''))}<span style="position:absolute;left:0;color:var(--t3)">—</span></li>`);
+        i++;
+      }
+      blocks.push(`<ul style="margin:0 0 14px;padding-left:0">${items.join('')}</ul>`);
+      continue;
+    }
+
+    // Numbered list
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(`<li style="margin-bottom:4px">${renderInline(lines[i].replace(/^\s*\d+\.\s+/, ''))}</li>`);
+        i++;
+      }
+      blocks.push(`<ol style="margin:0 0 14px;padding-left:24px">${items.join('')}</ol>`);
+      continue;
+    }
+
+    // Empty line
+    if (line.trim() === '') { i++; continue; }
+
+    // Paragraph
+    const paraLines: string[] = [];
+    while (i < lines.length && lines[i].trim() !== '' && !/^#{1,6}\s/.test(lines[i]) && !/^```/.test(lines[i]) && !/^>\s/.test(lines[i]) && !/^\s*[-*+]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^---+\s*$/.test(lines[i])) {
+      paraLines.push(lines[i]);
+      i++;
+    }
+    if (paraLines.length > 0) {
+      blocks.push(`<p style="margin:0 0 14px">${paraLines.map(l => renderInline(l)).join('<br/>')}</p>`);
+    }
+  }
+
+  return `<div style="font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.8;color:var(--t2)">${blocks.join('\n')}</div>`;
+}
+
+function renderInline(s: string): string {
+  let out = escapeHtml(s);
+  out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1) => `<a style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px;cursor:pointer">[[${escapeHtml(p1)}]]</a>`);
+  out = out.replace(/`([^`\n]+)`/g, '<code style="background:var(--bg3);color:var(--grn);padding:1px 6px;border-radius:3px;font-size:0.9em;border:1px solid var(--bd)">$1</code>');
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--t1);font-weight:700">**$1**</strong>');
+  out = out.replace(/~~([^~\n]+)~~/g, '<del style="color:var(--t3)">~~$1~~</del>');
+  out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<em style="color:var(--acc2);font-style:italic">*$2*</em>');
+  out = out.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<em style="color:var(--acc2);font-style:italic">_$2_</em>');
+  return out;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 interface EditorCanvasProps {
   note: Note;
@@ -30,6 +156,10 @@ export function EditorCanvas({
 }: EditorCanvasProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('edit');
+
+  // Preview HTML
+  const previewHtml = useMemo(() => renderMarkdownHtml(editor.body), [editor.body]);
 
   // Auto-resize textarea to match content height
   const autoResize = useCallback(() => {
@@ -167,12 +297,26 @@ export function EditorCanvas({
         overflow: 'hidden',
       }}
     >
-      {/* Formatting toolbar */}
-      <FormattingToolbar
-        textareaRef={textareaRef}
-        body={editor.body}
-        onBodyChange={editor.updateBody}
-      />
+      {/* Mode switcher + formatting toolbar */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        borderBottom: '1px solid var(--bd)', background: 'var(--bg1)', flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', padding: '0 4px' }}>
+          <ModeTab icon={Pencil} label="edit" active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+          <ModeTab icon={Eye} label="preview" active={viewMode === 'preview'} onClick={() => setViewMode('preview')} />
+        </div>
+        {viewMode === 'edit' && (
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <FormattingToolbar
+              textareaRef={textareaRef}
+              body={editor.body}
+              onBodyChange={editor.updateBody}
+            />
+          </div>
+        )}
+        {viewMode !== 'edit' && <div style={{ flex: 1 }} />}
+      </div>
 
       <div
         className="sb-scroll"
@@ -291,29 +435,50 @@ export function EditorCanvas({
           }}
         />
 
-        {/* Body: overlay editor */}
-        <div
-          className="sb-editor-wrap"
-          onClick={handleWrapClick}
-          style={{ position: 'relative', minHeight: 200 }}
-        >
-          <pre
-            ref={preRef}
-            className="sb-editor-pre"
-            dangerouslySetInnerHTML={{ __html: overlayHtml }}
-            aria-hidden="true"
+        {/* Body: conditional on view mode */}
+        {viewMode === 'edit' && (
+          <div
+            className="sb-editor-wrap"
+            onClick={handleWrapClick}
+            style={{ position: 'relative', minHeight: 200 }}
+          >
+            <pre
+              ref={preRef}
+              className="sb-editor-pre"
+              dangerouslySetInnerHTML={{ __html: overlayHtml }}
+              aria-hidden="true"
+            />
+            <textarea
+              ref={textareaRef}
+              className="sb-editor-textarea"
+              value={editor.body}
+              onChange={(e) => editor.updateBody(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="# Start writing your note…"
+              spellCheck={false}
+              rows={1}
+            />
+          </div>
+        )}
+
+        {viewMode === 'preview' && (
+          <div
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey) return;
+              const target = e.target as HTMLElement;
+              const wikiEl = target.closest('a') as HTMLElement | null;
+              if (wikiEl && wikiEl.textContent?.includes('[[')) {
+                const match = wikiEl.textContent.match(/\[\[([^\]]+)\]\]/);
+                if (match) {
+                  e.preventDefault();
+                  onOpenNoteByTitle(match[1]);
+                }
+              }
+            }}
+            style={{ minHeight: 200, cursor: 'default' }}
           />
-          <textarea
-            ref={textareaRef}
-            className="sb-editor-textarea"
-            value={editor.body}
-            onChange={(e) => editor.updateBody(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="# Start writing your note…"
-            spellCheck={false}
-            rows={1}
-          />
-        </div>
+        )}
 
         {/* Backlinks section */}
         <div
@@ -389,5 +554,47 @@ export function EditorCanvas({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---------- Mode Tab Button ---------- */
+function ModeTab({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        height: 36,
+        padding: '0 14px',
+        background: 'transparent',
+        border: 'none',
+        borderBottom: active ? '2px solid var(--acc)' : '2px solid transparent',
+        color: active ? 'var(--t1)' : 'var(--t3)',
+        fontSize: 12,
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        fontWeight: active ? 600 : 400,
+        transition: 'color 0.12s',
+      }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--t2)'; }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--t3)'; }}
+    >
+      <Icon size={13} strokeWidth={2} />
+      {label}
+    </button>
   );
 }

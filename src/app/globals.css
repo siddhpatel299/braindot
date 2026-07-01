@@ -162,25 +162,14 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 
 /* Token styles inside .sb-editor-pre */
+/* IMPORTANT: All tokens must be INLINE only — no display:block, no margins.
+   The overlay <pre> must have the same line-by-line geometry as the <textarea>.
+   Any block-level styling breaks cursor alignment.
+   Rich rendering (block headings, horizontal rules, callout boxes) is ONLY in Preview mode. */
 .sb-tok-h {
-  display: block;
-  font-size: 15px;
-  text-transform: uppercase;
-  color: var(--t2);
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  margin-top: 18px;
-  margin-bottom: 6px;
-  position: relative;
-}
-.sb-tok-h::after {
-  content: '';
-  display: inline-block;
-  height: 1px;
-  width: 100%;
-  background: var(--bd);
-  vertical-align: middle;
-  margin-left: 12px;
+  color: var(--t1);
+  font-weight: 700;
+  font-size: 1.05em;
 }
 .sb-tok-bold {
   color: var(--t1);
@@ -208,16 +197,8 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   border: 1px solid var(--bd);
 }
 .sb-tok-codeblock {
-  display: block;
-  background: var(--bg1);
-  border: 1px solid var(--bd);
-  border-radius: 4px;
-  padding: 10px 12px;
-  margin: 8px 0;
   color: var(--grn);
-  font-size: 12px;
-  white-space: pre;
-  overflow-x: auto;
+  font-size: 0.95em;
 }
 .sb-tok-wiki {
   color: var(--acc2);
@@ -233,24 +214,13 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   color: var(--t3);
 }
 .sb-tok-callout {
-  display: block;
-  background: var(--acc-bg);
-  border-left: 2px solid var(--acc);
-  padding: 10px 14px;
-  margin: 10px 0;
   color: #9994cc;
-  font-size: 13px;
-  border-radius: 0 4px 4px 0;
-  white-space: normal;
+  font-size: 1em;
 }
 .sb-tok-callout-label {
-  display: block;
-  text-transform: uppercase;
-  font-size: 9px;
   color: var(--acc2);
-  letter-spacing: 0.08em;
-  margin-bottom: 4px;
   font-weight: 600;
+  font-size: 0.85em;
 }
 .sb-tok-meta {
   color: var(--t3);
