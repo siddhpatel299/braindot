@@ -2,14 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useMutation, useQuery } from 'convex/react';
-import { useAuthActions } from '@convex-dev/auth/react';
-import { api } from '@/lib/convex-api';
+import { useConvexAuth, useAuthActions } from '@convex-dev/auth/react';
 import { Brain, ArrowRight, Sparkles } from 'lucide-react';
 
 function AuthContent() {
   const searchParams = useSearchParams();
   const { signIn } = useAuthActions();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,26 +16,28 @@ function AuthContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Mutation to ensure user profile exists in our userProfiles table
-  const ensureProfile = useMutation(api.functions.ensureProfile);
-  // Query to check if profile exists (so we know to create it after first signIn)
-  const profile = useQuery(api.functions.getMyProfile);
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (searchParams.get('mode') === 'signup') setMode('signup');
   }, [searchParams]);
 
-  // If user is authenticated but has no profile, create one
+  // If already authenticated, redirect to home
   useEffect(() => {
-    if (profile === undefined) return; // still loading
-    if (profile === null) {
-      // Authenticated but no profile row yet — create one
-      const userStr = localStorage.getItem('second-brain-user');
-      const userName = name || (userStr ? JSON.parse(userStr).name : email.split('@')[0]);
-      ensureProfile({ name: userName, email }).catch(console.error);
+    if (authLoading) return;
+    if (isAuthenticated) {
+      // Store minimal info for UI display (auth token is in httpOnly cookie)
+      try {
+        const userStr = localStorage.getItem('second-brain-user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          if (mode === 'signup' && !localStorage.getItem('second-brain-new-user')) {
+            localStorage.setItem('second-brain-new-user', 'true');
+          }
+        }
+      } catch {}
+      window.location.href = '/';
     }
-  }, [profile, ensureProfile, name, email]);
+  }, [isAuthenticated, authLoading, mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +45,6 @@ function AuthContent() {
     setError(null);
     try {
       // Use Convex Auth's signIn with the Password provider
-      // For sign up, we pass flow: 'signUp'; for sign in, flow: 'signIn'
       const signInParams: Record<string, any> = {
         email,
         password,
@@ -70,11 +70,13 @@ function AuthContent() {
         localStorage.setItem('second-brain-new-user', 'true');
       }
 
-      // Redirect happens automatically when isAuthenticated becomes true
-      // (handled by the parent component)
+      // Redirect happens automatically via the isAuthenticated effect above
+      // But also force redirect as fallback
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
-      // Convex Auth may return a generic error — make it friendlier
       setError(
         msg.includes('Invalid') || msg.includes('credentials')
           ? 'Invalid email or password'
