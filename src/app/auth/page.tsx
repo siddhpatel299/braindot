@@ -2,7 +2,20 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useMutation } from 'convex/react';
+import { api } from '@/lib/convex-api';
 import { Brain, ArrowRight, Sparkles } from 'lucide-react';
+
+// Simple hash function for demo passwords (NOT secure — use proper auth in production)
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return hash.toString(36);
+}
 
 function AuthContent() {
   const searchParams = useSearchParams();
@@ -11,22 +24,46 @@ function AuthContent() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const createOrUpdateUser = useMutation(api.functions.createOrUpdateUser);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (searchParams.get('mode') === 'signup') setMode('signup');
   }, [searchParams]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem('second-brain-user', JSON.stringify({ email, name: name || email.split('@')[0] }));
+    setError(null);
+    try {
+      const passwordHash = simpleHash(password);
+      const userName = name || email.split('@')[0];
+
+      // Call Convex mutation to create or verify user
+      const userId = await createOrUpdateUser({
+        email,
+        name: userName,
+        passwordHash,
+      });
+
+      // Store user info + Convex userId in localStorage
+      localStorage.setItem('second-brain-user', JSON.stringify({
+        email,
+        name: userName,
+        convexUserId: userId,
+      }));
+
       if (mode === 'signup') {
         localStorage.setItem('second-brain-new-user', 'true');
       }
+
       window.location.href = '/';
-    }, 800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setLoading(false);
+    }
   };
 
   return (
@@ -81,6 +118,16 @@ function AuthContent() {
             ? 'Start with an empty vault + starter templates. Your knowledge, connected.'
             : 'Sign in to access your notes, reading, and canvas.'}
         </p>
+
+        {error && (
+          <div style={{
+            background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)',
+            borderRadius: 5, padding: '8px 12px', marginBottom: 14,
+            fontSize: 11, color: '#f87171', fontFamily: 'inherit',
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {mode === 'signup' && (

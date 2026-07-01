@@ -3,11 +3,12 @@
 import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown';
+import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
 import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare } from 'lucide-react';
 import { FormattingToolbar } from './FormattingToolbar';
 
-type ViewMode = 'edit' | 'preview';
+type ViewMode = 'edit' | 'preview' | 'diff';
 
 // Simple markdown-to-HTML for preview mode
 function renderMarkdownHtml(body: string): string {
@@ -67,14 +68,15 @@ function renderMarkdownHtml(body: string): string {
       const level = hMatch[1].length;
       const text = renderInline(hMatch[2]);
       const sizes = ['22px', '18px', '16px', '15px', '14px', '13px'];
-      blocks.push(`<h${level} style="font-size:${sizes[level-1]};font-weight:700;color:var(--t1);margin-top:24px;margin-bottom:12px;letter-spacing:-0.01em">${text}</h${level}>`);
+      const topMargin = level <= 2 ? '16px' : '12px';
+      blocks.push(`<h${level} style="font-size:${sizes[level-1]};font-weight:700;color:var(--t1);margin-top:${topMargin};margin-bottom:8px;letter-spacing:-0.01em">${text}</h${level}>`);
       i++;
       continue;
     }
 
     // Horizontal rule
     if (/^---+\s*$/.test(line) || /^\*\*\*+\s*$/.test(line)) {
-      blocks.push('<hr style="border:none;border-top:1px solid var(--bd);margin:20px 0" />');
+      blocks.push('<hr style="border:none;border-top:1px solid var(--bd);margin:12px 0" />');
       i++;
       continue;
     }
@@ -160,6 +162,24 @@ export function EditorCanvas({
 
   // Preview HTML
   const previewHtml = useMemo(() => renderMarkdownHtml(editor.body), [editor.body]);
+
+  // Diff: compare saved body (note.body) with working body (editor.body)
+  const diffLines = useMemo(() => computeLineDiff(note.body, editor.body), [note.body, editor.body]);
+  const stats = useMemo(() => diffStats(note.body, editor.body), [note.body, editor.body]);
+
+  // Track whether note has been opened before (for default mode)
+  // First open → edit mode; subsequent opens → preview mode
+  useEffect(() => {
+    if (!note?.id) return;
+    const openedKey = `sb-opened-${note.id}`;
+    const hasOpened = localStorage.getItem(openedKey) === 'true';
+    if (!hasOpened) {
+      setViewMode('edit');
+      localStorage.setItem(openedKey, 'true');
+    } else {
+      setViewMode('preview');
+    }
+  }, [note?.id]);
 
   // Auto-resize textarea to match content height
   const autoResize = useCallback(() => {
@@ -305,6 +325,7 @@ export function EditorCanvas({
         <div style={{ display: 'flex', padding: '0 4px' }}>
           <ModeTab icon={Pencil} label="edit" active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
           <ModeTab icon={Eye} label="preview" active={viewMode === 'preview'} onClick={() => setViewMode('preview')} />
+          <ModeTab icon={GitCompare} label="diff" active={viewMode === 'diff'} onClick={() => setViewMode('diff')} />
         </div>
         {viewMode === 'edit' && (
           <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
@@ -480,6 +501,10 @@ export function EditorCanvas({
           />
         )}
 
+        {viewMode === 'diff' && (
+          <DiffView diffLines={diffLines} additions={stats.additions} deletions={stats.deletions} dirty={dirty} />
+        )}
+
         {/* Backlinks section */}
         <div
           style={{
@@ -596,5 +621,145 @@ function ModeTab({
       <Icon size={13} strokeWidth={2} />
       {label}
     </button>
+  );
+}
+
+/* ---------- Diff View (GitHub-style) ---------- */
+function DiffView({
+  diffLines,
+  additions,
+  deletions,
+  dirty,
+}: {
+  diffLines: import('@/utils/diff').DiffLine[];
+  additions: number;
+  deletions: number;
+  dirty: boolean;
+}) {
+  const noChanges = additions === 0 && deletions === 0;
+
+  return (
+    <div style={{ minHeight: 200 }}>
+      {/* Diff stats header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '8px 14px',
+          background: 'var(--bg1)',
+          border: '1px solid var(--bd)',
+          borderRadius: '5px 5px 0 0',
+          borderBottom: 'none',
+          fontSize: 11,
+          color: 'var(--t3)',
+          fontFamily: 'inherit',
+        }}
+      >
+        <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+          changes
+        </span>
+        {additions > 0 && (
+          <span style={{ color: 'var(--grn)', fontWeight: 600 }}>+{additions}</span>
+        )}
+        {deletions > 0 && (
+          <span style={{ color: 'var(--red)', fontWeight: 600 }}>-{deletions}</span>
+        )}
+        {noChanges && (
+          <span style={{ color: 'var(--t3)', fontStyle: 'italic' }}>
+            {dirty ? 'no changes yet…' : 'no unsaved changes — body is in sync with saved version'}
+          </span>
+        )}
+      </div>
+
+      {/* Diff body */}
+      <div
+        style={{
+          background: 'var(--bg1)',
+          border: '1px solid var(--bd)',
+          borderRadius: noChanges ? 5 : '0 0 5px 5px',
+          overflow: 'hidden',
+        }}
+      >
+        {diffLines.map((line, idx) => {
+          const isAdd = line.type === 'add';
+          const isRem = line.type === 'remove';
+          const bgColor = isAdd
+            ? 'rgba(52, 211, 153, 0.08)'
+            : isRem
+              ? 'rgba(248, 113, 113, 0.08)'
+              : 'transparent';
+          const textColor = isAdd
+            ? 'var(--grn)'
+            : isRem
+              ? 'var(--red)'
+              : 'var(--t2)';
+          const prefix = isAdd ? '+' : isRem ? '-' : ' ';
+          const lineLabelStyle: React.CSSProperties = {
+            color: 'var(--t3)',
+            fontSize: 10,
+            minWidth: 32,
+            textAlign: 'right',
+            paddingRight: 8,
+            userSelect: 'none',
+            opacity: 0.6,
+          };
+
+          return (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                fontFamily: 'inherit',
+                fontSize: 13,
+                lineHeight: '1.6',
+                background: bgColor,
+                borderBottom: idx < diffLines.length - 1 ? '1px solid var(--bd)' : 'none',
+              }}
+            >
+              <span style={lineLabelStyle}>{line.oldNum ?? ''}</span>
+              <span style={lineLabelStyle}>{line.newNum ?? ''}</span>
+              <span
+                style={{
+                  color: textColor,
+                  paddingRight: 8,
+                  userSelect: 'none',
+                  fontWeight: 700,
+                  minWidth: 16,
+                  textAlign: 'center',
+                }}
+              >
+                {prefix}
+              </span>
+              <span
+                style={{
+                  color: textColor,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  paddingRight: 12,
+                  flex: 1,
+                }}
+              >
+                {line.text || ' '}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {noChanges && (
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 11,
+            color: 'var(--t3)',
+            fontStyle: 'italic',
+          }}
+        >
+          tip: switch to <strong style={{ color: 'var(--t2)' }}>edit</strong> mode, make changes,
+          then come back here to see what changed vs. the saved version.
+        </div>
+      )}
+    </div>
   );
 }
