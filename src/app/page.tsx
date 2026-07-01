@@ -26,6 +26,24 @@ interface HistoryEntry {
 }
 
 export default function Home() {
+  // Auth check — redirect to landing if not logged in or demo mode
+  const [authMode, setAuthMode] = useState<'demo' | 'user' | 'loading'>('loading');
+
+  useEffect(() => {
+    const isDemo = localStorage.getItem('second-brain-demo') === 'true';
+    const user = localStorage.getItem('second-brain-user');
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (isDemo) {
+      setAuthMode('demo');
+    } else if (user) {
+      setAuthMode('user');
+    } else {
+      /* eslint-enable react-hooks/set-state-in-effect */
+      window.location.href = '/landing';
+      return;
+    }
+  }, []);
+
   const {
     state,
     hydrated,
@@ -421,6 +439,19 @@ export default function Home() {
   }, [activeNote]);
 
   // ---------- Render ----------
+
+  if (authMode === 'loading') {
+    return (
+      <div style={{
+        height: '100vh', background: 'var(--bg)', color: 'var(--t3)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+      }}>
+        loading second brain…
+      </div>
+    );
+  }
+
   if (!hydrated) {
     return (
       <div
@@ -460,6 +491,25 @@ export default function Home() {
         onCreate={() => handleCreateNote()}
         streak={state.streak}
       />
+
+      {/* Demo banner */}
+      {authMode === 'demo' && (
+        <div style={{
+          height: 28, background: 'var(--amb-bg)', borderBottom: '1px solid #4a3010',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          fontSize: 11, color: 'var(--amb)', fontFamily: 'inherit', flexShrink: 0,
+        }}>
+          <span>⚡ demo mode — changes won't persist</span>
+          <a href="/auth?mode=signup" style={{ color: 'var(--acc2)', textDecoration: 'underline', cursor: 'pointer', fontSize: 11 }}>sign up →</a>
+          <button onClick={() => {
+            localStorage.removeItem('second-brain-demo');
+            window.location.href = '/landing';
+          }} style={{
+            background: 'transparent', border: '1px solid #4a3010', borderRadius: 3,
+            padding: '2px 8px', color: 'var(--amb)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
+          }}>exit</button>
+        </div>
+      )}
 
       {/* Middle: 4-zone horizontal flex */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Brain — Your knowledge, alive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0c0e;--bg1:#111113;--bg2:#171719;--bg3:#1e1e21;--bg4:#26262a;
+  --bd:#252528;--bd2:#333338;
+  --t1:#f0f0f2;--t2:#888894;--t3:#444450;
+  --acc:#7c6ef7;--acc2:#b0a8fb;--acc-bg:#1a1830;
+  --grn:#34d399;--grn-bg:#0a1f16;
+  --amb:#fbbf24;--amb-bg:#1c1608;
+  --coral:#f0997b;--coral-bg:#2a160c;
+  --blu:#60a5fa;--blu-bg:#0c1f2e;
+  --mono:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--mono);background:var(--bg);color:var(--t1);line-height:1.6;overflow-x:hidden}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 48px;gap:24px;z-index:100}
+.nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.nav-logo-mark{width:26px;height:26px;background:var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
+.nav-logo-name{font-size:13px;font-weight:700;color:var(--t1)}
+.nav-links{display:flex;gap:24px;margin-left:auto}
+.nav-links a{font-size:12px;color:var(--t2);text-decoration:none}
+.nav-links a:hover{color:var(--t1)}
+.nav-cta{font-family:var(--mono);font-size:12px;padding:6px 14px;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;text-decoration:none;margin-left:8px}
+.nav-cta:hover{background:var(--acc2);color:#111}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:130px 48px 80px;position:relative;overflow:hidden;text-align:center}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:48px 48px;opacity:.3;pointer-events:none}
+.hero-glow{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(124,110,247,.14) 0%,transparent 68%);pointer-events:none}
+.hero-eyebrow{font-size:11px;color:var(--acc2);text-transform:uppercase;letter-spacing:.14em;margin-bottom:22px;display:flex;align-items:center;justify-content:center;gap:8px}
+.eyebrow-pulse{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.hero-h1{font-size:clamp(34px,5.5vw,70px);font-weight:700;color:var(--t1);line-height:1.1;letter-spacing:-.03em;margin-bottom:6px}
+.hero-h1 .dim{color:var(--t3)}
+.hero-typewriter{font-size:clamp(34px,5.5vw,70px);font-weight:700;color:var(--acc2);line-height:1.1;letter-spacing:-.03em;min-height:1.15em;margin-bottom:30px}
+.tw-cursor{display:inline-block;width:3px;height:.82em;background:var(--acc);vertical-align:-.05em;margin-left:2px;animation:blink .85s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.hero-sub{font-size:15px;color:var(--t2);max-width:540px;line-height:1.85;margin-bottom:40px}
+.hero-sub em{color:var(--t1);font-style:normal}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:68px}
+.btn-acc{font-family:var(--mono);font-size:13px;padding:11px 22px;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn-acc:hover{background:var(--acc2);color:#111}
+.btn-ghost{font-family:var(--mono);font-size:13px;padding:11px 22px;background:transparent;color:var(--t2);border:1px solid var(--bd2);border-radius:4px;cursor:pointer}
+.btn-ghost:hover{border-color:var(--acc);color:var(--acc2)}
+
+/* PREVIEW */
+.hero-preview{width:100%;max-width:880px;background:var(--bg1);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;box-shadow:0 48px 96px rgba(0,0,0,.7),0 0 0 1px var(--bd)}
+.ptitlebar{height:36px;background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:6px}
+.ptb-dot{width:10px;height:10px;border-radius:50%}
+.ptb-title{font-size:11px;color:var(--t3);margin:0 auto}
+.pbody{display:flex;height:360px}
+.prail{width:40px;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;flex-shrink:0}
+.pri{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--t3)}
+.pri.active{background:var(--acc-bg);color:var(--acc2)}
+.pfiletree{width:155px;background:var(--bg1);border-right:1px solid var(--bd);flex-shrink:0;overflow:hidden}
+.pft-sec{padding:7px 10px 3px;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em}
+.pft-item{display:flex;align-items:center;gap:5px;padding:4px 10px;font-size:10px;color:var(--t2)}
+.pft-item.active{color:var(--acc2);background:var(--acc-bg);border-left:2px solid var(--acc)}
+.pft-badge{margin-left:auto;font-size:8px;color:var(--t3);background:var(--bg3);border-radius:2px;padding:0 3px}
+.peditor{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0}
+.petabs{height:30px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:flex-end;padding:0 10px;gap:1px;flex-shrink:0}
+.petab{font-size:9px;color:var(--t3);padding:5px 10px;border-bottom:2px solid transparent;white-space:nowrap}
+.petab.active{color:var(--t1);border-bottom-color:var(--acc);background:var(--bg);border-top:1px solid var(--bd);border-left:1px solid var(--bd);border-right:1px solid var(--bd);margin-bottom:-1px}
+.petab .unsaved{width:5px;height:5px;border-radius:50%;background:var(--amb);display:inline-block;margin-right:4px}
+.pecontent{flex:1;padding:18px 26px;overflow:hidden}
+.pnmeta{font-size:9px;color:var(--t3);margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ptag{font-size:8px;padding:1px 6px;border-radius:3px;color:var(--acc2);background:var(--acc-bg);border:1px solid #3d378a}
+.ptitle{font-size:16px;font-weight:700;color:var(--t1);margin-bottom:3px;line-height:1.2}
+.psub{font-size:10px;color:var(--t3);font-style:italic;margin-bottom:14px}
+.ph2{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.ph2::after{content:'';flex:1;height:1px;background:var(--bd)}
+.pp{font-size:10px;color:var(--t2);line-height:1.75;margin-bottom:8px}
+.pp em{color:var(--acc2);font-style:normal}
+.pcallout{border-left:2px solid var(--acc);padding:6px 10px;background:var(--acc-bg);border-radius:0 4px 4px 0;margin-bottom:10px}
+.pcallout p{font-size:9px;color:#9994cc;line-height:1.6}
+.pstatus{height:22px;border-top:1px solid var(--bd);background:var(--bg1);display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0}
+.psi{font-size:9px;color:var(--t3)}
+.pctx{width:175px;border-left:1px solid var(--bd);background:var(--bg1);flex-shrink:0;overflow:hidden}
+.pctabs{display:flex;border-bottom:1px solid var(--bd)}
+.pctab{flex:1;font-size:9px;color:var(--t3);padding:5px 0;text-align:center;border-bottom:2px solid transparent}
+.pctab.active{color:var(--acc2);border-bottom-color:var(--acc)}
+.pcbody{padding:8px}
+.pcard{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:7px 8px;margin-bottom:5px}
+.pctype{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.pctext{font-size:9px;color:var(--t2);line-height:1.5}
+.pctext em{color:var(--acc2);font-style:normal}
+.pcaction{font-size:9px;color:var(--acc);margin-top:3px}
+
+/* SECTIONS */
+.sec-wrap{padding:88px 48px;max-width:1100px;margin:0 auto}
+.eyebrow{font-size:10px;color:var(--acc2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px}
+.sec-h2{font-size:clamp(24px,3.8vw,44px);font-weight:700;color:var(--t1);line-height:1.2;letter-spacing:-.025em;margin-bottom:16px}
+.sec-sub{font-size:14px;color:var(--t2);line-height:1.85;max-width:560px}
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--bd2),transparent);margin:0}
+
+/* FEATURES GRID */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-top:52px}
+.feat-card{background:var(--bg1);padding:26px 26px 30px;position:relative;transition:background .2s}
+.feat-card:hover{background:var(--bg2)}
+.ficon{width:34px;height:34px;border-radius:6px;background:var(--acc-bg);border:1px solid #3d378a;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--acc2);margin-bottom:12px}
+.ftitle{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:7px}
+.fdesc{font-size:11px;color:var(--t2);line-height:1.75}
+.fbadge{display:inline-block;font-size:9px;padding:1px 7px;border-radius:3px;margin-top:10px;border:1px solid}
+
+/* HOW IT WORKS */
+.hiw{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-top:48px}
+.hiw-step{background:var(--bg1);padding:30px 26px}
+.hiw-num{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.hiw-num-box{width:22px;height:22px;border-radius:4px;background:var(--acc-bg);border:1px solid #3d378a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--acc2)}
+.hiw-num-label{font-size:10px;color:var(--acc2);text-transform:uppercase;letter-spacing:.08em}
+.hiw-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:8px}
+.hiw-desc{font-size:11px;color:var(--t2);line-height:1.75}
+
+/* SPLIT SECTIONS */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;padding:80px 48px;max-width:1100px;margin:0 auto}
+.split.flip{direction:rtl}
+.split.flip>*{direction:ltr}
+.split-visual{border:1px solid var(--bd2);border-radius:10px;overflow:hidden}
+.split-copy{display:flex;flex-direction:column;gap:12px}
+.split-copy .sec-h2{font-size:clamp(20px,2.8vw,34px);margin-bottom:10px}
+.chip-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
+.chip{font-size:10px;padding:3px 9px;border-radius:3px;border:1px solid;color:var(--t2);border-color:var(--bd2)}
+
+/* READING VISUAL */
+.rv-wrap{display:flex;min-height:280px}
+.rv-lib{width:130px;border-right:1px solid var(--bd);background:var(--bg2);flex-shrink:0}
+.rv-sec{padding:7px 9px 3px;font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em}
+.rv-item{display:flex;align-items:center;gap:5px;padding:5px 9px;cursor:pointer}
+.rv-item.active{background:var(--acc-bg)}
+.rv-thumb{width:18px;height:24px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex-shrink:0}
+.rv-meta-text{min-width:0}
+.rv-ititle{font-size:9px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv-item.active .rv-ititle{color:var(--acc2)}
+.rv-imeta{font-size:7px;color:var(--t3)}
+.rv-prog{height:2px;background:var(--bg4);border-radius:1px;margin-top:2px}
+.rv-prog-fill{height:100%;border-radius:1px;background:var(--acc)}
+.rv-reader{flex:1;padding:14px 18px;background:var(--bg)}
+.rv-ch{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.rv-htitle{font-size:12px;font-weight:700;color:var(--t1);margin-bottom:10px;line-height:1.3}
+.rv-p{font-size:9px;color:var(--t2);line-height:1.8;margin-bottom:8px}
+.hly{background:#3d3200;border-bottom:1px solid #fbbf24;color:var(--t1)}
+.hlp{background:#1e1a3a;border-bottom:1px solid #7c6ef7;color:var(--t1)}
+.rv-toolbar{display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;padding:3px 6px;margin-top:4px}
+.rv-tbtn{font-size:8px;color:var(--t2);padding:2px 5px;border-radius:2px;background:var(--bg3);cursor:pointer}
+
+/* CANVAS VISUAL */
+.cv-wrap{padding:20px;min-height:280px;background:radial-gradient(circle,#18181b .5px,transparent .5px) 0 0/16px 16px,var(--bg)}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.stat{background:var(--bg1);padding:30px 24px;text-align:center}
+.stat-n{font-size:38px;font-weight:700;color:var(--t1);letter-spacing:-.03em;margin-bottom:5px}
+.stat-n .a{color:var(--acc2)}
+.stat-l{font-size:11px;color:var(--t3)}
+
+/* TESTIMONIALS */
+.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:48px}
+.testi{background:var(--bg1);border:1px solid var(--bd);border-radius:8px;padding:22px}
+.tq{font-size:12px;color:var(--t2);line-height:1.85;margin-bottom:14px;font-style:italic}
+.tq em{color:var(--t1);font-style:normal}
+.ta{display:flex;align-items:center;gap:9px}
+.tav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.tn{font-size:11px;color:var(--t1)}
+.tr{font-size:10px;color:var(--t3)}
+
+/* CTA */
+.cta-wrap{padding:96px 48px;text-align:center;position:relative;overflow:hidden;max-width:100%}
+.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:300px;background:radial-gradient(ellipse,rgba(124,110,247,.13) 0%,transparent 70%);pointer-events:none}
+.cta-h2{font-size:clamp(26px,4vw,52px);font-weight:700;color:var(--t1);letter-spacing:-.03em;margin-bottom:14px;line-height:1.2}
+.cta-sub{font-size:14px;color:var(--t2);margin-bottom:36px;max-width:460px;margin-left:auto;margin-right:auto;line-height:1.85}
+.cta-row{display:flex;gap:8px;max-width:400px;margin:0 auto 14px;justify-content:center}
+.cta-input{font-family:var(--mono);font-size:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--t1);outline:none;flex:1;min-width:0}
+.cta-input:focus{border-color:var(--acc)}
+.cta-input::placeholder{color:var(--t3)}
+.cta-hint{font-size:10px;color:var(--t3)}
+
+/* FOOTER */
+footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.fl{display:flex;align-items:center;gap:8px;text-decoration:none}
+.fl-mark{width:20px;height:20px;background:var(--acc);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+.fl-name{font-size:12px;color:var(--t3)}
+.flinks{display:flex;gap:20px;margin-left:auto}
+.flinks a{font-size:11px;color:var(--t3);text-decoration:none}
+.flinks a:hover{color:var(--t2)}
+.fcopy{font-size:10px;color:var(--t3)}
+
+@media(max-width:800px){
+  nav{padding:0 20px;gap:12px}
+  .nav-links{display:none}
+  .hero{padding:100px 20px 60px}
+  .hero-preview{display:none}
+  .sec-wrap{padding:60px 20px}
+  .feat-grid{grid-template-columns:1fr}
+  .hiw{grid-template-columns:1fr}
+  .split{grid-template-columns:1fr;gap:32px;padding:60px 20px}
+  .split.flip{direction:ltr}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .testi-grid{grid-template-columns:1fr}
+  .cta-wrap{padding:60px 20px}
+  .cta-row{flex-direction:column}
+  footer{flex-direction:column;gap:16px;padding:24px 20px}
+  .flinks{margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-mark"><i class="ti ti-brain" aria-hidden="true"></i></div>
+    <span class="nav-logo-name">Second Brain</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">features</a>
+    <a href="#how">how it works</a>
+    <a href="#reading">reading</a>
+    <a href="#canvas">canvas</a>
+  </div>
+  <a class="nav-cta" href="#cta">get early access</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-eyebrow"><span class="eyebrow-pulse"></span>now in private beta</div>
+  <h1 class="hero-h1"><span class="dim">your knowledge,</span></h1>
+  <div class="hero-typewriter"><span id="tw"></span><span class="tw-cursor"></span></div>
+  <p class="hero-sub">Second Brain is a PKM workspace where notes, reading, tasks, and ideas <em>connect</em> — and stay alive. Not a filing system. A thinking environment.</p>
+  <div class="hero-actions">
+    <a class="btn-acc" href="#cta"><i class="ti ti-sparkles" aria-hidden="true"></i> get early access</a>
+    <button class="btn-ghost">watch demo</button>
+  </div>
+
+  <div class="hero-preview">
+    <div class="ptitlebar">
+      <div class="ptb-dot" style="background:#f87171"></div>
+      <div class="ptb-dot" style="background:#fbbf24"></div>
+      <div class="ptb-dot" style="background:#34d399"></div>
+      <span class="ptb-title">second-brain — zettelkasten-method.md</span>
+    </div>
+    <div class="pbody">
+      <div class="prail">
+        <div class="pri active"><i class="ti ti-notes" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-network" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-books" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-layout-board" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-layout-kanban" aria-hidden="true"></i></div>
+        <div class="pri" style="margin-top:auto"><i class="ti ti-settings" aria-hidden="true"></i></div>
+      </div>
+      <div class="pfiletree">
+        <div class="pft-sec">pinned</div>
+        <div class="pft-item active"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Zettelkasten method <span class="pft-badge">12</span></div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> PARA method <span class="pft-badge">7</span></div>
+        <div class="pft-sec">strategy</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Decision fatigue</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Mental models</div>
+        <div class="pft-sec">learning</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Spaced repetition</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Feynman technique</div>
+      </div>
+      <div class="peditor">
+        <div class="petabs">
+          <div class="petab active"><span class="unsaved"></span>zettelkasten-method.md</div>
+          <div class="petab">para-method.md</div>
+        </div>
+        <div class="pecontent">
+          <div class="pnmeta">
+            <span class="ptag">#strategy</span>
+            <span class="ptag" style="color:var(--grn);background:var(--grn-bg);border-color:#1a4a2a">#learning</span>
+            <span>Jun 30, 2026</span>
+            <span style="color:var(--grn)">● evergreen</span>
+          </div>
+          <div class="ptitle">Atomic notes and the Zettelkasten method</div>
+          <div class="psub">one idea per note · link everything · write for your future self</div>
+          <div class="ph2">the core idea</div>
+          <div class="pp">Each note should express <em>one single idea</em> completely. The power of Zettelkasten is not in individual notes but in the connections between them.</div>
+          <div class="pcallout"><p>A note that links to 10 others is worth more than 10 isolated notes. The value is in the network, not the nodes.</p></div>
+          <div class="ph2">writing principles</div>
+          <div class="pp">Write in your own words. Ask: what does this connect to? Write for your future self — assume zero context tomorrow.</div>
+        </div>
+        <div class="pstatus">
+          <span class="psi"><i class="ti ti-check" aria-hidden="true"></i> autosaved</span>
+          <span class="psi"><i class="ti ti-link" aria-hidden="true"></i> 12 links</span>
+          <span class="psi"><i class="ti ti-file-text" aria-hidden="true"></i> 340 words</span>
+          <span class="psi" style="margin-left:auto;color:var(--acc2)"><i class="ti ti-sparkles" aria-hidden="true"></i> AI active</span>
+        </div>
+      </div>
+      <div class="pctx">
+        <div class="pctabs">
+          <div class="pctab active">AI</div>
+          <div class="pctab">Graph</div>
+        </div>
+        <div class="pcbody">
+          <div class="pcard">
+            <div class="pctype">missing link</div>
+            <div class="pctext"><em>bounded rationality</em> from March isn't linked — strong overlap.</div>
+            <div class="pcaction">link now ↗</div>
+          </div>
+          <div class="pcard">
+            <div class="pctype">synthesis ready</div>
+            <div class="pctext"><em>6 notes</em> on methods are dense enough to merge.</div>
+            <div class="pcaction">synthesize ↗</div>
+          </div>
+          <div class="pcard">
+            <div class="pctype">review due</div>
+            <div class="pctext">Last reviewed <em>14 days</em> ago.</div>
+            <div class="pcaction">review now ↗</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- STATS -->
+<div style="padding:0 48px;max-width:1100px;margin:72px auto">
+  <div class="stats-row">
+    <div class="stat"><div class="stat-n"><span class="a">247</span></div><div class="stat-l">notes in your vault</div></div>
+    <div class="stat"><div class="stat-n"><span class="a">1,084</span></div><div class="stat-l">connections between ideas</div></div>
+    <div class="stat"><div class="stat-n"><span class="a">14</span><span style="font-size:22px;color:var(--t3)">d</span></div><div class="stat-l">writing streak</div></div>
+    <div class="stat"><div class="stat-n"><span class="a">0</span></div><div class="stat-l">blank pages (we fix that)</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FEATURES -->
+<div class="sec-wrap" id="features">
+  <div class="eyebrow">what's inside</div>
+  <h2 class="sec-h2">everything your brain needs,<br>in one dark terminal</h2>
+  <p class="sec-sub">Built around one principle: notes should connect to everything, not sit in folders doing nothing.</p>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="ficon"><i class="ti ti-notes" aria-hidden="true"></i></div>
+      <div class="ftitle">VSCode-style editor</div>
+      <div class="fdesc">Tabbed markdown editor with wiki-links, callout blocks, slash commands, and live backlink tracking. Writes like code, thinks like prose.</div>
+      <span class="fbadge" style="color:var(--acc2);background:var(--acc-bg);border-color:#3d378a">core</span>
+    </div>
+    <div class="feat-card">
+      <div class="ficon" style="background:var(--grn-bg);border-color:#1a4a2a"><i class="ti ti-network" style="color:var(--grn)" aria-hidden="true"></i></div>
+      <div class="ftitle">Living knowledge graph</div>
+      <div class="fdesc">Nodes pulse and glow based on recency. Hot notes glow orange. Cold notes fade. See your active thinking — not a frozen snapshot.</div>
+      <span class="fbadge" style="color:var(--amb);background:var(--amb-bg);border-color:#4a3010">signature</span>
+    </div>
+    <div class="feat-card">
+      <div class="ficon" style="background:var(--amb-bg);border-color:#4a3010"><i class="ti ti-books" style="color:var(--amb)" aria-hidden="true"></i></div>
+      <div class="ftitle">Native reading layer</div>
+      <div class="fdesc">Read epub, PDF, and articles in-app. Highlight passages, attach notes, capture directly into your vault — no clipboard, no app-switching.</div>
+    </div>
+    <div class="feat-card">
+      <div class="ficon" style="background:var(--grn-bg);border-color:#1a4a2a"><i class="ti ti-layout-board" style="color:var(--grn)" aria-hidden="true"></i></div>
+      <div class="ftitle">Freeform canvas</div>
+      <div class="fdesc">Drag note cards anywhere. Connect them with arrows. Group related ideas. A spatial workspace for brainstorming — not a hierarchy.</div>
+    </div>
+    <div class="feat-card">
+      <div class="ficon" style="background:var(--blu-bg);border-color:#0f3a50"><i class="ti ti-layout-kanban" style="color:var(--blu)" aria-hidden="true"></i></div>
+      <div class="ftitle">Kanban + Todos</div>
+      <div class="fdesc">Tasks and todos in one smart split view. Every kanban card can link back to a note — so your work always connects to your thinking.</div>
+    </div>
+    <div class="feat-card">
+      <div class="ficon"><i class="ti ti-sitemap" aria-hidden="true"></i></div>
+      <div class="ftitle">Embedded mind maps</div>
+      <div class="fdesc">Type /mindmap in any note to embed a visual map right there in the document. Not a separate page — it belongs to the note it's about.</div>
+    </div>
+    <div class="feat-card">
+      <div class="ficon" style="background:var(--grn-bg);border-color:#1a4a2a"><i class="ti ti-sparkles" style="color:var(--grn)" aria-hidden="true"></i></div>
+      <div class="ftitle">AI synthesis</div>
+      <div class="fdesc">Live suggestions in the context panel: missing links, synthesis opportunities, review reminders. AI that notices patterns, not a chatbot you have to prompt.</div>
+    </div>
+    <div class="feat-card">
+      <div class="ficon" style="background:var(--amb-bg);border-color:#4a3010"><i class="ti ti-calendar" style="color:var(--amb)" aria-hidden="true"></i></div>
+      <div class="ftitle">Daily journal</div>
+      <div class="fdesc">One zero-friction entry point every day. No decision about where to write — just open today. On This Day resurfaces past notes automatically.</div>
+    </div>
+    <div class="feat-card">
+      <div class="ficon" style="background:var(--coral-bg);border-color:#4a2515"><i class="ti ti-terminal-2" style="color:var(--coral)" aria-hidden="true"></i></div>
+      <div class="ftitle">Command palette first</div>
+      <div class="fdesc">⌘K for everything: jump to a note, run AI, search your vault, create a task. The UI stays out of the way — your keyboard runs the show.</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- HOW IT WORKS -->
+<div class="sec-wrap" id="how">
+  <div class="eyebrow">how it works</div>
+  <h2 class="sec-h2">capture → connect → create</h2>
+  <p class="sec-sub">Three stages, one loop. Most PKM apps break at the third stage. We're built around it.</p>
+  <div class="hiw">
+    <div class="hiw-step">
+      <div class="hiw-num"><div class="hiw-num-box">01</div><span class="hiw-num-label">capture</span></div>
+      <div class="hiw-title">Write without friction</div>
+      <div class="hiw-desc">Slash commands for any block type. Voice-to-note capture. URL clipping. Highlight passages from books. Whatever you learn, it goes in — fast.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num"><div class="hiw-num-box">02</div><span class="hiw-num-label">connect</span></div>
+      <div class="hiw-title">Ideas find each other</div>
+      <div class="hiw-desc">[[wiki-links]] create a living network. AI surfaces missing connections. The graph shows where your thinking is hot — and where it's going cold.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num"><div class="hiw-num-box">03</div><span class="hiw-num-label">create</span></div>
+      <div class="hiw-title">Your notes become things</div>
+      <div class="hiw-desc">Synthesize highlights into evergreen notes. Export as an essay. Map your reading onto a canvas. Your knowledge is a factory floor, not an archive.</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- READING SPLIT -->
+<div class="split" id="reading">
+  <div class="split-visual">
+    <div class="rv-wrap">
+      <div class="rv-lib">
+        <div class="rv-sec">reading</div>
+        <div class="rv-item active">
+          <div class="rv-thumb" style="background:#1a1830;color:var(--acc2)">BS</div>
+          <div class="rv-meta-text">
+            <div class="rv-ititle">Building a Second Brain</div>
+            <div class="rv-imeta">epub · 62%</div>
+            <div class="rv-prog"><div class="rv-prog-fill" style="width:62%"></div></div>
+          </div>
+        </div>
+        <div class="rv-item">
+          <div class="rv-thumb" style="background:var(--blu-bg);color:var(--blu)">PDF</div>
+          <div class="rv-meta-text">
+            <div class="rv-ititle">Spaced repetition</div>
+            <div class="rv-imeta">paper · 88%</div>
+            <div class="rv-prog"><div class="rv-prog-fill" style="width:88%"></div></div>
+          </div>
+        </div>
+        <div class="rv-sec">news</div>
+        <div class="rv-item">
+          <div class="rv-thumb" style="background:var(--coral-bg);color:var(--coral)">RSS</div>
+          <div class="rv-meta-text">
+            <div class="rv-ititle">Knowledge Economy</div>
+            <div class="rv-imeta">Substack · today</div>
+          </div>
+        </div>
+        <div class="rv-item">
+          <div class="rv-thumb" style="background:var(--coral-bg);color:var(--coral)">RSS</div>
+          <div class="rv-meta-text">
+            <div class="rv-ititle">Why AI won't replace thinking</div>
+            <div class="rv-imeta">Atlantic · Jun 28</div>
+          </div>
+        </div>
+      </div>
+      <div class="rv-reader">
+        <div class="rv-ch">chapter 7 — express</div>
+        <div class="rv-htitle">Show your work</div>
+        <div class="rv-p">The goal of a Second Brain is not to hoard. It is to <span class="hly">use it. Express it. Make things with it</span>. Every note is only as valuable as what you do with it.</div>
+        <div class="rv-p">Forte calls this the <span class="hlp">intermediate packet: a small, reusable unit of work complete enough to use</span> — a paragraph, a diagram, a short essay that can be recombined endlessly.</div>
+        <div class="rv-toolbar">
+          <span class="rv-tbtn"><i class="ti ti-highlight" aria-hidden="true"></i> highlight</span>
+          <span class="rv-tbtn"><i class="ti ti-note" aria-hidden="true"></i> note</span>
+          <span class="rv-tbtn" style="color:var(--acc2)"><i class="ti ti-sparkles" aria-hidden="true"></i> ask AI</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="split-copy">
+    <div class="eyebrow">reading layer</div>
+    <h2 class="sec-h2">read, highlight, capture — without leaving</h2>
+    <p style="font-size:13px;color:var(--t2);line-height:1.85">Import epub books, PDFs, and research papers. Clip articles and RSS feeds. Read them in-app with a clean focus view — and highlight passages that flow directly into your vault as atomic notes.</p>
+    <p style="font-size:13px;color:var(--t2);line-height:1.85">The floating toolbar appears on any selection: highlight in yellow, purple, or green. Attach a note. Link to an existing idea. Ask AI to explain the concept.</p>
+    <div class="chip-row">
+      <span class="chip" style="color:var(--grn);border-color:#1a4a2a;background:var(--grn-bg)">epub support</span>
+      <span class="chip" style="color:var(--blu);border-color:#0f3a50;background:var(--blu-bg)">PDF rendering</span>
+      <span class="chip" style="color:var(--amb);border-color:#4a3010;background:var(--amb-bg)">RSS feeds</span>
+      <span class="chip" style="color:var(--acc2);border-color:#3d378a;background:var(--acc-bg)">highlight → note</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- CANVAS SPLIT -->
+<div class="split flip" id="canvas">
+  <div class="split-visual">
+    <div class="cv-wrap">
+      <svg width="100%" viewBox="0 0 420 260" role="img" aria-label="Canvas view showing note cards arranged freeform with arrows connecting them">
+        <line x1="148" y1="97" x2="218" y2="118" stroke="#3d378a" stroke-width="1.2"/>
+        <line x1="148" y1="155" x2="218" y2="142" stroke="#3d378a" stroke-width="1.2"/>
+        <line x1="328" y1="128" x2="358" y2="78" stroke="#252528" stroke-width="1" stroke-dasharray="4,3"/>
+        <rect x="24" y="66" width="124" height="62" rx="6" fill="#171719" stroke="#333338"/>
+        <text x="33" y="83" font-family="JetBrains Mono,monospace" font-size="7" fill="#444450">NOTE</text>
+        <text x="33" y="96" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="#f0f0f2">Zettelkasten</text>
+        <text x="33" y="111" font-family="JetBrains Mono,monospace" font-size="8" fill="#888894">one idea per note...</text>
+        <rect x="24" y="142" width="124" height="58" rx="6" fill="#171719" stroke="#333338"/>
+        <text x="33" y="159" font-family="JetBrains Mono,monospace" font-size="7" fill="#444450">NOTE</text>
+        <text x="33" y="172" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="#f0f0f2">PARA method</text>
+        <text x="33" y="187" font-family="JetBrains Mono,monospace" font-size="8" fill="#888894">organise by action...</text>
+        <rect x="218" y="100" width="130" height="66" rx="6" fill="#1a1830" stroke="#7c6ef7" stroke-width="1.5"/>
+        <text x="227" y="117" font-family="JetBrains Mono,monospace" font-size="7" fill="#b0a8fb">SYNTHESIS</text>
+        <text x="227" y="132" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="#f0f0f2">Unified workflow</text>
+        <text x="227" y="148" font-family="JetBrains Mono,monospace" font-size="8" fill="#888894">draft — not yet a note</text>
+        <rect x="350" y="50" width="60" height="50" rx="5" fill="#1c1608" stroke="#4a3010"/>
+        <text x="358" y="68" font-family="JetBrains Mono,monospace" font-size="8" fill="#fbbf24">★ sticky</text>
+        <text x="358" y="82" font-family="JetBrains Mono,monospace" font-size="8" fill="#fbbf24">revisit later</text>
+        <rect x="24" y="30" width="370" height="170" rx="8" fill="none" stroke="#252528" stroke-dasharray="4,3"/>
+        <text x="30" y="22" font-family="JetBrains Mono,monospace" font-size="8" fill="#444450">note-taking methods</text>
+        <rect x="278" y="196" width="112" height="50" rx="5" fill="#171719" stroke="#333338"/>
+        <text x="286" y="213" font-family="JetBrains Mono,monospace" font-size="7" fill="#444450">NOTE</text>
+        <text x="286" y="228" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" fill="#f0f0f2">Spaced repetition</text>
+        <text x="286" y="238" font-family="JetBrains Mono,monospace" font-size="8" fill="#888894">1 · 7 · 30 days</text>
+      </svg>
+    </div>
+  </div>
+  <div class="split-copy">
+    <div class="eyebrow">canvas</div>
+    <h2 class="sec-h2">a corkboard for ideas — with no rules</h2>
+    <p style="font-size:13px;color:var(--t2);line-height:1.85">Drag note cards anywhere on an infinite canvas. Connect related ideas with arrows. Group them with dashed regions. Drop sticky notes for fleeting thoughts that aren't full notes yet.</p>
+    <p style="font-size:13px;color:var(--t2);line-height:1.85">Different from the mind map — canvas is freeform. No forced hierarchy. You decide the shape of the thinking, not the app.</p>
+    <div class="chip-row">
+      <span class="chip">drag &amp; drop</span>
+      <span class="chip">connectors</span>
+      <span class="chip">group regions</span>
+      <span class="chip">synthesis cards</span>
+      <span class="chip">minimap</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- TESTIMONIALS -->
+<div class="sec-wrap">
+  <div class="eyebrow">early users</div>
+  <h2 class="sec-h2">from people who think for a living</h2>
+  <div class="testi-grid">
+    <div class="testi">
+      <div class="tq">"I've tried Obsidian, Notion, Roam. Second Brain is the first one where my notes feel <em>alive</em>. The graph view alone changed how I approach writing."</div>
+      <div class="ta">
+        <div class="tav" style="background:#534AB7">MK</div>
+        <div><div class="tn">Maya K.</div><div class="tr">researcher, Stanford</div></div>
+      </div>
+    </div>
+    <div class="testi">
+      <div class="tq">"The reading section is the feature I didn't know I needed. Highlight → note → link. That loop is <em>faster than anything</em> I've built with third-party tools."</div>
+      <div class="ta">
+        <div class="tav" style="background:#0F6E56">TR</div>
+        <div><div class="tn">Tom R.</div><div class="tr">indie hacker &amp; writer</div></div>
+      </div>
+    </div>
+    <div class="testi">
+      <div class="tq">"The monospace aesthetic sounds like a gimmick until you use it. It makes the app feel like a <em>serious tool</em>, not a consumer app pretending to be one."</div>
+      <div class="ta">
+        <div class="tav" style="background:#BA7517">SP</div>
+        <div><div class="tn">Sara P.</div><div class="tr">product designer</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- CTA -->
+<div class="cta-wrap" id="cta">
+  <div class="cta-glow"></div>
+  <div class="eyebrow" style="text-align:center">early access</div>
+  <h2 class="cta-h2">your knowledge deserves<br>a better home</h2>
+  <p class="cta-sub">Second Brain is in private beta. Join the waitlist — we're letting in 100 users at a time and building with them directly.</p>
+  <div class="cta-row">
+    <input class="cta-input" type="email" placeholder="your@email.com" aria-label="Email address">
+    <button class="btn-acc"><i class="ti ti-arrow-right" aria-hidden="true"></i> join waitlist</button>
+  </div>
+  <p class="cta-hint">no spam · no newsletter · just an invite when your spot is ready</p>
+</div>
+
+<footer>
+  <a class="fl" href="#">
+    <div class="fl-mark"><i class="ti ti-brain" aria-hidden="true"></i></div>
+    <span class="fl-name">Second Brain</span>
+  </a>
+  <div class="flinks">
+    <a href="#">features</a>
+    <a href="#">changelog</a>
+    <a href="#">privacy</a>
+    <a href="#">twitter</a>
+  </div>
+  <span class="fcopy">© 2026 Second Brain. all rights reserved.</span>
+</footer>
+
+<script>
+const phrases=['alive.','connected.','yours.','growing.','thinking.']
+let pi=0,ci=0,del=false
+const el=document.getElementById('tw')
+function tick(){
+  const w=phrases[pi]
+  if(!del){el.textContent=w.slice(0,++ci);if(ci===w.length){setTimeout(()=>{del=true;tick()},1900);return}}
+  else{el.textContent=w.slice(0,--ci);if(ci===0){del=false;pi=(pi+1)%phrases.length}}
+  setTimeout(tick,del?55:88)
+}
+tick()
+</script>
+</body>
+</html>
