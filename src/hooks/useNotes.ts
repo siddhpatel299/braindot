@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useConvexAuth } from 'convex/react';
 import { api } from '@/lib/convex-api';
 import { Note, Folder, ParaType } from '@/types';
 import { SEED_NOTES, SEED_FOLDERS, SEED_FOLDER_IDS, generateNoteId, generateFolderId } from '@/utils/seedData';
@@ -27,21 +27,6 @@ interface PersistedState {
 interface UIState {
   openTabs: string[];
   activeTab: string;
-}
-
-// ============================================================
-// Helper: get Convex user ID from localStorage
-// ============================================================
-function getConvexUserId(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const userStr = localStorage.getItem('second-brain-user');
-    if (!userStr) return null;
-    const user = JSON.parse(userStr);
-    return user.convexUserId || null;
-  } catch {
-    return null;
-  }
 }
 
 // ============================================================
@@ -324,32 +309,25 @@ Use [[wiki-links]] to connect this note to other notes. For example, link to [[w
 // Main hook
 // ============================================================
 export function useNotes() {
-  const [convexUserId, setConvexUserId] = useState<string | null>(null);
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
   const [isDemo, setIsDemo] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // Detect auth mode on mount
+  // Detect demo mode on mount
   useEffect(() => {
     const demo = localStorage.getItem('second-brain-demo') === 'true';
-    const uid = getConvexUserId();
     setIsDemo(demo);
-    setConvexUserId(uid);
     setHydrated(true);
   }, []);
 
-  // ===== Convex queries (only active when userId is set) =====
-  const convexNotes = useQuery(
-    api.functions.getNotes,
-    convexUserId ? { userId: convexUserId as any } : ('skip' as any),
-  );
-  const convexFolders = useQuery(
-    api.functions.getFolders,
-    convexUserId ? { userId: convexUserId as any } : ('skip' as any),
-  );
-  const convexUser = useQuery(
-    api.functions.getUserById,
-    convexUserId ? { userId: convexUserId as any } : ('skip' as any),
-  );
+  // Whether to use Convex (authenticated, non-demo) or local state
+  const useConvex = isAuthenticated && !isDemo;
+
+  // ===== Convex queries (server verifies identity via session token) =====
+  // Note: NO userId passed — the server uses ctx.auth.getUserIdentity()
+  const convexNotes = useQuery(api.functions.getNotes, useConvex ? {} : ('skip' as any));
+  const convexFolders = useQuery(api.functions.getFolders, useConvex ? {} : ('skip' as any));
+  const convexProfile = useQuery(api.functions.getMyProfile, useConvex ? {} : ('skip' as any));
 
   // ===== Convex mutations =====
   const createNoteMut = useMutation(api.functions.createNote);
@@ -360,7 +338,8 @@ export function useNotes() {
   const deleteFolderMut = useMutation(api.functions.deleteFolder);
   const bulkCreateFoldersMut = useMutation(api.functions.bulkCreateFolders);
   const bulkCreateNotesMut = useMutation(api.functions.bulkCreateNotes);
-  const updateUserStreakMut = useMutation(api.functions.updateUserStreak);
+  const ensureProfileMut = useMutation(api.functions.ensureProfile);
+  const updateProfileMut = useMutation(api.functions.updateProfile);
 
   // ===== Local state (for demo mode + UI state) =====
   const [localState, setLocalState] = useState<PersistedState>(() => seedState());
@@ -370,7 +349,7 @@ export function useNotes() {
   // Hydrate local state for demo mode
   useEffect(() => {
     if (!hydrated) return;
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       const loaded = loadLocalState();
       setLocalState(loaded);
       const ui = loadUIState();
@@ -383,11 +362,30 @@ export function useNotes() {
       const ui = loadUIState();
       setUiState(ui);
     }
-  }, [hydrated, isDemo, convexUserId]);
+  }, [hydrated, isDemo, useConvex]);
+
+  // ===== Ensure profile exists for authenticated user =====
+  useEffect(() => {
+    if (!useConvex || convexProfile === undefined) return;
+    if (convexProfile === null) {
+      // Create profile — server uses ctx.auth.getUserIdentity() to get tokenIdentifier
+      const userStr = localStorage.getItem('second-brain-user');
+      let name = 'User';
+      let email = '';
+      try {
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          name = u.name || 'User';
+          email = u.email || '';
+        }
+      } catch {}
+      ensureProfileMut({ name, email }).catch(console.error);
+    }
+  }, [useConvex, convexProfile, ensureProfileMut]);
 
   // ===== Seed new Convex user with PARA folders + template notes =====
   useEffect(() => {
-    if (!convexUserId || newUserSeeded) return;
+    if (!useConvex || newUserSeeded) return;
     // Wait for queries to load
     if (convexNotes === undefined || convexFolders === undefined) return;
     // Only seed if both are empty
@@ -399,20 +397,14 @@ export function useNotes() {
     const seed = async () => {
       try {
         const { folders, notes } = getNewUserTemplateData();
-        // Create folders and get mapping
-        const folderMapping = await bulkCreateFoldersMut({
-          userId: convexUserId as any,
-          folders,
-        });
+        // Create folders and get mapping (server attaches tokenIdentifier automatically)
+        const folderMapping = await bulkCreateFoldersMut({ folders });
         // Create notes with mapped folder IDs
         const notesWithMappedFolders = notes.map(n => ({
           ...n,
           folderId: folderMapping[n.folderId] || n.folderId,
         }));
-        const noteIds = await bulkCreateNotesMut({
-          userId: convexUserId as any,
-          notes: notesWithMappedFolders,
-        });
+        const noteIds = await bulkCreateNotesMut({ notes: notesWithMappedFolders });
         // Set active tab to first note
         setUiState({
           openTabs: [noteIds[0]],
@@ -425,20 +417,20 @@ export function useNotes() {
       }
     };
     seed();
-  }, [convexUserId, convexNotes, convexFolders, newUserSeeded, bulkCreateFoldersMut, bulkCreateNotesMut]);
+  }, [useConvex, convexNotes, convexFolders, newUserSeeded, bulkCreateFoldersMut, bulkCreateNotesMut]);
 
   // ===== Compute merged state =====
   const state: PersistedState = useMemo(() => {
     // Convex mode
-    if (convexUserId && convexNotes && convexFolders) {
+    if (useConvex && convexNotes && convexFolders) {
       const notes = convexNotes.map(mapNoteDoc);
       const folders = convexFolders.map(mapFolderDoc);
       const backlinks = computeBacklinks(notes);
       for (const n of notes) n.backlinks = backlinks[n.id] || [];
 
-      const streak = convexUser?.streak ?? 0;
-      const totalConnections = convexUser?.totalConnections ?? 0;
-      const lastEditDay = convexUser?.lastEditDay ?? todayKey();
+      const streak = convexProfile?.streak ?? 0;
+      const totalConnections = convexProfile?.totalConnections ?? 0;
+      const lastEditDay = convexProfile?.lastEditDay ?? todayKey();
 
       return {
         notes, folders,
@@ -453,7 +445,7 @@ export function useNotes() {
       openTabs: uiState.openTabs.length ? uiState.openTabs : localState.openTabs,
       activeTab: uiState.activeTab || localState.activeTab,
     };
-  }, [convexUserId, convexNotes, convexFolders, convexUser, localState, uiState]);
+  }, [useConvex, convexNotes, convexFolders, convexProfile, localState, uiState]);
 
   // ===== Save UI state to localStorage =====
   useEffect(() => {
@@ -464,15 +456,15 @@ export function useNotes() {
   // ===== Debounced local save (demo mode only) =====
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!hydrated || isDemo || convexUserId) return;
+    if (!hydrated || isDemo || useConvex) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => saveLocalState(state), 600);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [state, hydrated, isDemo, convexUserId]);
+  }, [state, hydrated, isDemo, useConvex]);
 
   // ===== Streak update helper =====
   const updateStreak = useCallback((lastEditDay: string, streak: number) => {
-    if (!convexUserId) return;
+    if (!useConvex) return;
     const today = todayKey();
     let newStreak = streak;
     if (lastEditDay !== today) {
@@ -482,13 +474,13 @@ export function useNotes() {
       if (lastEditDay === yKey) newStreak = streak + 1;
       else newStreak = 1;
     }
-    updateUserStreakMut({
-      userId: convexUserId as any,
+    // Server attaches tokenIdentifier automatically
+    updateProfileMut({
       streak: newStreak,
       lastEditDay: today,
       totalConnections: 0,
     });
-  }, [convexUserId, updateUserStreakMut]);
+  }, [useConvex, updateProfileMut]);
 
   // ===== Note CRUD =====
   const recomputeBacklinks = useCallback((notes: Note[]): Note[] => {
@@ -498,8 +490,8 @@ export function useNotes() {
 
   const updateNote = useCallback(
     (id: string, patch: Partial<Note>, opts?: { silent?: boolean }) => {
-      // Optimistic update for local state
-      if (isDemo || !convexUserId) {
+      // Optimistic update for local state (demo mode)
+      if (isDemo || !useConvex) {
         setLocalState((prev) => {
           const notes = prev.notes.map((n) => {
             if (n.id !== id) return n;
@@ -545,12 +537,12 @@ export function useNotes() {
         }
       }
     },
-    [isDemo, convexUserId, recomputeBacklinks, updateNoteMut, updateStreak, state.lastEditDay, state.streak],
+    [isDemo, useConvex, recomputeBacklinks, updateNoteMut, updateStreak, state.lastEditDay, state.streak],
   );
 
   const createNote = useCallback(
     (folderId: string): Note => {
-      if (isDemo || !convexUserId) {
+      if (isDemo || !useConvex) {
         const id = generateNoteId();
         const now = new Date().toISOString();
         const n: Note = {
@@ -573,9 +565,8 @@ export function useNotes() {
           subtitle: 'A new thought, waiting to be shaped.', tags: [], body: '', backlinks: [],
           createdAt: now, updatedAt: now, wordCount: 0, status: 'draft', folderId, pinned: false,
         };
-        // Fire mutation — the real ID will come from Convex
+        // Fire mutation — the real ID will come from Convex (server attaches tokenIdentifier)
         createNoteMut({
-          userId: convexUserId as any,
           filename: n.filename, title: n.title, subtitle: n.subtitle,
           tags: n.tags, body: n.body, backlinks: n.backlinks,
           wordCount: n.wordCount, status: n.status, folderId: n.folderId, pinned: n.pinned,
@@ -594,11 +585,11 @@ export function useNotes() {
         return n;
       }
     },
-    [isDemo, convexUserId, recomputeBacklinks, createNoteMut],
+    [isDemo, useConvex, recomputeBacklinks, createNoteMut],
   );
 
   const deleteNote = useCallback((id: string) => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       setLocalState((prev) => {
         const notes = prev.notes.filter((n) => n.id !== id);
         const openTabs = prev.openTabs.filter((t) => t !== id);
@@ -616,10 +607,10 @@ export function useNotes() {
         return { openTabs, activeTab };
       });
     }
-  }, [isDemo, convexUserId, recomputeBacklinks, deleteNoteMut]);
+  }, [isDemo, useConvex, recomputeBacklinks, deleteNoteMut]);
 
   const moveNote = useCallback((noteId: string, folderId: string) => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       setLocalState((prev) => ({
         ...prev,
         notes: prev.notes.map((n) => (n.id === noteId ? { ...n, folderId } : n)),
@@ -627,10 +618,10 @@ export function useNotes() {
     } else {
       updateNoteMut({ noteId: noteId as any, folderId }).catch(console.error);
     }
-  }, [isDemo, convexUserId, updateNoteMut]);
+  }, [isDemo, useConvex, updateNoteMut]);
 
   const togglePinned = useCallback((noteId: string) => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       setLocalState((prev) => ({
         ...prev,
         notes: prev.notes.map((n) => (n.id === noteId ? { ...n, pinned: !n.pinned } : n)),
@@ -639,7 +630,7 @@ export function useNotes() {
       const note = state.notes.find(n => n.id === noteId);
       if (note) updateNoteMut({ noteId: noteId as any, pinned: !note.pinned }).catch(console.error);
     }
-  }, [isDemo, convexUserId, state.notes, updateNoteMut]);
+  }, [isDemo, useConvex, state.notes, updateNoteMut]);
 
   // ===== Tab management =====
   const openTab = useCallback((id: string) => {
@@ -680,7 +671,7 @@ export function useNotes() {
 
   // ===== Folder CRUD =====
   const createFolder = useCallback((parentId: string | null, name: string, paraType?: ParaType): Folder => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       const id = generateFolderId();
       const folder: Folder = {
         id, name: name || 'New folder', parentId,
@@ -695,15 +686,14 @@ export function useNotes() {
         paraType, createdAt: new Date().toISOString(), expanded: true,
       };
       createFolderMut({
-        userId: convexUserId as any,
         name: folder.name, parentId, paraType: paraType ?? null, expanded: true,
       }).catch(console.error);
       return folder;
     }
-  }, [isDemo, convexUserId, createFolderMut]);
+  }, [isDemo, useConvex, createFolderMut]);
 
   const renameFolder = useCallback((id: string, name: string) => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       setLocalState((prev) => ({
         ...prev,
         folders: prev.folders.map((f) => (f.id === id ? { ...f, name } : f)),
@@ -711,10 +701,10 @@ export function useNotes() {
     } else {
       updateFolderMut({ folderId: id as any, name }).catch(console.error);
     }
-  }, [isDemo, convexUserId, updateFolderMut]);
+  }, [isDemo, useConvex, updateFolderMut]);
 
   const deleteFolder = useCallback((id: string) => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       setLocalState((prev) => {
         const toDelete = new Set<string>([id]);
         let changed = true;
@@ -735,10 +725,10 @@ export function useNotes() {
     } else {
       deleteFolderMut({ folderId: id as any }).catch(console.error);
     }
-  }, [isDemo, convexUserId, deleteFolderMut]);
+  }, [isDemo, useConvex, deleteFolderMut]);
 
   const toggleFolderExpanded = useCallback((id: string) => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       setLocalState((prev) => ({
         ...prev,
         folders: prev.folders.map((f) => (f.id === id ? { ...f, expanded: !f.expanded } : f)),
@@ -747,15 +737,15 @@ export function useNotes() {
       const folder = state.folders.find(f => f.id === id);
       if (folder) updateFolderMut({ folderId: id as any, expanded: !folder.expanded }).catch(console.error);
     }
-  }, [isDemo, convexUserId, state.folders, updateFolderMut]);
+  }, [isDemo, useConvex, state.folders, updateFolderMut]);
 
   const resetAll = useCallback(() => {
-    if (isDemo || !convexUserId) {
+    if (isDemo || !useConvex) {
       const fresh = seedState();
       setLocalState(fresh);
       saveLocalState(fresh);
     }
-  }, [isDemo, convexUserId]);
+  }, [isDemo, useConvex]);
 
   return {
     state,

@@ -2,23 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
+import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '@/lib/convex-api';
 import { Brain, ArrowRight, Sparkles } from 'lucide-react';
 
-// Simple hash function for demo passwords (NOT secure — use proper auth in production)
-function simpleHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return hash.toString(36);
-}
-
 function AuthContent() {
   const searchParams = useSearchParams();
+  const { signIn } = useAuthActions();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,42 +17,71 @@ function AuthContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createOrUpdateUser = useMutation(api.functions.createOrUpdateUser);
+  // Mutation to ensure user profile exists in our userProfiles table
+  const ensureProfile = useMutation(api.functions.ensureProfile);
+  // Query to check if profile exists (so we know to create it after first signIn)
+  const profile = useQuery(api.functions.getMyProfile);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (searchParams.get('mode') === 'signup') setMode('signup');
   }, [searchParams]);
 
+  // If user is authenticated but has no profile, create one
+  useEffect(() => {
+    if (profile === undefined) return; // still loading
+    if (profile === null) {
+      // Authenticated but no profile row yet — create one
+      const userStr = localStorage.getItem('second-brain-user');
+      const userName = name || (userStr ? JSON.parse(userStr).name : email.split('@')[0]);
+      ensureProfile({ name: userName, email }).catch(console.error);
+    }
+  }, [profile, ensureProfile, name, email]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const passwordHash = simpleHash(password);
-      const userName = name || email.split('@')[0];
-
-      // Call Convex mutation to create or verify user
-      const userId = await createOrUpdateUser({
+      // Use Convex Auth's signIn with the Password provider
+      // For sign up, we pass flow: 'signUp'; for sign in, flow: 'signIn'
+      const signInParams: Record<string, any> = {
         email,
-        name: userName,
-        passwordHash,
-      });
+        password,
+        flow: mode === 'signup' ? 'signUp' : 'signIn',
+      };
+      if (mode === 'signup') {
+        signInParams.name = name || email.split('@')[0];
+      }
+      const result = await signIn('password', signInParams);
 
-      // Store user info + Convex userId in localStorage
+      if (!result) {
+        throw new Error('Authentication failed');
+      }
+
+      // Store minimal info in localStorage (just for UI display — actual auth
+      // is handled by Convex Auth session token, which is httpOnly and secure)
       localStorage.setItem('second-brain-user', JSON.stringify({
         email,
-        name: userName,
-        convexUserId: userId,
+        name: name || email.split('@')[0],
       }));
 
       if (mode === 'signup') {
         localStorage.setItem('second-brain-new-user', 'true');
       }
 
-      window.location.href = '/';
+      // Redirect happens automatically when isAuthenticated becomes true
+      // (handled by the parent component)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      // Convex Auth may return a generic error — make it friendlier
+      setError(
+        msg.includes('Invalid') || msg.includes('credentials')
+          ? 'Invalid email or password'
+          : msg.includes('already')
+            ? 'An account with this email already exists'
+            : msg
+      );
       setLoading(false);
     }
   };
@@ -144,7 +164,7 @@ function AuthContent() {
           </div>
           <div>
             <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#444450', fontWeight: 600, marginBottom: 5, display: 'block' }}>password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8}
               style={{ width: '100%', background: '#1e1e21', border: '1px solid #333338', borderRadius: 5, padding: '10px 12px', color: '#f0f0f2', fontSize: 13, fontFamily: 'inherit', outline: 'none', caretColor: '#b0a8fb' }} />
           </div>
           <button type="submit" disabled={loading} style={{

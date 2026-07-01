@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useConvexAuth } from 'convex/react';
 import { useNotes } from '@/hooks/useNotes';
 import { useEditor } from '@/hooks/useEditor';
 import { useBacklinks } from '@/hooks/useBacklinks';
@@ -17,6 +18,7 @@ import { StatusBar } from '@/components/second-brain/StatusBar';
 import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
 import { Dashboard } from '@/components/second-brain/Dashboard';
+import { useAuthActions } from '@convex-dev/auth/react';
 
 interface HistoryEntry {
   id: string;
@@ -26,23 +28,25 @@ interface HistoryEntry {
 }
 
 export default function Home() {
-  // Auth check — redirect to landing if not logged in or demo mode
+  // Auth check — use Convex Auth for real verification + localStorage for demo
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
+  const { signOut } = useAuthActions();
   const [authMode, setAuthMode] = useState<'demo' | 'user' | 'loading'>('loading');
 
   useEffect(() => {
+    if (authLoading) return; // wait for Convex Auth to load
     const isDemo = localStorage.getItem('second-brain-demo') === 'true';
-    const user = localStorage.getItem('second-brain-user');
     /* eslint-disable react-hooks/set-state-in-effect */
     if (isDemo) {
       setAuthMode('demo');
-    } else if (user) {
+    } else if (isAuthenticated) {
       setAuthMode('user');
     } else {
       /* eslint-enable react-hooks/set-state-in-effect */
       window.location.href = '/landing';
       return;
     }
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   const {
     state,
@@ -508,6 +512,25 @@ export default function Home() {
             background: 'transparent', border: '1px solid #4a3010', borderRadius: 3,
             padding: '2px 8px', color: 'var(--amb)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
           }}>exit</button>
+        </div>
+      )}
+
+      {/* Authenticated user banner with sign-out */}
+      {authMode === 'user' && (
+        <div style={{
+          height: 28, background: 'var(--bg2)', borderBottom: '1px solid var(--bd)',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10,
+          padding: '0 14px', fontSize: 11, color: 'var(--t3)', fontFamily: 'inherit', flexShrink: 0,
+        }}>
+          <span style={{ color: 'var(--grn)' }}>● signed in</span>
+          <button onClick={() => {
+            signOut();
+            localStorage.removeItem('second-brain-user');
+            window.location.href = '/landing';
+          }} style={{
+            background: 'transparent', border: '1px solid var(--bd2)', borderRadius: 3,
+            padding: '2px 8px', color: 'var(--t3)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
+          }}>sign out</button>
         </div>
       )}
 

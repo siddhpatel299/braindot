@@ -1,25 +1,18 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
-// Second Brain — Convex schema
-// Includes: users, notes, folders, kanbanCards, todos, canvasBoards,
-// libraryItems, highlights, appState
+// Second Brain — Convex schema with Convex Auth
+// Uses tokenIdentifier (server-verified) instead of client-supplied userId
+// Includes auth tables + app tables: notes, folders, kanbanCards, todos,
+// canvasBoards, libraryItems, highlights, appState
 
 export default defineSchema({
-  // ===== Users =====
-  users: defineTable({
-    email: v.string(),
-    name: v.string(),
-    passwordHash: v.string(), // simple hash for demo; use proper auth in production
-    createdAt: v.string(),
-    streak: v.number(),
-    lastEditDay: v.string(),
-    totalConnections: v.number(),
-  }).index("byEmail", ["email"]),
+  ...authTables,
 
   // ===== Notes =====
   notes: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(), // server-verified identity from ctx.auth.getUserIdentity()
     filename: v.string(),
     title: v.string(),
     subtitle: v.string(),
@@ -33,97 +26,107 @@ export default defineSchema({
     folderId: v.string(),
     pinned: v.boolean(),
   })
-    .index("byUserId", ["userId"])
-    .index("byUserAndFolder", ["userId", "folderId"])
-    .index("byUserAndPinned", ["userId", "pinned"]),
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndFolder", ["tokenIdentifier", "folderId"])
+    .index("byTokenAndPinned", ["tokenIdentifier", "pinned"]),
 
   // ===== Folders (PARA structure) =====
   folders: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(),
     name: v.string(),
     parentId: v.union(v.string(), v.null()),
-    paraType: v.union(v.string(), v.null()), // 'projects' | 'areas' | 'resources' | 'archives'
+    paraType: v.union(v.string(), v.null()),
     createdAt: v.string(),
     expanded: v.boolean(),
   })
-    .index("byUserId", ["userId"])
-    .index("byUserAndParent", ["userId", "parentId"]),
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndParent", ["tokenIdentifier", "parentId"]),
 
   // ===== Kanban Cards =====
   kanbanCards: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(),
     title: v.string(),
     description: v.string(),
-    status: v.string(), // 'todo' | 'doing' | 'done'
+    status: v.string(),
     tags: v.array(v.string()),
     linkedNoteId: v.union(v.id("notes"), v.null()),
     order: v.number(),
     createdAt: v.string(),
     updatedAt: v.string(),
   })
-    .index("byUserId", ["userId"])
-    .index("byUserAndStatus", ["userId", "status"]),
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndStatus", ["tokenIdentifier", "status"]),
 
   // ===== Todos =====
   todos: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(),
     text: v.string(),
     completed: v.boolean(),
-    priority: v.string(), // 'low' | 'medium' | 'high' | 'urgent'
+    priority: v.string(),
     dueDate: v.union(v.string(), v.null()),
     linkedNoteId: v.union(v.id("notes"), v.null()),
     order: v.number(),
     createdAt: v.string(),
   })
-    .index("byUserId", ["userId"])
-    .index("byUserAndCompleted", ["userId", "completed"]),
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndCompleted", ["tokenIdentifier", "completed"]),
 
   // ===== Canvas Boards =====
   canvasBoards: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(),
     name: v.string(),
-    nodes: v.string(), // JSON string of node array
-    edges: v.string(), // JSON string of edge array
+    nodes: v.string(),
+    edges: v.string(),
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index("byUserId", ["userId"]),
+  }).index("byToken", ["tokenIdentifier"]),
 
   // ===== Library Items (reading) =====
   libraryItems: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(),
     title: v.string(),
     author: v.union(v.string(), v.null()),
-    type: v.string(), // 'book' | 'paper' | 'article' | 'news'
-    source: v.string(), // url or filename
-    content: v.string(), // extracted text
-    status: v.string(), // 'unread' | 'reading' | 'done'
-    progress: v.number(), // 0-100
+    type: v.string(),
+    source: v.string(),
+    content: v.string(),
+    status: v.string(),
+    progress: v.number(),
     coverUrl: v.union(v.string(), v.null()),
     createdAt: v.string(),
     updatedAt: v.string(),
   })
-    .index("byUserId", ["userId"])
-    .index("byUserAndType", ["userId", "type"]),
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndType", ["tokenIdentifier", "type"]),
 
   // ===== Highlights =====
   highlights: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(),
     libraryItemId: v.id("libraryItems"),
     noteId: v.union(v.id("notes"), v.null()),
     text: v.string(),
-    color: v.string(), // 'yellow' | 'purple' | 'green' | 'blue'
+    color: v.string(),
     page: v.union(v.number(), v.null()),
     createdAt: v.string(),
   })
-    .index("byUserId", ["userId"])
-    .index("byLibraryItem", ["userId", "libraryItemId"]),
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndLibraryItem", ["tokenIdentifier", "libraryItemId"]),
 
   // ===== App State (misc per-user state) =====
   appState: defineTable({
-    userId: v.id("users"),
+    tokenIdentifier: v.string(),
     key: v.string(),
-    value: v.string(), // JSON string
+    value: v.string(),
   })
-    .index("byUserId", ["userId"])
-    .index("byUserAndKey", ["userId", "key"]),
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndKey", ["tokenIdentifier", "key"]),
+
+  // ===== User Profile (streak, totalConnections — keyed by tokenIdentifier) =====
+  userProfiles: defineTable({
+    tokenIdentifier: v.string(),
+    name: v.string(),
+    email: v.string(),
+    streak: v.number(),
+    lastEditDay: v.string(),
+    totalConnections: v.number(),
+  }).index("byToken", ["tokenIdentifier"]),
 });
