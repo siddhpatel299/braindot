@@ -18,6 +18,7 @@ import { StatusBar } from '@/components/second-brain/StatusBar';
 import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
 import { Dashboard } from '@/components/second-brain/Dashboard';
+import { SearchView } from '@/components/second-brain/SearchView';
 import { useAuthActions } from '@convex-dev/auth/react';
 
 interface HistoryEntry {
@@ -67,7 +68,7 @@ export default function Home() {
   } = useNotes();
 
   const [iconView, setIconView] = useState<IconRailView>('notes');
-  const [appView, setAppView] = useState<'dashboard' | 'notes'>('dashboard');
+  const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search'>('dashboard');
   const [search, setSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [contextTab, setContextTab] = useState<'ai' | 'graph' | 'history'>('ai');
@@ -361,7 +362,7 @@ export default function Home() {
   const handleIconSelect = useCallback((v: IconRailView) => {
     setIconView(v);
     if (v === 'search') {
-      setPaletteOpen(true);
+      setAppView('search');
     } else if (v === 'dashboard') {
       setAppView('dashboard');
     } else if (v === 'ai') {
@@ -555,6 +556,15 @@ export default function Home() {
             onViewGraph={() => {
               setAppView('notes');
               setContextTab('graph');
+            }}
+          />
+        ) : appView === 'search' ? (
+          <SearchView
+            notes={state.notes}
+            onOpenNote={handleOpenNote}
+            onSynthesize={(notesToSynth) => {
+              handleDraftSynthesis();
+              setAppView('notes');
             }}
           />
         ) : (

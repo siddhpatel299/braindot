@@ -128,7 +128,7 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
       />
 
       <RailButton icon={Tags} label="Tags" active={active === 'tags'} onClick={() => onSelect('tags')} />
-      <RailButton icon={Search} label="Search" onClick={onOpenPalette} />
+      <RailButton icon={Search} label="Search" active={active === 'search'} onClick={() => onSelect('search')} />
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
