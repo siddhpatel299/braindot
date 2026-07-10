@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useConvexAuth } from 'convex/react';
 import { useNotes } from '@/hooks/useNotes';
 import { useEditor } from '@/hooks/useEditor';
 import { useBacklinks } from '@/hooks/useBacklinks';
@@ -19,7 +18,6 @@ import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
-import { useAuthActions } from '@convex-dev/auth/react';
 
 interface HistoryEntry {
   id: string;
@@ -29,25 +27,23 @@ interface HistoryEntry {
 }
 
 export default function Home() {
-  // Auth check — use Convex Auth for real verification + localStorage for demo
-  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
+  // Auth check — localStorage only (no Convex/Auth)
   const [authMode, setAuthMode] = useState<'demo' | 'user' | 'loading'>('loading');
 
   useEffect(() => {
-    if (authLoading) return; // wait for Convex Auth to load
     const isDemo = localStorage.getItem('second-brain-demo') === 'true';
+    const user = localStorage.getItem('second-brain-user');
     /* eslint-disable react-hooks/set-state-in-effect */
     if (isDemo) {
       setAuthMode('demo');
-    } else if (isAuthenticated) {
+    } else if (user) {
       setAuthMode('user');
     } else {
       /* eslint-enable react-hooks/set-state-in-effect */
       window.location.href = '/landing';
       return;
     }
-  }, [authLoading, isAuthenticated]);
+  }, []);
 
   const {
     state,
@@ -525,8 +521,8 @@ export default function Home() {
         }}>
           <span style={{ color: 'var(--grn)' }}>● signed in</span>
           <button onClick={() => {
-            signOut();
             localStorage.removeItem('second-brain-user');
+            localStorage.removeItem('second-brain-demo');
             window.location.href = '/landing';
           }} style={{
             background: 'transparent', border: '1px solid var(--bd2)', borderRadius: 3,

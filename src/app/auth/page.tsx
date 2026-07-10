@@ -2,13 +2,10 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useConvexAuth, useAuthActions } from '@convex-dev/auth/react';
 import { Brain, ArrowRight, Sparkles } from 'lucide-react';
 
 function AuthContent() {
   const searchParams = useSearchParams();
-  const { signIn } = useAuthActions();
-  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,71 +18,21 @@ function AuthContent() {
     if (searchParams.get('mode') === 'signup') setMode('signup');
   }, [searchParams]);
 
-  // If already authenticated, redirect to home
-  useEffect(() => {
-    if (authLoading) return;
-    if (isAuthenticated) {
-      // Store minimal info for UI display (auth token is in httpOnly cookie)
-      try {
-        const userStr = localStorage.getItem('second-brain-user');
-        if (userStr) {
-          const user = JSON.parse(userStr);
-          if (mode === 'signup' && !localStorage.getItem('second-brain-new-user')) {
-            localStorage.setItem('second-brain-new-user', 'true');
-          }
-        }
-      } catch {}
-      window.location.href = '/';
-    }
-  }, [isAuthenticated, authLoading, mode]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    try {
-      // Use Convex Auth's signIn with the Password provider
-      const signInParams: Record<string, any> = {
-        email,
-        password,
-        flow: mode === 'signup' ? 'signUp' : 'signIn',
-      };
-      if (mode === 'signup') {
-        signInParams.name = name || email.split('@')[0];
-      }
-      const result = await signIn('password', signInParams);
-
-      if (!result) {
-        throw new Error('Authentication failed');
-      }
-
-      // Store minimal info in localStorage (just for UI display — actual auth
-      // is handled by Convex Auth session token, which is httpOnly and secure)
+    setTimeout(() => {
+      // Simple localStorage-based auth (no server verification)
       localStorage.setItem('second-brain-user', JSON.stringify({
         email,
         name: name || email.split('@')[0],
       }));
-
       if (mode === 'signup') {
         localStorage.setItem('second-brain-new-user', 'true');
       }
-
-      // Redirect happens automatically via the isAuthenticated effect above
-      // But also force redirect as fallback
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 500);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong';
-      setError(
-        msg.includes('Invalid') || msg.includes('credentials')
-          ? 'Invalid email or password'
-          : msg.includes('already')
-            ? 'An account with this email already exists'
-            : msg
-      );
-      setLoading(false);
-    }
+      window.location.href = '/';
+    }, 400);
   };
 
   return (
@@ -166,7 +113,7 @@ function AuthContent() {
           </div>
           <div>
             <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#444450', fontWeight: 600, marginBottom: 5, display: 'block' }}>password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8}
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required
               style={{ width: '100%', background: '#1e1e21', border: '1px solid #333338', borderRadius: 5, padding: '10px 12px', color: '#f0f0f2', fontSize: 13, fontFamily: 'inherit', outline: 'none', caretColor: '#b0a8fb' }} />
           </div>
           <button type="submit" disabled={loading} style={{

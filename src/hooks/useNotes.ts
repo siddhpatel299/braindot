@@ -1,19 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useQuery, useMutation, useConvexAuth } from 'convex/react';
-import { api } from '@/lib/convex-api';
 import { Note, Folder, ParaType } from '@/types';
 import { SEED_NOTES, SEED_FOLDERS, SEED_FOLDER_IDS, generateNoteId, generateFolderId } from '@/utils/seedData';
 import { computeBacklinks, countWords, todayKey } from '@/utils/markdown';
 
 const STORAGE_KEY = 'second-brain-state-v2';
 const LEGACY_KEY = 'second-brain-state-v1';
-const UI_STATE_KEY = 'second-brain-ui-state'; // openTabs, activeTab only
+const UI_STATE_KEY = 'second-brain-ui-state';
 
-// ============================================================
-// Types
-// ============================================================
 interface PersistedState {
   notes: Note[];
   folders: Folder[];
@@ -29,62 +24,6 @@ interface UIState {
   activeTab: string;
 }
 
-// ============================================================
-// Helper: map Convex note doc → local Note type
-// ============================================================
-function mapNoteDoc(doc: any): Note {
-  return {
-    id: doc._id,
-    filename: doc.filename,
-    title: doc.title,
-    subtitle: doc.subtitle || '',
-    tags: doc.tags || [],
-    body: doc.body || '',
-    backlinks: doc.backlinks || [],
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-    wordCount: doc.wordCount ?? 0,
-    status: doc.status || 'draft',
-    folderId: doc.folderId,
-    pinned: doc.pinned ?? false,
-  };
-}
-
-function mapFolderDoc(doc: any): Folder {
-  return {
-    id: doc._id,
-    name: doc.name,
-    parentId: doc.parentId,
-    paraType: doc.paraType as ParaType | undefined,
-    createdAt: doc.createdAt,
-    expanded: doc.expanded ?? true,
-  };
-}
-
-// ============================================================
-// Load / save UI state (openTabs, activeTab) — always localStorage
-// ============================================================
-function loadUIState(): UIState {
-  if (typeof window === 'undefined') return { openTabs: [], activeTab: '' };
-  try {
-    const raw = localStorage.getItem(UI_STATE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as UIState;
-      if (parsed.openTabs && Array.isArray(parsed.openTabs)) return parsed;
-    }
-  } catch {}
-  return { openTabs: [], activeTab: '' };
-}
-
-function saveUIState(ui: UIState) {
-  try {
-    localStorage.setItem(UI_STATE_KEY, JSON.stringify(ui));
-  } catch {}
-}
-
-// ============================================================
-// LocalStorage helpers (for demo mode)
-// ============================================================
 function migrateCollectionToFolder(collection: string): string {
   switch (collection) {
     case 'pinned':    return SEED_FOLDER_IDS.resourcesPkm;
@@ -224,265 +163,63 @@ function saveLocalState(state: PersistedState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 
-// ============================================================
-// New user seeding for Convex
-// ============================================================
-function getNewUserTemplateData() {
-  const now = new Date().toISOString();
-  const folders = SEED_FOLDERS.map(f => ({
-    name: f.name,
-    parentId: f.parentId,
-    paraType: f.paraType ?? null,
-    createdAt: now,
-    expanded: f.expanded ?? true,
-    localId: f.id,
-  }));
+function loadUIState(): UIState {
+  if (typeof window === 'undefined') return { openTabs: [], activeTab: '' };
+  try {
+    const raw = localStorage.getItem(UI_STATE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as UIState;
+      if (parsed.openTabs && Array.isArray(parsed.openTabs)) return parsed;
+    }
+  } catch {}
+  return { openTabs: [], activeTab: '' };
+}
 
-  const notes = [
-    {
-      filename: 'welcome-to-second-brain.md',
-      title: 'Welcome to Second Brain',
-      subtitle: 'Your knowledge, connected.',
-      tags: ['strategy', 'learning'],
-      body: `# Welcome to Second Brain
-
-This is your first note. It lives in your **Resources** folder under **PKM**.
-
-## What is this app?
-
-Second Brain is a PKM workspace where notes connect to each other, your reading flows into your vault, and AI helps you see patterns.
-
-## How to get started
-
-1. **Create a note** — click "+ new note" or press ⌘T
-2. **Write in markdown** — use the formatting toolbar for bold, italic, headings
-3. **Link notes** — type [[note-title]] to create a wiki-link
-4. **Open command palette** — press ⌘K to search and navigate
-5. **Explore the dashboard** — click the brain logo (top-left)
-
-> [!callout]
-> The best way to learn is to start writing. Create a note about something you learned today.
-
-## Tips
-
-- Press **⌘K** for the command palette
-- Type **/** in the editor to insert embeds
-- Switch between **edit** and **preview** modes using the tabs above the editor`,
-      backlinks: [],
-      wordCount: 0,
-      status: 'evergreen',
-      folderId: SEED_FOLDER_IDS.resourcesPkm, // will be mapped after folder creation
-      pinned: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      filename: 'my-first-note.md',
-      title: 'My First Note',
-      subtitle: 'Start here — write something you learned today.',
-      tags: [],
-      body: `# My First Note
-
-Write something you learned today. It doesn't have to be profound — just one idea, in your own words.
-
-## What did I learn?
-
-[Start typing here. Delete this placeholder and write your thought.]
-
-## How does this connect?
-
-Use [[wiki-links]] to connect this note to other notes. For example, link to [[welcome-to-second-brain]].`,
-      backlinks: [],
-      wordCount: 0,
-      status: 'draft',
-      folderId: SEED_FOLDER_IDS.resourcesPkm,
-      pinned: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-  ].map(n => ({ ...n, wordCount: n.body.split(/\s+/).filter(Boolean).length }));
-
-  return { folders, notes };
+function saveUIState(ui: UIState) {
+  try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(ui)); } catch {}
 }
 
 // ============================================================
-// Main hook
+// Main hook — pure localStorage, no Convex
 // ============================================================
 export function useNotes() {
-  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
-  const [isDemo, setIsDemo] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [localState, setLocalState] = useState<PersistedState>(() => seedState());
+  const [uiState, setUiState] = useState<UIState>(() => ({ openTabs: [], activeTab: '' }));
 
-  // Detect demo mode on mount
+  // Hydrate from localStorage on mount
   useEffect(() => {
-    const demo = localStorage.getItem('second-brain-demo') === 'true';
-    setIsDemo(demo);
+    const loaded = loadLocalState();
+    setLocalState(loaded);
+    const ui = loadUIState();
+    setUiState({
+      openTabs: ui.openTabs.length ? ui.openTabs : loaded.openTabs,
+      activeTab: ui.activeTab || loaded.activeTab,
+    });
     setHydrated(true);
   }, []);
 
-  // Whether to use Convex (authenticated, non-demo) or local state
-  const useConvex = isAuthenticated && !isDemo;
+  const state: PersistedState = useMemo(() => ({
+    ...localState,
+    openTabs: uiState.openTabs.length ? uiState.openTabs : localState.openTabs,
+    activeTab: uiState.activeTab || localState.activeTab,
+  }), [localState, uiState]);
 
-  // ===== Convex queries (server verifies identity via session token) =====
-  // Note: NO userId passed — the server uses ctx.auth.getUserIdentity()
-  const convexNotes = useQuery(api.functions.getNotes, useConvex ? {} : ('skip' as any));
-  const convexFolders = useQuery(api.functions.getFolders, useConvex ? {} : ('skip' as any));
-  const convexProfile = useQuery(api.functions.getMyProfile, useConvex ? {} : ('skip' as any));
-
-  // ===== Convex mutations =====
-  const createNoteMut = useMutation(api.functions.createNote);
-  const updateNoteMut = useMutation(api.functions.updateNote);
-  const deleteNoteMut = useMutation(api.functions.deleteNote);
-  const createFolderMut = useMutation(api.functions.createFolder);
-  const updateFolderMut = useMutation(api.functions.updateFolder);
-  const deleteFolderMut = useMutation(api.functions.deleteFolder);
-  const bulkCreateFoldersMut = useMutation(api.functions.bulkCreateFolders);
-  const bulkCreateNotesMut = useMutation(api.functions.bulkCreateNotes);
-  const ensureProfileMut = useMutation(api.functions.ensureProfile);
-  const updateProfileMut = useMutation(api.functions.updateProfile);
-
-  // ===== Local state (for demo mode + UI state) =====
-  const [localState, setLocalState] = useState<PersistedState>(() => seedState());
-  const [uiState, setUiState] = useState<UIState>(() => ({ openTabs: [], activeTab: '' }));
-  const [newUserSeeded, setNewUserSeeded] = useState(false);
-
-  // Hydrate local state for demo mode
-  useEffect(() => {
-    if (!hydrated) return;
-    if (isDemo || !useConvex) {
-      const loaded = loadLocalState();
-      setLocalState(loaded);
-      const ui = loadUIState();
-      setUiState({
-        openTabs: ui.openTabs.length ? ui.openTabs : loaded.openTabs,
-        activeTab: ui.activeTab || loaded.activeTab,
-      });
-    } else {
-      // Logged-in user: load UI state only
-      const ui = loadUIState();
-      setUiState(ui);
-    }
-  }, [hydrated, isDemo, useConvex]);
-
-  // ===== Ensure profile exists for authenticated user =====
-  useEffect(() => {
-    if (!useConvex || convexProfile === undefined) return;
-    if (convexProfile === null) {
-      // Create profile — server uses ctx.auth.getUserIdentity() to get tokenIdentifier
-      const userStr = localStorage.getItem('second-brain-user');
-      let name = 'User';
-      let email = '';
-      try {
-        if (userStr) {
-          const u = JSON.parse(userStr);
-          name = u.name || 'User';
-          email = u.email || '';
-        }
-      } catch {}
-      ensureProfileMut({ name, email }).catch(console.error);
-    }
-  }, [useConvex, convexProfile, ensureProfileMut]);
-
-  // ===== Seed new Convex user with PARA folders + template notes =====
-  useEffect(() => {
-    if (!useConvex || newUserSeeded) return;
-    // Wait for queries to load
-    if (convexNotes === undefined || convexFolders === undefined) return;
-    // Only seed if both are empty
-    if (convexNotes.length > 0 || convexFolders.length > 0) return;
-
-    const isNewUser = localStorage.getItem('second-brain-new-user') === 'true';
-    if (!isNewUser) return;
-
-    const seed = async () => {
-      try {
-        const { folders, notes } = getNewUserTemplateData();
-        // Create folders and get mapping (server attaches tokenIdentifier automatically)
-        const folderMapping = await bulkCreateFoldersMut({ folders });
-        // Create notes with mapped folder IDs
-        const notesWithMappedFolders = notes.map(n => ({
-          ...n,
-          folderId: folderMapping[n.folderId] || n.folderId,
-        }));
-        const noteIds = await bulkCreateNotesMut({ notes: notesWithMappedFolders });
-        // Set active tab to first note
-        setUiState({
-          openTabs: [noteIds[0]],
-          activeTab: noteIds[0],
-        });
-        localStorage.removeItem('second-brain-new-user');
-        setNewUserSeeded(true);
-      } catch (err) {
-        console.error('Failed to seed new user data:', err);
-      }
-    };
-    seed();
-  }, [useConvex, convexNotes, convexFolders, newUserSeeded, bulkCreateFoldersMut, bulkCreateNotesMut]);
-
-  // ===== Compute merged state =====
-  const state: PersistedState = useMemo(() => {
-    // Convex mode
-    if (useConvex && convexNotes && convexFolders) {
-      const notes = convexNotes.map(mapNoteDoc);
-      const folders = convexFolders.map(mapFolderDoc);
-      const backlinks = computeBacklinks(notes);
-      for (const n of notes) n.backlinks = backlinks[n.id] || [];
-
-      const streak = convexProfile?.streak ?? 0;
-      const totalConnections = convexProfile?.totalConnections ?? 0;
-      const lastEditDay = convexProfile?.lastEditDay ?? todayKey();
-
-      return {
-        notes, folders,
-        openTabs: uiState.openTabs.length ? uiState.openTabs : (notes.length ? [notes[0].id] : []),
-        activeTab: uiState.activeTab || (notes.length ? notes[0].id : ''),
-        streak, totalConnections, lastEditDay,
-      };
-    }
-    // Demo / local mode
-    return {
-      ...localState,
-      openTabs: uiState.openTabs.length ? uiState.openTabs : localState.openTabs,
-      activeTab: uiState.activeTab || localState.activeTab,
-    };
-  }, [useConvex, convexNotes, convexFolders, convexProfile, localState, uiState]);
-
-  // ===== Save UI state to localStorage =====
+  // Save UI state to localStorage
   useEffect(() => {
     if (!hydrated) return;
     saveUIState({ openTabs: state.openTabs, activeTab: state.activeTab });
   }, [state.openTabs, state.activeTab, hydrated]);
 
-  // ===== Debounced local save (demo mode only) =====
+  // Debounced local save
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!hydrated || isDemo || useConvex) return;
+    if (!hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => saveLocalState(state), 600);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [state, hydrated, isDemo, useConvex]);
+  }, [state, hydrated]);
 
-  // ===== Streak update helper =====
-  const updateStreak = useCallback((lastEditDay: string, streak: number) => {
-    if (!useConvex) return;
-    const today = todayKey();
-    let newStreak = streak;
-    if (lastEditDay !== today) {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      const yKey = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-      if (lastEditDay === yKey) newStreak = streak + 1;
-      else newStreak = 1;
-    }
-    // Server attaches tokenIdentifier automatically
-    updateProfileMut({
-      streak: newStreak,
-      lastEditDay: today,
-      totalConnections: 0,
-    });
-  }, [useConvex, updateProfileMut]);
-
-  // ===== Note CRUD =====
   const recomputeBacklinks = useCallback((notes: Note[]): Note[] => {
     const backlinks = computeBacklinks(notes);
     return notes.map((n) => ({ ...n, backlinks: backlinks[n.id] || [] }));
@@ -490,156 +227,92 @@ export function useNotes() {
 
   const updateNote = useCallback(
     (id: string, patch: Partial<Note>, opts?: { silent?: boolean }) => {
-      // Optimistic update for local state (demo mode)
-      if (isDemo || !useConvex) {
-        setLocalState((prev) => {
-          const notes = prev.notes.map((n) => {
-            if (n.id !== id) return n;
-            const next: Note = { ...n, ...patch };
-            if (patch.body !== undefined) next.wordCount = countWords(patch.body);
-            next.updatedAt = opts?.silent ? n.updatedAt : new Date().toISOString();
-            return next;
-          });
-          const withBacklinks = recomputeBacklinks(notes);
-          let { streak, lastEditDay } = prev;
-          if (!opts?.silent) {
-            const today = todayKey();
-            if (lastEditDay !== today) {
-              const y = new Date();
-              y.setDate(y.getDate() - 1);
-              const yKey = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-              if (lastEditDay === yKey) streak = streak + 1;
-              else if (lastEditDay !== today) streak = 1;
-              lastEditDay = today;
-            }
-          }
-          return { ...prev, notes: withBacklinks, streak, lastEditDay };
+      setLocalState((prev) => {
+        const notes = prev.notes.map((n) => {
+          if (n.id !== id) return n;
+          const next: Note = { ...n, ...patch };
+          if (patch.body !== undefined) next.wordCount = countWords(patch.body);
+          next.updatedAt = opts?.silent ? n.updatedAt : new Date().toISOString();
+          return next;
         });
-      } else {
-        // Convex mode: send mutation
-        const notePatch: any = {};
-        if (patch.body !== undefined) {
-          notePatch.body = patch.body;
-          notePatch.wordCount = countWords(patch.body);
-        }
-        if (patch.title !== undefined) notePatch.title = patch.title;
-        if (patch.subtitle !== undefined) notePatch.subtitle = patch.subtitle;
-        if (patch.tags !== undefined) notePatch.tags = patch.tags;
-        if (patch.status !== undefined) notePatch.status = patch.status;
-        if (patch.folderId !== undefined) notePatch.folderId = patch.folderId;
-        if (patch.pinned !== undefined) notePatch.pinned = patch.pinned;
-        if (patch.filename !== undefined) notePatch.filename = patch.filename;
-        if (patch.backlinks !== undefined) notePatch.backlinks = patch.backlinks;
-        updateNoteMut({ noteId: id as any, ...notePatch }).catch(console.error);
-        // Update streak
+        const withBacklinks = recomputeBacklinks(notes);
+        let { streak, lastEditDay } = prev;
         if (!opts?.silent) {
-          updateStreak(state.lastEditDay, state.streak);
+          const today = todayKey();
+          if (lastEditDay !== today) {
+            const y = new Date();
+            y.setDate(y.getDate() - 1);
+            const yKey = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+            if (lastEditDay === yKey) streak = streak + 1;
+            else if (lastEditDay !== today) streak = 1;
+            lastEditDay = today;
+          }
         }
-      }
+        return { ...prev, notes: withBacklinks, streak, lastEditDay };
+      });
     },
-    [isDemo, useConvex, recomputeBacklinks, updateNoteMut, updateStreak, state.lastEditDay, state.streak],
+    [recomputeBacklinks],
   );
 
   const createNote = useCallback(
     (folderId: string): Note => {
-      if (isDemo || !useConvex) {
-        const id = generateNoteId();
-        const now = new Date().toISOString();
-        const n: Note = {
-          id, filename: `untitled-${id.slice(-6)}.md`, title: 'Untitled note',
-          subtitle: 'A new thought, waiting to be shaped.', tags: [], body: '', backlinks: [],
-          createdAt: now, updatedAt: now, wordCount: 0, status: 'draft', folderId, pinned: false,
-        };
-        setLocalState((prev) => {
-          const notes = [n, ...prev.notes];
-          const withBacklinks = recomputeBacklinks(notes);
-          return { ...prev, notes: withBacklinks, openTabs: [...prev.openTabs, id], activeTab: id };
-        });
-        return n;
-      } else {
-        // Convex mode: create a temp note, fire mutation
-        const tempId = `temp_${Date.now()}`;
-        const now = new Date().toISOString();
-        const n: Note = {
-          id: tempId, filename: `untitled-${tempId.slice(-6)}.md`, title: 'Untitled note',
-          subtitle: 'A new thought, waiting to be shaped.', tags: [], body: '', backlinks: [],
-          createdAt: now, updatedAt: now, wordCount: 0, status: 'draft', folderId, pinned: false,
-        };
-        // Fire mutation — the real ID will come from Convex (server attaches tokenIdentifier)
-        createNoteMut({
-          filename: n.filename, title: n.title, subtitle: n.subtitle,
-          tags: n.tags, body: n.body, backlinks: n.backlinks,
-          wordCount: n.wordCount, status: n.status, folderId: n.folderId, pinned: n.pinned,
-        }).then((realId: string) => {
-          // Update UI state with the real ID
-          setUiState((prev) => ({
-            openTabs: prev.openTabs.map(t => t === tempId ? realId : t),
-            activeTab: prev.activeTab === tempId ? realId : prev.activeTab,
-          }));
-        }).catch(console.error);
-        // Optimistically add to UI
-        setUiState((prev) => ({
-          openTabs: [...prev.openTabs, tempId],
-          activeTab: tempId,
-        }));
-        return n;
-      }
+      const id = generateNoteId();
+      const now = new Date().toISOString();
+      const n: Note = {
+        id, filename: `untitled-${id.slice(-6)}.md`, title: 'Untitled note',
+        subtitle: 'A new thought, waiting to be shaped.', tags: [], body: '', backlinks: [],
+        createdAt: now, updatedAt: now, wordCount: 0, status: 'draft', folderId, pinned: false,
+      };
+      setLocalState((prev) => {
+        const notes = [n, ...prev.notes];
+        const withBacklinks = recomputeBacklinks(notes);
+        return { ...prev, notes: withBacklinks };
+      });
+      setUiState((prev) => ({
+        openTabs: [...prev.openTabs, id],
+        activeTab: id,
+      }));
+      return n;
     },
-    [isDemo, useConvex, recomputeBacklinks, createNoteMut],
+    [recomputeBacklinks],
   );
 
   const deleteNote = useCallback((id: string) => {
-    if (isDemo || !useConvex) {
-      setLocalState((prev) => {
-        const notes = prev.notes.filter((n) => n.id !== id);
-        const openTabs = prev.openTabs.filter((t) => t !== id);
-        let activeTab = prev.activeTab;
-        if (activeTab === id) activeTab = openTabs[openTabs.length - 1] || notes[0]?.id || '';
-        const withBacklinks = recomputeBacklinks(notes);
-        return { ...prev, notes: withBacklinks, openTabs, activeTab };
-      });
-    } else {
-      deleteNoteMut({ noteId: id as any }).catch(console.error);
-      setUiState((prev) => {
-        const openTabs = prev.openTabs.filter(t => t !== id);
-        let activeTab = prev.activeTab;
-        if (activeTab === id) activeTab = openTabs[openTabs.length - 1] || '';
-        return { openTabs, activeTab };
-      });
-    }
-  }, [isDemo, useConvex, recomputeBacklinks, deleteNoteMut]);
+    setLocalState((prev) => {
+      const notes = prev.notes.filter((n) => n.id !== id);
+      const withBacklinks = recomputeBacklinks(notes);
+      return { ...prev, notes: withBacklinks };
+    });
+    setUiState((prev) => {
+      const openTabs = prev.openTabs.filter((t) => t !== id);
+      let activeTab = prev.activeTab;
+      if (activeTab === id) activeTab = openTabs[openTabs.length - 1] || '';
+      return { openTabs, activeTab };
+    });
+  }, [recomputeBacklinks]);
 
   const moveNote = useCallback((noteId: string, folderId: string) => {
-    if (isDemo || !useConvex) {
-      setLocalState((prev) => ({
-        ...prev,
-        notes: prev.notes.map((n) => (n.id === noteId ? { ...n, folderId } : n)),
-      }));
-    } else {
-      updateNoteMut({ noteId: noteId as any, folderId }).catch(console.error);
-    }
-  }, [isDemo, useConvex, updateNoteMut]);
+    setLocalState((prev) => ({
+      ...prev,
+      notes: prev.notes.map((n) => (n.id === noteId ? { ...n, folderId } : n)),
+    }));
+  }, []);
 
   const togglePinned = useCallback((noteId: string) => {
-    if (isDemo || !useConvex) {
-      setLocalState((prev) => ({
-        ...prev,
-        notes: prev.notes.map((n) => (n.id === noteId ? { ...n, pinned: !n.pinned } : n)),
-      }));
-    } else {
-      const note = state.notes.find(n => n.id === noteId);
-      if (note) updateNoteMut({ noteId: noteId as any, pinned: !note.pinned }).catch(console.error);
-    }
-  }, [isDemo, useConvex, state.notes, updateNoteMut]);
+    setLocalState((prev) => ({
+      ...prev,
+      notes: prev.notes.map((n) => (n.id === noteId ? { ...n, pinned: !n.pinned } : n)),
+    }));
+  }, []);
 
-  // ===== Tab management =====
   const openTab = useCallback((id: string) => {
     setUiState((prev) => {
-      if (!state.notes.find((n) => n.id === id)) return prev;
+      const noteExists = localState.notes.find((n) => n.id === id);
+      if (!noteExists) return prev;
       const openTabs = prev.openTabs.includes(id) ? prev.openTabs : [...prev.openTabs, id];
       return { openTabs, activeTab: id };
     });
-  }, [state.notes]);
+  }, [localState.notes]);
 
   const closeTab = useCallback((id: string) => {
     setUiState((prev) => {
@@ -669,83 +342,55 @@ export function useNotes() {
     });
   }, []);
 
-  // ===== Folder CRUD =====
   const createFolder = useCallback((parentId: string | null, name: string, paraType?: ParaType): Folder => {
-    if (isDemo || !useConvex) {
-      const id = generateFolderId();
-      const folder: Folder = {
-        id, name: name || 'New folder', parentId,
-        paraType, createdAt: new Date().toISOString(), expanded: true,
-      };
-      setLocalState((prev) => ({ ...prev, folders: [...prev.folders, folder] }));
-      return folder;
-    } else {
-      const tempId = `temp_folder_${Date.now()}`;
-      const folder: Folder = {
-        id: tempId, name: name || 'New folder', parentId,
-        paraType, createdAt: new Date().toISOString(), expanded: true,
-      };
-      createFolderMut({
-        name: folder.name, parentId, paraType: paraType ?? null, expanded: true,
-      }).catch(console.error);
-      return folder;
-    }
-  }, [isDemo, useConvex, createFolderMut]);
+    const id = generateFolderId();
+    const folder: Folder = {
+      id, name: name || 'New folder', parentId,
+      paraType, createdAt: new Date().toISOString(), expanded: true,
+    };
+    setLocalState((prev) => ({ ...prev, folders: [...prev.folders, folder] }));
+    return folder;
+  }, []);
 
   const renameFolder = useCallback((id: string, name: string) => {
-    if (isDemo || !useConvex) {
-      setLocalState((prev) => ({
-        ...prev,
-        folders: prev.folders.map((f) => (f.id === id ? { ...f, name } : f)),
-      }));
-    } else {
-      updateFolderMut({ folderId: id as any, name }).catch(console.error);
-    }
-  }, [isDemo, useConvex, updateFolderMut]);
+    setLocalState((prev) => ({
+      ...prev,
+      folders: prev.folders.map((f) => (f.id === id ? { ...f, name } : f)),
+    }));
+  }, []);
 
   const deleteFolder = useCallback((id: string) => {
-    if (isDemo || !useConvex) {
-      setLocalState((prev) => {
-        const toDelete = new Set<string>([id]);
-        let changed = true;
-        while (changed) {
-          changed = false;
-          for (const f of prev.folders) {
-            if (f.parentId && toDelete.has(f.parentId) && !toDelete.has(f.id)) {
-              toDelete.add(f.id); changed = true;
-            }
+    setLocalState((prev) => {
+      const toDelete = new Set<string>([id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const f of prev.folders) {
+          if (f.parentId && toDelete.has(f.parentId) && !toDelete.has(f.id)) {
+            toDelete.add(f.id); changed = true;
           }
         }
-        const fallbackFolder = prev.folders.find((f) => f.id === SEED_FOLDER_IDS.resources) || prev.folders.find((f) => f.parentId === null);
-        const fallbackId = fallbackFolder?.id || prev.folders[0]?.id || '';
-        const notes = prev.notes.map((n) => toDelete.has(n.folderId) ? { ...n, folderId: fallbackId } : n);
-        const folders = prev.folders.filter((f) => !toDelete.has(f.id));
-        return { ...prev, folders, notes };
-      });
-    } else {
-      deleteFolderMut({ folderId: id as any }).catch(console.error);
-    }
-  }, [isDemo, useConvex, deleteFolderMut]);
+      }
+      const fallbackFolder = prev.folders.find((f) => f.id === SEED_FOLDER_IDS.resources) || prev.folders.find((f) => f.parentId === null);
+      const fallbackId = fallbackFolder?.id || prev.folders[0]?.id || '';
+      const notes = prev.notes.map((n) => toDelete.has(n.folderId) ? { ...n, folderId: fallbackId } : n);
+      const folders = prev.folders.filter((f) => !toDelete.has(f.id));
+      return { ...prev, folders, notes };
+    });
+  }, []);
 
   const toggleFolderExpanded = useCallback((id: string) => {
-    if (isDemo || !useConvex) {
-      setLocalState((prev) => ({
-        ...prev,
-        folders: prev.folders.map((f) => (f.id === id ? { ...f, expanded: !f.expanded } : f)),
-      }));
-    } else {
-      const folder = state.folders.find(f => f.id === id);
-      if (folder) updateFolderMut({ folderId: id as any, expanded: !folder.expanded }).catch(console.error);
-    }
-  }, [isDemo, useConvex, state.folders, updateFolderMut]);
+    setLocalState((prev) => ({
+      ...prev,
+      folders: prev.folders.map((f) => (f.id === id ? { ...f, expanded: !f.expanded } : f)),
+    }));
+  }, []);
 
   const resetAll = useCallback(() => {
-    if (isDemo || !useConvex) {
-      const fresh = seedState();
-      setLocalState(fresh);
-      saveLocalState(fresh);
-    }
-  }, [isDemo, useConvex]);
+    const fresh = seedState();
+    setLocalState(fresh);
+    saveLocalState(fresh);
+  }, []);
 
   return {
     state,

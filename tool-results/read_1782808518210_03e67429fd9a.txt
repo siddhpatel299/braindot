@@ -1,0 +1,759 @@
+     1→'use client';
+     2→
+     3→import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+     4→import { Note, Folder, TAG_COLORS } from '@/types';
+     5→import { forceDirectedLayout } from '@/utils/graph';
+     6→import { countWords } from '@/utils/markdown';
+     7→import {
+     8→  Search, X, Tag, Folder as FolderIcon, Hash, ArrowRight, Maximize2,
+     9→  Network, TrendingUp,
+    10→} from 'lucide-react';
+    11→
+    12→interface GraphViewProps {
+    13→  notes: Note[];
+    14→  folders: Folder[];
+    15→  onOpenNote: (id: string) => void;
+    16→  onBack: () => void;
+    17→}
+    18→
+    19→interface FilterState {
+    20→  search: string;
+    21→  tag: string | null;
+    22→  folderId: string | null;
+    23→  showLabels: boolean;
+    24→  showIsolated: boolean;
+    25→}
+    26→
+    27→export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps) {
+    28→  const [filter, setFilter] = useState<FilterState>({
+    29→    search: '',
+    30→    tag: null,
+    31→    folderId: null,
+    32→    showLabels: true,
+    33→    showIsolated: true,
+    34→  });
+    35→  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+    36→  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+    37→  const svgRef = useRef<SVGSVGElement>(null);
+    38→  const [svgDims, setSvgDims] = useState({ width: 800, height: 600 });
+    39→
+    40→  // Measure available space
+    41→  useEffect(() => {
+    42→    const measure = () => {
+    43→      const el = svgRef.current?.parentElement;
+    44→      if (el) {
+    45→        setSvgDims({
+    46→          width: el.clientWidth,
+    47→          height: el.clientHeight,
+    48→        });
+    49→      }
+    50→    };
+    51→    measure();
+    52→    window.addEventListener('resize', measure);
+    53→    return () => window.removeEventListener('resize', measure);
+    54→  }, []);
+    55→
+    56→  // Build edges from wiki-links (deduplicated)
+    57→  const allEdges = useMemo(() => {
+    58→    const titleToId = new Map<string, string>();
+    59→    for (const n of notes) {
+    60→      titleToId.set(n.title.toLowerCase(), n.id);
+    61→      titleToId.set(n.filename.toLowerCase().replace(/\.md$/, ''), n.id);
+    62→    }
+    63→    const edges: { from: string; to: string }[] = [];
+    64→    const seen = new Set<string>();
+    65→    for (const n of notes) {
+    66→      const re = /\[\[([^\]]+)\]\]/g;
+    67→      let m: RegExpExecArray | null;
+    68→      while ((m = re.exec(n.body)) !== null) {
+    69→        const targetId = titleToId.get(m[1].toLowerCase());
+    70→        if (targetId && targetId !== n.id) {
+    71→          const key = [n.id, targetId].sort().join('→');
+    72→          if (!seen.has(key)) {
+    73→            seen.add(key);
+    74→            edges.push({ from: n.id, to: targetId });
+    75→          }
+    76→        }
+    77→      }
+    78→    }
+    79→    return edges;
+    80→  }, [notes]);
+    81→
+    82→  // Apply filters
+    83→  const filteredNotes = useMemo(() => {
+    84→    return notes.filter((n) => {
+    85→      if (filter.tag !== null) {
+    86→        if (filter.tag === 'untagged' && n.tags.length > 0) return false;
+    87→        if (filter.tag !== 'untagged' && !n.tags.includes(filter.tag)) return false;
+    88→      }
+    89→      if (filter.folderId !== null) {
+    90→        // match folder or any descendant
+    91→        const isDescendant = (fid: string): boolean => {
+    92→          if (fid === filter.folderId) return true;
+    93→          let cur = folders.find((f) => f.id === fid)?.parentId;
+    94→          while (cur) {
+    95→            if (cur === filter.folderId) return true;
+    96→            cur = folders.find((f) => f.id === cur)?.parentId;
+    97→          }
+    98→          return false;
+    99→        };
+   100→        if (!isDescendant(n.folderId)) return false;
+   101→      }
+   102→      if (filter.search.trim()) {
+   103→        const q = filter.search.toLowerCase();
+   104→        if (!n.title.toLowerCase().includes(q) && !n.filename.toLowerCase().includes(q)) return false;
+   105→      }
+   106→      return true;
+   107→    });
+   108→  }, [notes, filter, folders]);
+   109→
+   110→  const filteredNoteIds = useMemo(() => new Set(filteredNotes.map((n) => n.id)), [filteredNotes]);
+   111→
+   112→  // Edges that connect two filtered notes
+   113→  const filteredEdges = useMemo(() => {
+   114→    if (!filter.showIsolated) {
+   115→      // only show notes that have at least one connection in the filtered set
+   116→    }
+   117→    return allEdges.filter((e) => filteredNoteIds.has(e.from) && filteredNoteIds.has(e.to));
+   118→  }, [allEdges, filteredNoteIds, filter.showIsolated]);
+   119→
+   120→  // Filter out isolated nodes if toggle is off
+   121→  const visibleNotes = useMemo(() => {
+   122→    if (filter.showIsolated) return filteredNotes;
+   123→    const connectedIds = new Set<string>();
+   124→    for (const e of filteredEdges) {
+   125→      connectedIds.add(e.from);
+   126→      connectedIds.add(e.to);
+   127→    }
+   128→    return filteredNotes.filter((n) => connectedIds.has(n.id));
+   129→  }, [filteredNotes, filteredEdges, filter.showIsolated]);
+   130→
+   131→  // Compute layout
+   132→  const layout = useMemo(() => {
+   133→    return forceDirectedLayout(
+   134→      visibleNotes.map((n) => n.id),
+   135→      filteredEdges,
+   136→      selectedNode,
+   137→      svgDims.width,
+   138→      svgDims.height - 20,
+   139→      500,
+   140→    );
+   141→  }, [visibleNotes, filteredEdges, selectedNode, svgDims]);
+   142→
+   143→  const nodeMap = useMemo(() => new Map(layout.nodes.map((n) => [n.id, n])), [layout]);
+   144→  const noteById = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes]);
+   145→
+   146→  // Compute stats
+   147→  const stats = useMemo(() => {
+   148→    const nodeCount = visibleNotes.length;
+   149→    const edgeCount = filteredEdges.length;
+   150→    const maxPossibleEdges = (nodeCount * (nodeCount - 1)) / 2;
+   151→    const density = maxPossibleEdges > 0 ? (edgeCount / maxPossibleEdges) * 100 : 0;
+   152→    // degree per note
+   153→    const degreeMap = new Map<string, number>();
+   154→    for (const e of filteredEdges) {
+   155→      degreeMap.set(e.from, (degreeMap.get(e.from) || 0) + 1);
+   156→      degreeMap.set(e.to, (degreeMap.get(e.to) || 0) + 1);
+   157→    }
+   158→    const hubs = visibleNotes
+   159→      .map((n) => ({ note: n, degree: degreeMap.get(n.id) || 0 }))
+   160→      .sort((a, b) => b.degree - a.degree)
+   161→      .slice(0, 8);
+   162→    const isolated = visibleNotes.filter((n) => !degreeMap.has(n.id)).length;
+   163→    return { nodeCount, edgeCount, density, hubs, isolated };
+   164→  }, [visibleNotes, filteredEdges]);
+   165→
+   166→  // All tags for filter
+   167→  const allTags = useMemo(() => {
+   168→    const m = new Map<string, number>();
+   169→    for (const n of notes) {
+   170→      if (n.tags.length === 0) m.set('untagged', (m.get('untagged') || 0) + 1);
+   171→      else for (const t of n.tags) m.set(t, (m.get(t) || 0) + 1);
+   172→    }
+   173→    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+   174→  }, [notes]);
+   175→
+   176→  // Top-level folders for filter
+   177→  const topFolders = useMemo(() => folders.filter((f) => f.parentId === null), [folders]);
+   178→
+   179→  // Helpers
+   180→  const getNodeColor = useCallback((noteId: string): string => {
+   181→    const note = noteById.get(noteId);
+   182→    if (!note) return '#3d378a';
+   183→    if (note.tags.length > 0) {
+   184→      const tag = note.tags[0];
+   185→      const c = TAG_COLORS[tag];
+   186→      if (c) return c.border;
+   187→    }
+   188→    return '#534AB7';
+   189→  }, [noteById]);
+   190→
+   191→  const getNodeFill = useCallback((noteId: string): string => {
+   192→    const note = noteById.get(noteId);
+   193→    if (!note) return '#3d378a';
+   194→    if (note.tags.length > 0) {
+   195→      const tag = note.tags[0];
+   196→      const c = TAG_COLORS[tag];
+   197→      if (c) return c.color;
+   198→    }
+   199→    return '#534AB7';
+   200→  }, [noteById]);
+   201→
+   202→  return (
+   203→    <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
+   204→      {/* Left sidebar: filters + stats */}
+   205→      <div
+   206→        style={{
+   207→          width: 260,
+   208→          minWidth: 260,
+   209→          background: 'var(--bg1)',
+   210→          borderRight: '1px solid var(--bd)',
+   211→          display: 'flex',
+   212→          flexDirection: 'column',
+   213→          overflow: 'hidden',
+   214→        }}
+   215→      >
+   216→        <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 14px' }}>
+   217→          {/* Back button */}
+   218→          <button
+   219→            onClick={onBack}
+   220→            style={{
+   221→              background: 'transparent',
+   222→              border: '1px solid var(--bd2)',
+   223→              borderRadius: 4,
+   224→              padding: '6px 10px',
+   225→              color: 'var(--t2)',
+   226→              fontSize: 12,
+   227→              fontFamily: 'inherit',
+   228→              cursor: 'pointer',
+   229→              display: 'flex',
+   230→              alignItems: 'center',
+   231→              gap: 6,
+   232→              marginBottom: 18,
+   233→            }}
+   234→            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; }}
+   235→            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; }}
+   236→          >
+   237→            <ArrowRight size={12} style={{ transform: 'rotate(180deg)' }} />
+   238→            back
+   239→          </button>
+   240→
+   241→          {/* Title */}
+   242→          <div style={{ marginBottom: 18 }}>
+   243→            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+   244→              <Network size={16} color="var(--acc2)" />
+   245→              <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>
+   246→                knowledge graph
+   247→              </h1>
+   248→            </div>
+   249→            <p style={{ fontSize: 12, color: 'var(--t3)', margin: 0 }}>
+   250→              visualize how your notes connect
+   251→            </p>
+   252→          </div>
+   253→
+   254→          {/* Search */}
+   255→          <div style={{ marginBottom: 16 }}>
+   256→            <Label>search</Label>
+   257→            <div style={{
+   258→              display: 'flex',
+   259→              alignItems: 'center',
+   260→              gap: 8,
+   261→              background: 'var(--bg3)',
+   262→              border: '1px solid var(--bd2)',
+   263→              borderRadius: 4,
+   264→              padding: '0 10px',
+   265→              height: 32,
+   266→            }}>
+   267→              <Search size={13} color="var(--t3)" />
+   268→              <input
+   269→                value={filter.search}
+   270→                onChange={(e) => setFilter((f) => ({ ...f, search: e.target.value }))}
+   271→                placeholder="filter by title…"
+   272→                style={{
+   273→                  flex: 1,
+   274→                  background: 'transparent',
+   275→                  border: 'none',
+   276→                  outline: 'none',
+   277→                  color: 'var(--t1)',
+   278→                  fontSize: 12,
+   279→                  fontFamily: 'inherit',
+   280→                  caretColor: 'var(--acc2)',
+   281→                }}
+   282→              />
+   283→              {filter.search && (
+   284→                <button
+   285→                  onClick={() => setFilter((f) => ({ ...f, search: '' }))}
+   286→                  style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 0 }}
+   287→                >
+   288→                  <X size={12} />
+   289→                </button>
+   290→              )}
+   291→            </div>
+   292→          </div>
+   293→
+   294→          {/* Tag filter */}
+   295→          <div style={{ marginBottom: 16 }}>
+   296→            <Label>filter by tag</Label>
+   297→            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+   298→              <FilterChip
+   299→                active={filter.tag === null}
+   300→                onClick={() => setFilter((f) => ({ ...f, tag: null }))}
+   301→                label="all tags"
+   302→                count={notes.length}
+   303→              />
+   304→              {allTags.map(([tag, count]) => (
+   305→                <FilterChip
+   306→                  key={tag}
+   307→                  active={filter.tag === tag}
+   308→                  onClick={() => setFilter((f) => ({ ...f, tag: f.tag === tag ? null : tag }))}
+   309→                  label={tag === 'untagged' ? 'untagged' : `#${tag}`}
+   310→                  count={count}
+   311→                  color={tag !== 'untagged' ? TAG_COLORS[tag]?.color : undefined}
+   312→                />
+   313→              ))}
+   314→            </div>
+   315→          </div>
+   316→
+   317→          {/* Folder filter */}
+   318→          <div style={{ marginBottom: 16 }}>
+   319→            <Label>filter by folder</Label>
+   320→            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+   321→              <FilterChip
+   322→                active={filter.folderId === null}
+   323→                onClick={() => setFilter((f) => ({ ...f, folderId: null }))}
+   324→                label="all folders"
+   325→                count={notes.length}
+   326→              />
+   327→              {topFolders.map((folder) => {
+   328→                const count = notes.filter((n) => {
+   329→                  let cur = n.folderId;
+   330→                  while (cur) {
+   331→                    if (cur === folder.id) return true;
+   332→                    cur = folders.find((f) => f.id === cur)?.parentId || null;
+   333→                  }
+   334→                  return false;
+   335→                }).length;
+   336→                return (
+   337→                  <FilterChip
+   338→                    key={folder.id}
+   339→                    active={filter.folderId === folder.id}
+   340→                    onClick={() => setFilter((f) => ({ ...f, folderId: f.folderId === folder.id ? null : folder.id }))}
+   341→                    label={folder.name}
+   342→                    count={count}
+   343→                  />
+   344→                );
+   345→              })}
+   346→            </div>
+   347→          </div>
+   348→
+   349→          {/* Toggles */}
+   350→          <div style={{ marginBottom: 18 }}>
+   351→            <Label>display</Label>
+   352→            <Toggle
+   353→              checked={filter.showLabels}
+   354→              onChange={(v) => setFilter((f) => ({ ...f, showLabels: v }))}
+   355→              label="show labels"
+   356→            />
+   357→            <Toggle
+   358→              checked={filter.showIsolated}
+   359→              onChange={(v) => setFilter((f) => ({ ...f, showIsolated: v }))}
+   360→              label="show isolated notes"
+   361→            />
+   362→          </div>
+   363→
+   364→          {/* Stats */}
+   365→          <div style={{
+   366→            background: 'var(--bg2)',
+   367→            border: '1px solid var(--bd)',
+   368→            borderRadius: 5,
+   369→            padding: '12px 14px',
+   370→            marginBottom: 16,
+   371→          }}>
+   372→            <Label>graph stats</Label>
+   373→            <StatRow label="nodes" value={stats.nodeCount} />
+   374→            <StatRow label="edges" value={stats.edgeCount} />
+   375→            <StatRow label="density" value={`${stats.density.toFixed(1)}%`} />
+   376→            <StatRow label="isolated" value={stats.isolated} />
+   377→            <StatRow label="avg degree" value={stats.nodeCount > 0 ? (stats.edgeCount * 2 / stats.nodeCount).toFixed(1) : '0'} />
+   378→          </div>
+   379→
+   380→          {/* Hub notes */}
+   381→          {stats.hubs.length > 0 && (
+   382→            <div>
+   383→              <Label>hub notes (most connected)</Label>
+   384→              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+   385→                {stats.hubs.map(({ note, degree }) => (
+   386→                  <button
+   387→                    key={note.id}
+   388→                    onClick={() => {
+   389→                      setSelectedNode(note.id);
+   390→                      onOpenNote(note.id);
+   391→                    }}
+   392→                    style={{
+   393→                      background: 'transparent',
+   394→                      border: 'none',
+   395→                      borderBottom: '1px solid var(--bd)',
+   396→                      borderRadius: 0,
+   397→                      padding: '7px 0',
+   398→                      cursor: 'pointer',
+   399→                      textAlign: 'left',
+   400→                      fontFamily: 'inherit',
+   401→                      display: 'flex',
+   402→                      alignItems: 'center',
+   403→                      gap: 8,
+   404→                    }}
+   405→                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg2)'; }}
+   406→                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+   407→                  >
+   408→                    <span style={{
+   409→                      fontSize: 11,
+   410→                      color: 'var(--acc2)',
+   411→                      fontWeight: 600,
+   412→                      minWidth: 16,
+   413→                    }}>
+   414→                      {degree}
+   415→                    </span>
+   416→                    <span style={{
+   417→                      fontSize: 12,
+   418→                      color: 'var(--t2)',
+   419→                      flex: 1,
+   420→                      overflow: 'hidden',
+   421→                      textOverflow: 'ellipsis',
+   422→                      whiteSpace: 'nowrap',
+   423→                    }}>
+   424→                      {note.title}
+   425→                    </span>
+   426→                  </button>
+   427→                ))}
+   428→              </div>
+   429→            </div>
+   430→          )}
+   431→        </div>
+   432→      </div>
+   433→
+   434→      {/* Main canvas: the graph */}
+   435→      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--bg)' }}>
+   436→        {visibleNotes.length === 0 ? (
+   437→          <div style={{
+   438→            position: 'absolute',
+   439→            inset: 0,
+   440→            display: 'flex',
+   441→            alignItems: 'center',
+   442→            justifyContent: 'center',
+   443→            color: 'var(--t3)',
+   444→            fontSize: 14,
+   445→            fontStyle: 'italic',
+   446→          }}>
+   447→            no notes match your filters
+   448→          </div>
+   449→        ) : (
+   450→          <svg
+   451→            ref={svgRef}
+   452→            width="100%"
+   453→            height="100%"
+   454→            viewBox={`0 0 ${svgDims.width} ${svgDims.height}`}
+   455→            style={{ display: 'block' }}
+   456→          >
+   457→            {/* Edges */}
+   458→            {layout.edges.map((e, i) => {
+   459→              const a = nodeMap.get(e.from);
+   460→              const b = nodeMap.get(e.to);
+   461→              if (!a || !b) return null;
+   462→              const isHighlighted = hoveredNode && (e.from === hoveredNode || e.to === hoveredNode) ||
+   463→                                    selectedNode && (e.from === selectedNode || e.to === selectedNode);
+   464→              return (
+   465→                <line
+   466→                  key={i}
+   467→                  x1={a.x}
+   468→                  y1={a.y}
+   469→                  x2={b.x}
+   470→                  y2={b.y}
+   471→                  stroke={isHighlighted ? 'var(--acc)' : '#3d378a'}
+   472→                  strokeWidth={isHighlighted ? 1.8 : 0.8}
+   473→                  opacity={isHighlighted ? 0.95 : 0.45}
+   474→                />
+   475→              );
+   476→            })}
+   477→            {/* Nodes */}
+   478→            {layout.nodes.map((n) => {
+   479→              const note = noteById.get(n.id);
+   480→              if (!note) return null;
+   481→              const isHovered = hoveredNode === n.id;
+   482→              const isSelected = selectedNode === n.id;
+   483→              const r = isSelected ? n.radius * 1.5 : isHovered ? n.radius * 1.3 : n.radius;
+   484→              const fill = getNodeFill(n.id);
+   485→              const showLabel = filter.showLabels && (isHovered || isSelected || n.degree >= 2);
+   486→              return (
+   487→                <g
+   488→                  key={n.id}
+   489→                  style={{ cursor: 'pointer' }}
+   490→                  onClick={() => {
+   491→                    setSelectedNode(n.id);
+   492→                    onOpenNote(n.id);
+   493→                  }}
+   494→                  onMouseEnter={() => setHoveredNode(n.id)}
+   495→                  onMouseLeave={() => setHoveredNode(null)}
+   496→                >
+   497→                  {n.degree > 0 && (
+   498→                    <circle
+   499→                      cx={n.x}
+   500→                      cy={n.y}
+   501→                      r={r + 4}
+   502→                      fill="none"
+   503→                      stroke={fill}
+   504→                      strokeWidth={0.5}
+   505→                      opacity={isHovered || isSelected ? 0.6 : 0.25}
+   506→                    />
+   507→                  )}
+   508→                  <circle
+   509→                    cx={n.x}
+   510→                    cy={n.y}
+   511→                    r={r}
+   512→                    fill={fill}
+   513→                    opacity={isHovered || isSelected ? 1 : 0.88}
+   514→                    style={{ transition: 'r 0.15s, opacity 0.15s' }}
+   515→                  />
+   516→                  {showLabel && (
+   517→                    <text
+   518→                      x={n.x + r + 5}
+   519→                      y={n.y + 3}
+   520→                      fontSize={11}
+   521→                      fill={isHovered || isSelected ? 'var(--t1)' : 'var(--t3)'}
+   522→                      fontFamily="JetBrains Mono"
+   523→                      fontWeight={isHovered || isSelected ? 600 : 400}
+   524→                      pointerEvents="none"
+   525→                    >
+   526→                      {note.title.slice(0, 22)}
+   527→                    </text>
+   528→                  )}
+   529→                </g>
+   530→              );
+   531→            })}
+   532→          </svg>
+   533→        )}
+   534→
+   535→        {/* Hover tooltip */}
+   536→        {hoveredNode && noteById.get(hoveredNode) && (
+   537→          <div style={{
+   538→            position: 'absolute',
+   539→            bottom: 16,
+   540→            left: 16,
+   541→            background: 'var(--bg2)',
+   542→            border: '1px solid var(--bd2)',
+   543→            borderRadius: 5,
+   544→            padding: '10px 14px',
+   545→            fontSize: 12,
+   546→            color: 'var(--t1)',
+   547→            pointerEvents: 'none',
+   548→            maxWidth: 320,
+   549→            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+   550→          }}>
+   551→            <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
+   552→              {noteById.get(hoveredNode)!.title}
+   553→            </div>
+   554→            {noteById.get(hoveredNode)!.subtitle && (
+   555→              <div style={{ color: 'var(--t3)', fontStyle: 'italic', marginBottom: 6, fontSize: 11 }}>
+   556→                {noteById.get(hoveredNode)!.subtitle}
+   557→              </div>
+   558→            )}
+   559→            <div style={{ color: 'var(--t3)', fontSize: 11, display: 'flex', gap: 10 }}>
+   560→              <span>{noteById.get(hoveredNode)!.wordCount} words</span>
+   561→              <span>·</span>
+   562→              <span>{noteById.get(hoveredNode)!.backlinks.length} backlinks</span>
+   563→              <span>·</span>
+   564→              <span>{noteById.get(hoveredNode)!.tags.map((t) => `#${t}`).join(' ') || 'no tags'}</span>
+   565→            </div>
+   566→            <div style={{ color: 'var(--acc2)', fontSize: 10, marginTop: 6, fontStyle: 'italic' }}>
+   567→              click to open →
+   568→            </div>
+   569→          </div>
+   570→        )}
+   571→
+   572→        {/* Top-right legend */}
+   573→        <div style={{
+   574→          position: 'absolute',
+   575→          top: 14,
+   576→          right: 14,
+   577→          background: 'var(--bg2)',
+   578→          border: '1px solid var(--bd)',
+   579→          borderRadius: 5,
+   580→          padding: '8px 12px',
+   581→          fontSize: 10,
+   582→          color: 'var(--t3)',
+   583→          display: 'flex',
+   584→          flexDirection: 'column',
+   585→          gap: 4,
+   586→        }}>
+   587→          <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 2 }}>
+   588→            legend
+   589→          </div>
+   590→          {Object.entries(TAG_COLORS).map(([tag, c]) => (
+   591→            <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+   592→              <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
+   593→              <span>#{tag}</span>
+   594→            </div>
+   595→          ))}
+   596→          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+   597→            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#534AB7' }} />
+   598→            <span>no tag</span>
+   599→          </div>
+   600→        </div>
+   601→
+   602→        {/* Bottom-right node count */}
+   603→        <div style={{
+   604→          position: 'absolute',
+   605→          bottom: 14,
+   606→          right: 14,
+   607→          background: 'var(--bg2)',
+   608→          border: '1px solid var(--bd)',
+   609→          borderRadius: 5,
+   610→          padding: '6px 10px',
+   611→          fontSize: 11,
+   612→          color: 'var(--t3)',
+   613→          fontFamily: 'inherit',
+   614→        }}>
+   615→          {stats.nodeCount} nodes · {stats.edgeCount} edges
+   616→        </div>
+   617→      </div>
+   618→    </div>
+   619→  );
+   620→}
+   621→
+   622→/* ---------- Sub-components ---------- */
+   623→
+   624→function Label({ children }: { children: React.ReactNode }) {
+   625→  return (
+   626→    <div style={{
+   627→      fontSize: 10,
+   628→      textTransform: 'uppercase',
+   629→      letterSpacing: '0.09em',
+   630→      color: 'var(--t3)',
+   631→      fontWeight: 600,
+   632→      marginBottom: 8,
+   633→    }}>
+   634→      {children}
+   635→    </div>
+   636→  );
+   637→}
+   638→
+   639→function FilterChip({
+   640→  active,
+   641→  onClick,
+   642→  label,
+   643→  count,
+   644→  color,
+   645→}: {
+   646→  active: boolean;
+   647→  onClick: () => void;
+   648→  label: string;
+   649→  count: number;
+   650→  color?: string;
+   651→}) {
+   652→  return (
+   653→    <button
+   654→      onClick={onClick}
+   655→      style={{
+   656→        background: active ? 'var(--acc-bg)' : 'transparent',
+   657→        border: '1px solid ' + (active ? '#3d378a' : 'transparent'),
+   658→        borderRadius: 3,
+   659→        padding: '5px 8px',
+   660→        color: active ? 'var(--acc2)' : 'var(--t2)',
+   661→        fontSize: 12,
+   662→        fontFamily: 'inherit',
+   663→        cursor: 'pointer',
+   664→        textAlign: 'left',
+   665→        display: 'flex',
+   666→        alignItems: 'center',
+   667→        justifyContent: 'space-between',
+   668→        gap: 6,
+   669→        transition: 'background 0.1s, color 0.1s',
+   670→      }}
+   671→      onMouseEnter={(e) => {
+   672→        if (!active) {
+   673→          e.currentTarget.style.background = 'var(--bg2)';
+   674→          e.currentTarget.style.color = 'var(--t1)';
+   675→        }
+   676→      }}
+   677→      onMouseLeave={(e) => {
+   678→        if (!active) {
+   679→          e.currentTarget.style.background = 'transparent';
+   680→          e.currentTarget.style.color = 'var(--t2)';
+   681→        }
+   682→      }}
+   683→    >
+   684→      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+   685→        {color && <div style={{ width: 7, height: 7, borderRadius: '50%', background: color }} />}
+   686→        {label}
+   687→      </span>
+   688→      <span style={{ fontSize: 10, color: 'var(--t3)' }}>{count}</span>
+   689→    </button>
+   690→  );
+   691→}
+   692→
+   693→function Toggle({
+   694→  checked,
+   695→  onChange,
+   696→  label,
+   697→}: {
+   698→  checked: boolean;
+   699→  onChange: (v: boolean) => void;
+   700→  label: string;
+   701→}) {
+   702→  return (
+   703→    <button
+   704→      onClick={() => onChange(!checked)}
+   705→      style={{
+   706→        background: 'transparent',
+   707→        border: 'none',
+   708→        padding: '5px 0',
+   709→        color: checked ? 'var(--t1)' : 'var(--t3)',
+   710→        fontSize: 12,
+   711→        fontFamily: 'inherit',
+   712→        cursor: 'pointer',
+   713→        textAlign: 'left',
+   714→        display: 'flex',
+   715→        alignItems: 'center',
+   716→        gap: 8,
+   717→        width: '100%',
+   718→      }}
+   719→    >
+   720→      <div style={{
+   721→        width: 28,
+   722→        height: 16,
+   723→        borderRadius: 8,
+   724→        background: checked ? 'var(--acc)' : 'var(--bg3)',
+   725→        border: '1px solid ' + (checked ? 'var(--acc)' : 'var(--bd2)'),
+   726→        position: 'relative',
+   727→        transition: 'background 0.15s',
+   728→        flexShrink: 0,
+   729→      }}>
+   730→        <div style={{
+   731→          position: 'absolute',
+   732→          top: 1,
+   733→          left: checked ? 13 : 1,
+   734→          width: 12,
+   735→          height: 12,
+   736→          borderRadius: '50%',
+   737→          background: '#fff',
+   738→          transition: 'left 0.15s',
+   739→        }} />
+   740→      </div>
+   741→      {label}
+   742→    </button>
+   743→  );
+   744→}
+   745→
+   746→function StatRow({ label, value }: { label: string; value: string | number }) {
+   747→  return (
+   748→    <div style={{
+   749→      display: 'flex',
+   750→      justifyContent: 'space-between',
+   751→      padding: '3px 0',
+   752→      fontSize: 12,
+   753→    }}>
+   754→      <span style={{ color: 'var(--t3)' }}>{label}</span>
+   755→      <span style={{ color: 'var(--t1)', fontWeight: 600 }}>{value}</span>
+   756→    </div>
+   757→  );
+   758→}
+   759→

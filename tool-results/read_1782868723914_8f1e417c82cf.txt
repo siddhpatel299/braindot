@@ -1,0 +1,856 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+     4→import { Note, LibraryItem, Highlight } from '@/types';
+     5→import { renderMarkdownHtml } from '@/utils/markdownHtml';
+     6→import {
+     7→  Search, Plus, BookOpen, FileText, Rss, Link as LinkIcon, X,
+     8→  Highlighter, StickyNote, Sparkles, ArrowRight, Type, List,
+     9→  Upload, ArrowUpRight, RefreshCw, Loader2, Globe,
+    10→} from 'lucide-react';
+    11→
+    12→interface ReadingViewProps {
+    13→  libraryItems: LibraryItem[];
+    14→  highlights: Highlight[];
+    15→  notes: Note[];
+    16→  onBack: () => void;
+    17→  onOpenNote: (id: string) => void;
+    18→  onAddLibraryItem: (item: Omit<LibraryItem, 'id' | 'addedAt' | 'highlights'>) => LibraryItem;
+    19→  onUpdateLibraryItem: (id: string, patch: Partial<LibraryItem>) => void;
+    20→  onDeleteLibraryItem: (id: string) => void;
+    21→  onAddHighlight: (highlight: Omit<Highlight, 'id' | 'createdAt'>) => Highlight;
+    22→  onUpdateHighlight: (id: string, patch: Partial<Highlight>) => void;
+    23→  onDeleteHighlight: (id: string) => void;
+    24→  onCreateNoteFromHighlight: (highlight: Highlight, sourceTitle: string) => void;
+    25→}
+    26→
+    27→type TabFilter = 'all' | 'books' | 'papers' | 'news';
+    28→type SidebarTab = 'ai' | 'highlights' | 'notes';
+    29→type HighlightColor = 'yellow' | 'purple' | 'green';
+    30→
+    31→const TYPE_ABBREV: Record<string, { label: string; color: string; bg: string }> = {
+    32→  epub: { label: 'EP', color: '#b0a8fb', bg: '#1e1a3a' },
+    33→  pdf: { label: 'PDF', color: '#60a5fa', bg: '#1e3a5a' },
+    34→  rss: { label: 'RSS', color: '#fb923c', bg: '#3d2a10' },
+    35→  url: { label: 'URL', color: '#34d399', bg: '#0a1f16' },
+    36→};
+    37→
+    38→const HIGHLIGHT_BORDER: Record<HighlightColor, string> = {
+    39→  yellow: '#fbbf24',
+    40→  purple: '#7c6ef7',
+    41→  green: '#34d399',
+    42→};
+    43→
+    44→const HIGHLIGHT_BG: Record<HighlightColor, string> = {
+    45→  yellow: '#3d3200',
+    46→  purple: '#1e1a3a',
+    47→  green: '#0a1f16',
+    48→};
+    49→
+    50→const NEWS_CATEGORIES = [
+    51→  { id: 'tech', label: 'tech' },
+    52→  { id: 'science', label: 'science' },
+    53→  { id: 'business', label: 'business' },
+    54→  { id: 'world', label: 'world' },
+    55→];
+    56→
+    57→const PAPER_CATEGORIES = [
+    58→  { id: 'ai', label: 'AI' },
+    59→  { id: 'ml', label: 'Machine Learning' },
+    60→  { id: 'cl', label: 'NLP' },
+    61→  { id: 'cv', label: 'Computer Vision' },
+    62→  { id: 'physics', label: 'Physics' },
+    63→  { id: 'bio', label: 'Biology' },
+    64→  { id: 'math', label: 'Math' },
+    65→  { id: 'econ', label: 'Economics' },
+    66→];
+    67→
+    68→interface FetchedItem {
+    69→  id: string;
+    70→  title: string;
+    71→  author: string;
+    72→  type: string;
+    73→  source: string;
+    74→  url: string;
+    75→  score: number;
+    76→  content: string;
+    77→  time: number;
+    78→}
+    79→
+    80→export function ReadingView({
+    81→  libraryItems, highlights, notes, onBack, onOpenNote,
+    82→  onAddLibraryItem, onUpdateLibraryItem, onDeleteLibraryItem,
+    83→  onAddHighlight, onUpdateHighlight, onDeleteHighlight,
+    84→  onCreateNoteFromHighlight,
+    85→}: ReadingViewProps) {
+    86→  const [search, setSearch] = useState('');
+    87→  const [tabFilter, setTabFilter] = useState<TabFilter>('all');
+    88→  const [activeItemId, setActiveItemId] = useState<string | null>(libraryItems[0]?.id || null);
+    89→  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('ai');
+    90→  const [currentHighlightColor, setCurrentHighlightColor] = useState<HighlightColor>('yellow');
+    91→  const [showImport, setShowImport] = useState(false);
+    92→  const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
+    93→  const [selectionPos, setSelectionPos] = useState({ x: 0, y: 0 });
+    94→  const [selectedText, setSelectedText] = useState('');
+    95→  const readerRef = useRef<HTMLDivElement>(null);
+    96→
+    97→  // Live news/papers state
+    98→  const [showFeedPanel, setShowFeedPanel] = useState<'news' | 'papers' | null>(null);
+    99→  const [newsCategory, setNewsCategory] = useState('tech');
+   100→  const [paperCategory, setPaperCategory] = useState('ai');
+   101→  const [fetchedItems, setFetchedItems] = useState<FetchedItem[]>([]);
+   102→  const [feedLoading, setFeedLoading] = useState(false);
+   103→  const [feedError, setFeedError] = useState<string | null>(null);
+   104→
+   105→  const activeItem = useMemo(
+   106→    () => libraryItems.find((l) => l.id === activeItemId) || null,
+   107→    [libraryItems, activeItemId],
+   108→  );
+   109→
+   110→  const itemHighlights = useMemo(
+   111→    () => highlights.filter((h) => h.libraryItemId === activeItemId),
+   112→    [highlights, activeItemId],
+   113→  );
+   114→
+   115→  const filteredItems = useMemo(() => {
+   116→    let items = libraryItems;
+   117→    if (tabFilter === 'books') items = items.filter((l) => l.type === 'epub');
+   118→    else if (tabFilter === 'papers') items = items.filter((l) => l.type === 'pdf');
+   119→    else if (tabFilter === 'news') items = items.filter((l) => l.type === 'rss' || l.type === 'url');
+   120→    if (search.trim()) {
+   121→      const q = search.toLowerCase();
+   122→      items = items.filter((l) => l.title.toLowerCase().includes(q) || (l.author?.toLowerCase().includes(q) ?? false));
+   123→    }
+   124→    return items;
+   125→  }, [libraryItems, tabFilter, search]);
+   126→
+   127→  const sections = useMemo(() => {
+   128→    const reading = filteredItems.filter((l) => l.status === 'reading');
+   129→    const papers = filteredItems.filter((l) => l.type === 'pdf' && l.status !== 'reading');
+   130→    const news = filteredItems.filter((l) => (l.type === 'rss' || l.type === 'url') && l.status !== 'reading');
+   131→    const books = filteredItems.filter((l) => l.type === 'epub' && l.status !== 'reading' && l.status !== 'done');
+   132→    const done = filteredItems.filter((l) => l.status === 'done');
+   133→    return { reading, papers, news, books, done };
+   134→  }, [filteredItems]);
+   135→
+   136→  // Render reader content with highlights applied
+   137→  const readerHtml = useMemo(() => {
+   138→    if (!activeItem?.content) return '';
+   139→    let html = renderMarkdownHtml(activeItem.content);
+   140→    // Apply highlights by wrapping matching text
+   141→    for (const hl of itemHighlights) {
+   142→      const escapedText = hl.text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+   143→      const re = new RegExp(escapedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+   144→      html = html.replace(re, `<mark class="hl-${hl.color}" data-hl-id="${hl.id}">${escapedText}</mark>`);
+   145→    }
+   146→    return html;
+   147→  }, [activeItem, itemHighlights]);
+   148→
+   149→  // Handle text selection in reader
+   150→  useEffect(() => {
+   151→    const handleMouseUp = (e: MouseEvent) => {
+   152→      const sel = window.getSelection();
+   153→      if (!sel || sel.isCollapsed || sel.toString().trim().length < 3) {
+   154→        setShowSelectionToolbar(false);
+   155→        return;
+   156→      }
+   157→      const range = sel.getRangeAt(0);
+   158→      const rect = range.getBoundingClientRect();
+   159→      const readerEl = readerRef.current;
+   160→      if (!readerEl) return;
+   161→      const readerRect = readerEl.getBoundingClientRect();
+   162→      if (rect.top < readerRect.top || rect.bottom > readerRect.bottom) {
+   163→        setShowSelectionToolbar(false);
+   164→        return;
+   165→      }
+   166→      setSelectedText(sel.toString().trim());
+   167→      setSelectionPos({ x: rect.left + rect.width / 2, y: rect.top - 8 });
+   168→      setShowSelectionToolbar(true);
+   169→    };
+   170→    document.addEventListener('mouseup', handleMouseUp);
+   171→    return () => document.removeEventListener('mouseup', handleMouseUp);
+   172→  }, []);
+   173→
+   174→  // Create a real highlight
+   175→  const handleHighlight = useCallback(() => {
+   176→    if (!selectedText || !activeItemId) return;
+   177→    onAddHighlight({
+   178→      libraryItemId: activeItemId,
+   179→      text: selectedText,
+   180→      color: currentHighlightColor,
+   181→      location: 'selection',
+   182→    });
+   183→    setSelectedText('');
+   184→    window.getSelection()?.removeAllRanges();
+   185→    setShowSelectionToolbar(false);
+   186→    setSidebarTab('highlights');
+   187→  }, [selectedText, activeItemId, currentHighlightColor, onAddHighlight]);
+   188→
+   189→  // Fetch news from API
+   190→  const fetchNews = useCallback(async (cat: string) => {
+   191→    setFeedLoading(true);
+   192→    setFeedError(null);
+   193→    try {
+   194→      const res = await fetch(`/api/reading/news?category=${cat}&XTransformPort=3000`);
+   195→      if (!res.ok) throw new Error('Failed to fetch news');
+   196→      const data = await res.json();
+   197→      setFetchedItems(data.items || []);
+   198→    } catch (e) {
+   199→      setFeedError(e instanceof Error ? e.message : 'Failed to fetch');
+   200→      setFetchedItems([]);
+   201→    } finally {
+   202→      setFeedLoading(false);
+   203→    }
+   204→  }, []);
+   205→
+   206→  // Fetch papers from API
+   207→  const fetchPapers = useCallback(async (cat: string) => {
+   208→    setFeedLoading(true);
+   209→    setFeedError(null);
+   210→    try {
+   211→      const res = await fetch(`/api/reading/papers?category=${cat}&XTransformPort=3000`);
+   212→      if (!res.ok) throw new Error('Failed to fetch papers');
+   213→      const data = await res.json();
+   214→      setFetchedItems(data.items || []);
+   215→    } catch (e) {
+   216→      setFeedError(e instanceof Error ? e.message : 'Failed to fetch');
+   217→      setFetchedItems([]);
+   218→    } finally {
+   219→      setFeedLoading(false);
+   220→    }
+   221→  }, []);
+   222→
+   223→  // Open feed panel
+   224→  const openFeed = useCallback((type: 'news' | 'papers') => {
+   225→    setShowFeedPanel(type);
+   226→    if (type === 'news') fetchNews(newsCategory);
+   227→    else fetchPapers(paperCategory);
+   228→  }, [newsCategory, paperCategory, fetchNews, fetchPapers]);
+   229→
+   230→  // Add fetched item to library
+   231→  const addFetchedItem = useCallback((item: FetchedItem) => {
+   232→    const newItem = onAddLibraryItem({
+   233→      title: item.title,
+   234→      author: item.author,
+   235→      type: item.type as 'pdf' | 'url' | 'rss',
+   236→      source: item.source,
+   237→      progressPercent: 0,
+   238→      status: 'unread',
+   239→      content: item.content ? `# ${item.title}\n\n${item.content}` : `# ${item.title}\n\n*Content from ${item.source}. Visit the original source for full text.*\n\nSource: ${item.url}`,
+   240→      chapterTitle: item.source,
+   241→    });
+   242→    return newItem;
+   243→  }, [onAddLibraryItem]);
+   244→
+   245→  // Handle file upload — sends file to API for real text extraction
+   246→  const [uploadingFile, setUploadingFile] = useState(false);
+   247→  const fileInputRef = useRef<HTMLInputElement>(null);
+   248→  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+   249→    const files = e.target.files;
+   250→    if (!files || files.length === 0) return;
+   251→    const file = files[0];
+   252→    const isEpub = file.name.endsWith('.epub');
+   253→    const isPdf = file.name.endsWith('.pdf');
+   254→    if (!isEpub && !isPdf) return;
+   255→
+   256→    setUploadingFile(true);
+   257→    try {
+   258→      // Send file to server for real text extraction
+   259→      const formData = new FormData();
+   260→      formData.append('file', file);
+   261→
+   262→      const res = await fetch('/api/reading/extract?XTransformPort=3000', {
+   263→        method: 'POST',
+   264→        body: formData,
+   265→      });
+   266→
+   267→      if (!res.ok) {
+   268→        throw new Error('Failed to extract content');
+   269→      }
+   270→
+   271→      const data = await res.json();
+   272→
+   273→      const newItem = onAddLibraryItem({
+   274→        title: data.title || file.name.replace(/\.(epub|pdf)$/, ''),
+   275→        author: data.author || 'Unknown',
+   276→        type: isEpub ? 'epub' : 'pdf',
+   277→        source: 'Uploaded file',
+   278→        progressPercent: 0,
+   279→        status: 'unread',
+   280→        content: data.content,
+   281→        totalPages: data.totalPages || 1,
+   282→        currentPage: 1,
+   283→        chapterTitle: isEpub ? 'Chapter 1' : 'Page 1',
+   284→      });
+   285→
+   286→      // Auto-select the newly added item
+   287→      setActiveItemId(newItem.id);
+   288→      setShowImport(false);
+   289→    } catch (err) {
+   290→      // Fallback: create item with error message
+   291→      const title = file.name.replace(/\.(epub|pdf)$/, '');
+   292→      onAddLibraryItem({
+   293→        title,
+   294→        author: 'Unknown',
+   295→        type: isEpub ? 'epub' : 'pdf',
+   296→        source: 'Uploaded file',
+   297→        progressPercent: 0,
+   298→        status: 'unread',
+   299→        content: `# ${title}\n\n*Failed to extract content from this file. The file may be corrupted or use a format that cannot be parsed.*\n\nFile: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(1)} MB`,
+   300→        totalPages: 1,
+   301→        currentPage: 1,
+   302→      });
+   303→      setShowImport(false);
+   304→    } finally {
+   305→      setUploadingFile(false);
+   306→      // Reset file input so the same file can be uploaded again
+   307→      if (fileInputRef.current) fileInputRef.current.value = '';
+   308→    }
+   309→  }, [onAddLibraryItem]);
+   310→
+   311→  // Auto-save progress on scroll
+   312→  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+   313→  const handleReaderScroll = useCallback(() => {
+   314→    if (!activeItemId || !readerRef.current) return;
+   315→    if (progressTimer.current) clearTimeout(progressTimer.current);
+   316→    progressTimer.current = setTimeout(() => {
+   317→      const el = readerRef.current;
+   318→      if (!el) return;
+   319→      const scrollPercent = Math.min(100, Math.round((el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100));
+   320→      onUpdateLibraryItem(activeItemId, {
+   321→        progressPercent: scrollPercent,
+   322→        lastOpenedAt: new Date().toISOString(),
+   323→        status: scrollPercent >= 95 ? 'done' : 'reading',
+   324→      });
+   325→    }, 2000);
+   326→  }, [activeItemId, onUpdateLibraryItem]);
+   327→
+   328→  return (
+   329→    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+   330→      {/* Topbar */}
+   331→      <div style={{
+   332→        height: 44, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
+   333→        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0,
+   334→      }}>
+   335→        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--t3)' }}>
+   336→          <button onClick={onBack} style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 }}>dashboard</button>
+   337→          <span>/</span>
+   338→          <span style={{ color: 'var(--t1)', display: 'flex', alignItems: 'center', gap: 5 }}>
+   339→            <BookOpen size={13} color="var(--acc2)" /> reading
+   340→          </span>
+   341→        </div>
+   342→        <div style={{ display: 'flex', gap: 8 }}>
+   343→          <button onClick={() => openFeed('news')} style={{
+   344→            height: 28, padding: '0 12px',
+   345→            background: 'var(--bg2)', color: 'var(--t2)', border: '1px solid var(--bd2)', borderRadius: 4,
+   346→            fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
+   347→            display: 'flex', alignItems: 'center', gap: 5,
+   348→          }}>
+   349→            <Globe size={12} /> tech news
+   350→          </button>
+   351→          <button onClick={() => openFeed('papers')} style={{
+   352→            height: 28, padding: '0 12px',
+   353→            background: 'var(--bg2)', color: 'var(--t2)', border: '1px solid var(--bd2)', borderRadius: 4,
+   354→            fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
+   355→            display: 'flex', alignItems: 'center', gap: 5,
+   356→          }}>
+   357→            <FileText size={12} /> papers
+   358→          </button>
+   359→          <button onClick={() => setShowImport(true)} style={{
+   360→            height: 28, padding: '0 12px',
+   361→            background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 4,
+   362→            fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
+   363→            display: 'flex', alignItems: 'center', gap: 5,
+   364→          }}>
+   365→            <Plus size={12} /> add source
+   366→          </button>
+   367→        </div>
+   368→      </div>
+   369→
+   370→      {/* 3-column layout */}
+   371→      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+   372→        {/* Library panel (220px) */}
+   373→        <div style={{
+   374→          width: 220, minWidth: 220, background: 'var(--bg1)', borderRight: '1px solid var(--bd)',
+   375→          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+   376→        }}>
+   377→          <div style={{ padding: '10px 10px 6px', flexShrink: 0 }}>
+   378→            <div style={{
+   379→              display: 'flex', alignItems: 'center', gap: 8,
+   380→              background: 'var(--bg3)', border: '1px solid var(--bd2)', borderRadius: 4, padding: '0 10px', height: 30,
+   381→            }}>
+   382→              <Search size={13} color="var(--t3)" />
+   383→              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="search library…"
+   384→                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--t1)', fontSize: 11, fontFamily: 'inherit', caretColor: 'var(--acc2)' }} />
+   385→            </div>
+   386→          </div>
+   387→          <div style={{ display: 'flex', padding: '0 10px 6px', gap: 2, flexShrink: 0 }}>
+   388→            {([
+   389→              { id: 'all', label: 'all' }, { id: 'books', label: 'books' },
+   390→              { id: 'papers', label: 'papers' }, { id: 'news', label: 'news' },
+   391→            ] as const).map((t) => (
+   392→              <button key={t.id} onClick={() => setTabFilter(t.id)} style={{
+   393→                flex: 1, padding: '3px 4px', background: 'transparent',
+   394→                border: 'none', borderBottom: tabFilter === t.id ? '2px solid var(--acc)' : '2px solid transparent',
+   395→                color: tabFilter === t.id ? 'var(--acc2)' : 'var(--t3)',
+   396→                fontSize: 9, fontFamily: 'inherit', cursor: 'pointer',
+   397→                textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600,
+   398→              }}>{t.label}</button>
+   399→            ))}
+   400→          </div>
+   401→          <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+   402→            {sections.reading.length > 0 && <LibrarySection label="currently reading" items={sections.reading} activeItemId={activeItemId} onSelect={setActiveItemId} />}
+   403→            {sections.books.length > 0 && <LibrarySection label="books" items={sections.books} activeItemId={activeItemId} onSelect={setActiveItemId} />}
+   404→            {sections.papers.length > 0 && <LibrarySection label="research papers" items={sections.papers} activeItemId={activeItemId} onSelect={setActiveItemId} />}
+   405→            {sections.news.length > 0 && <LibrarySection label="news & articles" items={sections.news} activeItemId={activeItemId} onSelect={setActiveItemId} />}
+   406→            {sections.done.length > 0 && <LibrarySection label="read" items={sections.done} activeItemId={activeItemId} onSelect={setActiveItemId} />}
+   407→            {filteredItems.length === 0 && (
+   408→              <div style={{ padding: '20px 12px', fontSize: 10, color: 'var(--t3)', textAlign: 'center', fontStyle: 'italic' }}>
+   409→                no items — try fetching news or papers
+   410→              </div>
+   411→            )}
+   412→          </div>
+   413→        </div>
+   414→
+   415→        {/* Reader (flex: 1) or Feed Panel */}
+   416→        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+   417→          {showFeedPanel ? (
+   418→            <FeedPanel
+   419→              type={showFeedPanel}
+   420→              items={fetchedItems}
+   421→              loading={feedLoading}
+   422→              error={feedError}
+   423→              newsCategory={newsCategory}
+   424→              setNewsCategory={(c) => { setNewsCategory(c); fetchNews(c); }}
+   425→              paperCategory={paperCategory}
+   426→              setPaperCategory={(c) => { setPaperCategory(c); fetchPapers(c); }}
+   427→              onAdd={addFetchedItem}
+   428→              onRead={(item) => {
+   429→                const newItem = addFetchedItem(item);
+   430→                setActiveItemId(newItem.id);
+   431→                setShowFeedPanel(null);
+   432→              }}
+   433→              onClose={() => setShowFeedPanel(null)}
+   434→              onRefresh={() => showFeedPanel === 'news' ? fetchNews(newsCategory) : fetchPapers(paperCategory)}
+   435→            />
+   436→          ) : activeItem ? (
+   437→            <>
+   438→              {/* Reader topbar */}
+   439→              <div style={{
+   440→                height: 38, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
+   441→                display: 'flex', alignItems: 'center', padding: '0 16px', gap: 10, flexShrink: 0,
+   442→              }}>
+   443→                <span style={{ flex: 1, fontSize: 11, color: 'var(--t2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+   444→                  {activeItem.title}{activeItem.chapterTitle ? ` — ${activeItem.chapterTitle}` : ''}
+   445→                </span>
+   446→                {activeItem.totalPages && (
+   447→                  <span style={{ fontSize: 10, color: 'var(--t3)' }}>p. {activeItem.currentPage || 1} / {activeItem.totalPages}</span>
+   448→                )}
+   449→                <div style={{ width: 1, height: 18, background: 'var(--bd)' }} />
+   450→                <ToolButton icon={Highlighter} label="yellow" active={currentHighlightColor === 'yellow'} onClick={() => setCurrentHighlightColor('yellow')} color="#fbbf24" />
+   451→                <ToolButton icon={Highlighter} label="purple" active={currentHighlightColor === 'purple'} onClick={() => setCurrentHighlightColor('purple')} color="#7c6ef7" />
+   452→                <ToolButton icon={Highlighter} label="green" active={currentHighlightColor === 'green'} onClick={() => setCurrentHighlightColor('green')} color="#34d399" />
+   453→              </div>
+   454→
+   455→              {/* Reader body */}
+   456→              <div
+   457→                ref={readerRef}
+   458→                onScroll={handleReaderScroll}
+   459→                className="sb-scroll"
+   460→                style={{ flex: 1, overflowY: 'auto', padding: '32px 56px', display: 'flex', justifyContent: 'center' }}
+   461→              >
+   462→                <div
+   463→                  className="sb-reader-prose"
+   464→                  style={{ maxWidth: 720, width: '100%' }}
+   465→                  dangerouslySetInnerHTML={{ __html: readerHtml }}
+   466→                  onClick={(e) => {
+   467→                    const target = e.target as HTMLElement;
+   468→                    const hl = target.closest('[data-hl-id]') as HTMLElement | null;
+   469→                    if (hl) setSidebarTab('highlights');
+   470→                  }}
+   471→                />
+   472→              </div>
+   473→
+   474→              {/* Floating selection toolbar */}
+   475→              {showSelectionToolbar && (
+   476→                <div style={{
+   477→                  position: 'fixed', left: selectionPos.x, top: selectionPos.y,
+   478→                  transform: 'translate(-50%, -100%)', zIndex: 200,
+   479→                  background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 6,
+   480→                  padding: '4px 6px', display: 'flex', gap: 4,
+   481→                  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+   482→                }}>
+   483→                  <SelectionBtn icon={Highlighter} label="highlight" onClick={handleHighlight} color={currentHighlightColor === 'yellow' ? '#fbbf24' : currentHighlightColor === 'purple' ? '#7c6ef7' : '#34d399'} />
+   484→                  <SelectionBtn icon={Sparkles} label="ask AI" onClick={() => {
+   485→                    navigator.clipboard?.writeText(selectedText);
+   486→                    setShowSelectionToolbar(false);
+   487→                  }} />
+   488→                </div>
+   489→              )}
+   490→            </>
+   491→          ) : (
+   492→            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--t3)', fontSize: 14, fontStyle: 'italic' }}>
+   493→              <BookOpen size={32} color="var(--t3)" strokeWidth={1.5} />
+   494→              <span>select an item from your library</span>
+   495→              <span style={{ fontSize: 11 }}>or fetch tech news / research papers from the topbar</span>
+   496→            </div>
+   497→          )}
+   498→        </div>
+   499→
+   500→        {/* AI Sidebar (250px) */}
+   501→        <div style={{
+   502→          width: 250, minWidth: 250, background: 'var(--bg1)', borderLeft: '1px solid var(--bd)',
+   503→          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+   504→        }}>
+   505→          <div style={{ display: 'flex', height: 38, borderBottom: '1px solid var(--bd)', flexShrink: 0 }}>
+   506→            {([
+   507→              { id: 'ai', label: 'AI' }, { id: 'highlights', label: 'Highlights' }, { id: 'notes', label: 'Notes' },
+   508→            ] as const).map((t) => (
+   509→              <button key={t.id} onClick={() => setSidebarTab(t.id)} style={{
+   510→                flex: 1, background: 'transparent', border: 'none',
+   511→                borderBottom: sidebarTab === t.id ? '2px solid var(--acc)' : '2px solid transparent',
+   512→                color: sidebarTab === t.id ? 'var(--t1)' : 'var(--t3)',
+   513→                fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
+   514→                textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: sidebarTab === t.id ? 600 : 400,
+   515→              }}>{t.label}</button>
+   516→            ))}
+   517→          </div>
+   518→          <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+   519→            {sidebarTab === 'ai' && activeItem && <AISidebar item={activeItem} highlights={itemHighlights} />}
+   520→            {sidebarTab === 'highlights' && (
+   521→              <HighlightsTab highlights={itemHighlights} onOpenNote={onOpenNote} onDelete={onDeleteHighlight} onCreateNote={(hl) => onCreateNoteFromHighlight(hl, activeItem?.title || '')} />
+   522→            )}
+   523→            {sidebarTab === 'notes' && <NotesTab highlights={itemHighlights.filter((h) => h.note)} onOpenNote={onOpenNote} />}
+   524→          </div>
+   525→        </div>
+   526→      </div>
+   527→
+   528→      {/* Import modal */}
+   529→      {showImport && (
+   530→        <ImportModal
+   531→          onClose={() => !uploadingFile && setShowImport(false)}
+   532→          fileInputRef={fileInputRef}
+   533→          onFileUpload={handleFileUpload}
+   534→          uploading={uploadingFile}
+   535→          onAddRss={(url) => {
+   536→            onAddLibraryItem({
+   537→              title: url,
+   538→              type: 'rss', source: url, progressPercent: 0, status: 'unread',
+   539→              content: `# ${url}\n\n*RSS feed content will appear here once fetched.*\n\nFeed URL: ${url}`,
+   540→            });
+   541→            setShowImport(false);
+   542→          }}
+   543→          onAddUrl={(url) => {
+   544→            onAddLibraryItem({
+   545→              title: url.replace(/^https?:\/\//, '').split('/')[0],
+   546→              type: 'url', source: url, progressPercent: 0, status: 'unread',
+   547→              content: `# ${url}\n\n*Article content extracted from ${url}.*\n\nThis is a clipped article. The full content would be extracted using Mozilla Readability.`,
+   548→            });
+   549→            setShowImport(false);
+   550→          }}
+   551→        />
+   552→      )}
+   553→    </div>
+   554→  );
+   555→}
+   556→
+   557→/* ---------- Feed Panel (news/papers) ---------- */
+   558→
+   559→function FeedPanel({
+   560→  type, items, loading, error, newsCategory, setNewsCategory, paperCategory, setPaperCategory,
+   561→  onAdd, onRead, onClose, onRefresh,
+   562→}: {
+   563→  type: 'news' | 'papers';
+   564→  items: FetchedItem[];
+   565→  loading: boolean;
+   566→  error: string | null;
+   567→  newsCategory: string;
+   568→  setNewsCategory: (c: string) => void;
+   569→  paperCategory: string;
+   570→  setPaperCategory: (c: string) => void;
+   571→  onAdd: (item: FetchedItem) => void;
+   572→  onRead: (item: FetchedItem) => void;
+   573→  onClose: () => void;
+   574→  onRefresh: () => void;
+   575→}) {
+   576→  const cats = type === 'news' ? NEWS_CATEGORIES : PAPER_CATEGORIES;
+   577→  const currentCat = type === 'news' ? newsCategory : paperCategory;
+   578→  const setCat = type === 'news' ? setNewsCategory : setPaperCategory;
+   579→
+   580→  return (
+   581→    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+   582→      {/* Feed header */}
+   583→      <div style={{
+   584→        height: 38, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
+   585→        display: 'flex', alignItems: 'center', padding: '0 16px', gap: 10, flexShrink: 0,
+   586→      }}>
+   587→        <span style={{ flex: 1, fontSize: 12, color: 'var(--t1)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+   588→          {type === 'news' ? <Globe size={13} color="var(--acc2)" /> : <FileText size={13} color="var(--acc2)" />}
+   589→          {type === 'news' ? 'live tech news' : 'trending research papers'}
+   590→        </span>
+   591→        <button onClick={onRefresh} title="Refresh" style={{
+   592→          width: 26, height: 26, borderRadius: 4, background: 'transparent', border: 'none',
+   593→          color: 'var(--t3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+   594→        }}>
+   595→          {loading ? <Loader2 size={13} className="sb-spin" /> : <RefreshCw size={13} />}
+   596→        </button>
+   597→        <button onClick={onClose} style={{
+   598→          width: 26, height: 26, borderRadius: 4, background: 'transparent', border: 'none',
+   599→          color: 'var(--t3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+   600→        }}><X size={14} /></button>
+   601→      </div>
+   602→
+   603→      {/* Categories */}
+   604→      <div style={{ display: 'flex', gap: 4, padding: '8px 16px', borderBottom: '1px solid var(--bd)', flexShrink: 0, flexWrap: 'wrap' }}>
+   605→        {cats.map((c) => (
+   606→          <button key={c.id} onClick={() => setCat(c.id)} style={{
+   607→            padding: '3px 8px', borderRadius: 3,
+   608→            background: currentCat === c.id ? 'var(--acc-bg)' : 'transparent',
+   609→            border: '1px solid ' + (currentCat === c.id ? '#3d378a' : 'var(--bd2)'),
+   610→            color: currentCat === c.id ? 'var(--acc2)' : 'var(--t3)',
+   611→            fontSize: 9, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
+   612→            textTransform: 'uppercase', letterSpacing: '0.04em',
+   613→          }}>{c.label}</button>
+   614→        ))}
+   615→      </div>
+   616→
+   617→      {/* Items */}
+   618→      <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '8px 16px' }}>
+   619→        {loading && (
+   620→          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 12 }}>
+   621→            <Loader2 size={20} className="sb-spin" style={{ margin: '0 auto 8px' }} />
+   622→            fetching {type}…
+   623→          </div>
+   624→        )}
+   625→        {error && (
+   626→          <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--red)', fontSize: 11 }}>
+   627→            failed to fetch: {error}
+   628→          </div>
+   629→        )}
+   630→        {!loading && !error && items.length === 0 && (
+   631→          <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 11, fontStyle: 'italic' }}>
+   632→            no items found
+   633→          </div>
+   634→        )}
+   635→        {!loading && !error && items.map((item) => (
+   636→          <div key={item.id} style={{
+   637→            background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 5,
+   638→            padding: '10px 12px', marginBottom: 8,
+   639→          }}>
+   640→            <div style={{ fontSize: 12, color: 'var(--t1)', fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>
+   641→              {item.title}
+   642→            </div>
+   643→            <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 8 }}>
+   644→              {item.author} · {item.source}{item.score > 0 ? ` · ${item.score} points` : ''}
+   645→            </div>
+   646→            {item.content && (
+   647→              <div style={{ fontSize: 10, color: 'var(--t2)', lineHeight: 1.5, marginBottom: 8, maxHeight: 60, overflow: 'hidden' }}>
+   648→                {item.content.slice(0, 200)}{item.content.length > 200 ? '…' : ''}
+   649→              </div>
+   650→            )}
+   651→            <div style={{ display: 'flex', gap: 6 }}>
+   652→              <button onClick={() => onRead(item)} style={{
+   653→                background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 3,
+   654→                padding: '4px 10px', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
+   655→              }}>read now</button>
+   656→              <button onClick={() => onAdd(item)} style={{
+   657→                background: 'var(--bg3)', color: 'var(--t2)', border: '1px solid var(--bd2)', borderRadius: 3,
+   658→                padding: '4px 10px', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
+   659→              }}>add to library</button>
+   660→              <a href={item.url} target="_blank" rel="noopener" style={{
+   661→                background: 'transparent', color: 'var(--t3)', border: '1px solid var(--bd2)', borderRadius: 3,
+   662→                padding: '4px 10px', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer', textDecoration: 'none',
+   663→                display: 'flex', alignItems: 'center', gap: 3,
+   664→              }}>source <ArrowUpRight size={9} /></a>
+   665→            </div>
+   666→          </div>
+   667→        ))}
+   668→      </div>
+   669→    </div>
+   670→  );
+   671→}
+   672→
+   673→/* ---------- Library / Reader / Sidebar sub-components ---------- */
+   674→
+   675→function LibrarySection({ label, items, activeItemId, onSelect }: {
+   676→  label: string; items: LibraryItem[]; activeItemId: string | null; onSelect: (id: string) => void;
+   677→}) {
+   678→  return (
+   679→    <div style={{ marginBottom: 4 }}>
+   680→      <div style={{ padding: '6px 12px 4px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--t3)', fontWeight: 600 }}>{label}</div>
+   681→      {items.map((item) => {
+   682→        const isActive = item.id === activeItemId;
+   683→        const typeInfo = TYPE_ABBREV[item.type];
+   684→        return (
+   685→          <div key={item.id} onClick={() => onSelect(item.id)} style={{
+   686→            height: 52, padding: '0 12px', display: 'flex', alignItems: 'center', gap: 8,
+   687→            background: isActive ? 'var(--acc-bg)' : 'transparent',
+   688→            borderLeft: isActive ? '2px solid var(--acc)' : '2px solid transparent',
+   689→            cursor: 'pointer', opacity: item.status === 'done' ? 0.5 : 1,
+   690→          }} onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg2)'; }}
+   691→            onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
+   692→            <div style={{ width: 28, height: 36, borderRadius: 2, background: typeInfo.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, fontWeight: 700, color: typeInfo.color, flexShrink: 0 }}>{typeInfo.label}</div>
+   693→            <div style={{ flex: 1, minWidth: 0 }}>
+   694→              <div style={{ fontSize: 11, color: isActive ? 'var(--acc2)' : 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+   695→              <div style={{ fontSize: 9, color: 'var(--t3)' }}>{item.author ? `${item.author} · ` : ''}{item.type}</div>
+   696→              {(item.type === 'epub' || item.type === 'pdf') && item.progressPercent > 0 && item.status !== 'done' && (
+   697→                <div style={{ height: 2, background: 'var(--bg3)', borderRadius: 1, marginTop: 4, overflow: 'hidden' }}>
+   698→                  <div style={{ height: '100%', width: `${item.progressPercent}%`, background: 'var(--acc)', borderRadius: 1 }} />
+   699→                </div>
+   700→              )}
+   701→            </div>
+   702→          </div>
+   703→        );
+   704→      })}
+   705→    </div>
+   706→  );
+   707→}
+   708→
+   709→function ToolButton({ icon: Icon, label, active, onClick, color }: {
+   710→  icon: React.ComponentType<{ size?: number; strokeWidth?: number; color?: string }>;
+   711→  label: string; active?: boolean; onClick: () => void; color?: string;
+   712→}) {
+   713→  return (
+   714→    <button onClick={onClick} title={label} style={{
+   715→      width: 26, height: 26, borderRadius: 4, background: active ? 'var(--acc-bg)' : 'transparent',
+   716→      border: 'none', color: color || 'var(--t3)', cursor: 'pointer',
+   717→      display: 'flex', alignItems: 'center', justifyContent: 'center',
+   718→    }}><Icon size={13} color={color} /></button>
+   719→  );
+   720→}
+   721→
+   722→function SelectionBtn({ icon: Icon, label, onClick, color }: {
+   723→  icon: React.ComponentType<{ size?: number; strokeWidth?: number; color?: string }>;
+   724→  label: string; onClick: () => void; color?: string;
+   725→}) {
+   726→  return (
+   727→    <button onClick={onClick} style={{
+   728→      background: 'var(--bg3)', border: 'none', borderRadius: 3, padding: '4px 8px',
+   729→      color: color || 'var(--t2)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
+   730→      display: 'flex', alignItems: 'center', gap: 3, fontWeight: 600,
+   731→    }}><Icon size={11} color={color} />{label}</button>
+   732→  );
+   733→}
+   734→
+   735→function AISidebar({ item, highlights }: { item: LibraryItem; highlights: Highlight[] }) {
+   736→  const cards = [
+   737→    { type: 'connection', desc: `This chapter's concepts map to your existing notes on <em>PARA Method</em> and <em>Zettelkasten</em> — same ideas, different framing.`, action: 'explore connections ↗' },
+   738→    { type: 'capture ready', desc: highlights.length > 0 ? `${highlights.length} highlighted passages ready to become atomic notes. Capture them now?` : 'No highlights yet. Select text in the reader to start capturing.', action: highlights.length > 0 ? 'capture all ↗' : '' },
+   739→    { type: 'summarise', desc: 'Run progressive summarisation — bold key ideas, then extract golden lines.', action: 'summarise ↗' },
+   740→    { type: 'reflection', desc: `You've read ${item.progressPercent}% of this. What surprised you most?`, action: 'reflect ↗' },
+   741→  ];
+   742→  return (
+   743→    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+   744→      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+   745→        <span className="sb-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--acc)', boxShadow: '0 0 6px rgba(124,110,247,0.6)' }} />
+   746→        <span style={{ fontSize: 10, color: 'var(--acc2)' }}>reading intelligence</span>
+   747→      </div>
+   748→      {cards.map((card, i) => (
+   749→        <div key={i} style={{ background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 4, padding: '9px 11px', cursor: 'pointer', transition: 'background 0.12s, border 0.12s' }}
+   750→          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--acc-bg)'; e.currentTarget.style.borderColor = 'var(--acc)'; }}
+   751→          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.borderColor = 'var(--bd)'; }}>
+   752→          <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t3)', marginBottom: 4, fontWeight: 600 }}>{card.type}</div>
+   753→          <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.5, marginBottom: 5 }} dangerouslySetInnerHTML={{ __html: card.desc }} />
+   754→          {card.action && <div style={{ fontSize: 10, color: 'var(--acc)', display: 'flex', alignItems: 'center', gap: 3 }}>{card.action}<ArrowUpRight size={9} /></div>}
+   755→        </div>
+   756→      ))}
+   757→    </div>
+   758→  );
+   759→}
+   760→
+   761→function HighlightsTab({ highlights, onOpenNote, onDelete, onCreateNote }: {
+   762→  highlights: Highlight[]; onOpenNote: (id: string) => void; onDelete: (id: string) => void; onCreateNote: (hl: Highlight) => void;
+   763→}) {
+   764→  if (highlights.length === 0) return <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>no highlights yet — select text in the reader</div>;
+   765→  return (
+   766→    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+   767→      {highlights.map((hl) => (
+   768→        <div key={hl.id} style={{ borderLeft: `3px solid ${HIGHLIGHT_BORDER[hl.color]}`, paddingLeft: 10, padding: '8px 10px', background: HIGHLIGHT_BG[hl.color], borderRadius: '0 4px 4px 0', marginBottom: 4 }}>
+   769→          <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5, marginBottom: 4 }}>{hl.text}</div>
+   770→          <div style={{ fontSize: 9, color: 'var(--t3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+   771→            <span>{hl.color}</span>
+   772→            {hl.note && <span>· has note</span>}
+   773→            {hl.linkedNoteId && <span>· linked</span>}
+   774→            <div style={{ flex: 1 }} />
+   775→            {!hl.linkedNoteId && (
+   776→              <button onClick={() => onCreateNote(hl)} style={{ background: 'transparent', border: 'none', color: 'var(--acc)', fontSize: 9, fontFamily: 'inherit', cursor: 'pointer' }}>capture →</button>
+   777→            )}
+   778→            <button onClick={() => onDelete(hl.id)} style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 0, opacity: 0.5 }}><X size={10} /></button>
+   779→          </div>
+   780→          {hl.note && <div style={{ fontSize: 10, color: 'var(--acc2)', marginTop: 4, fontStyle: 'italic' }}>{hl.note}</div>}
+   781→        </div>
+   782→      ))}
+   783→    </div>
+   784→  );
+   785→}
+   786→
+   787→function NotesTab({ highlights, onOpenNote }: { highlights: Highlight[]; onOpenNote: (id: string) => void }) {
+   788→  if (highlights.length === 0) return <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>no notes yet</div>;
+   789→  return (
+   790→    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+   791→      {highlights.map((hl) => (
+   792→        <div key={hl.id} style={{ background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 4, padding: '10px 12px' }}>
+   793→          <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 4, fontStyle: 'italic' }}>"{hl.text.slice(0, 80)}{hl.text.length > 80 ? '…' : ''}"</div>
+   794→          <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.5 }}>{hl.note}</div>
+   795→          {hl.linkedNoteId && <button onClick={() => onOpenNote(hl.linkedNoteId!)} style={{ marginTop: 6, background: 'transparent', border: 'none', color: 'var(--acc)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer' }}>open in editor →</button>}
+   796→        </div>
+   797→      ))}
+   798→    </div>
+   799→  );
+   800→}
+   801→
+   802→function ImportModal({ onClose, fileInputRef, onFileUpload, uploading, onAddRss, onAddUrl }: {
+   803→  onClose: () => void;
+   804→  fileInputRef: React.RefObject<HTMLInputElement | null>;
+   805→  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+   806→  uploading: boolean;
+   807→  onAddRss: (url: string) => void;
+   808→  onAddUrl: (url: string) => void;
+   809→}) {
+   810→  const [rssUrl, setRssUrl] = useState('');
+   811→  const [articleUrl, setArticleUrl] = useState('');
+   812→  return (
+   813→    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+   814→      <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '90vw', background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+   815→        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+   816→          <span style={{ fontSize: 13, color: 'var(--t1)', fontWeight: 600 }}>add to your library</span>
+   817→          <button onClick={onClose} style={{ width: 24, height: 24, borderRadius: 3, background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer' }}><X size={14} /></button>
+   818→        </div>
+   819→        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+   820→          <div>
+   821→            <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t3)', fontWeight: 600, marginBottom: 8, display: 'block' }}>upload epub/pdf</label>
+   822→            <input ref={fileInputRef} type="file" accept=".epub,.pdf" onChange={onFileUpload} style={{ display: 'none' }} disabled={uploading} />
+   823→            <div onClick={() => !uploading && fileInputRef.current?.click()} style={{ border: '2px dashed var(--bd2)', borderRadius: 6, padding: '20px', textAlign: 'center', color: 'var(--t3)', fontSize: 11, fontStyle: 'italic', cursor: uploading ? 'wait' : 'pointer' }}>
+   824→              {uploading ? (
+   825→                <>
+   826→                  <Loader2 size={20} className="sb-spin" style={{ margin: '0 auto 8px' }} color="var(--acc2)" />
+   827→                  extracting text from your file…
+   828→                </>
+   829→              ) : (
+   830→                <>
+   831→                  <Upload size={20} style={{ margin: '0 auto 8px' }} color="var(--t3)" />
+   832→                  click to browse epub/pdf files
+   833→                </>
+   834→              )}
+   835→            </div>
+   836→          </div>
+   837→          <div>
+   838→            <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t3)', fontWeight: 600, marginBottom: 8, display: 'block' }}>add RSS feed</label>
+   839→            <div style={{ display: 'flex', gap: 8 }}>
+   840→              <input value={rssUrl} onChange={(e) => setRssUrl(e.target.value)} placeholder="https://example.com/feed.xml" style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--bd2)', borderRadius: 4, padding: '8px 10px', color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit', outline: 'none', caretColor: 'var(--acc2)' }} />
+   841→              <button onClick={() => rssUrl.trim() && onAddRss(rssUrl.trim())} style={{ background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 4, padding: '0 14px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>add</button>
+   842→            </div>
+   843→          </div>
+   844→          <div>
+   845→            <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t3)', fontWeight: 600, marginBottom: 8, display: 'block' }}>clip article URL</label>
+   846→            <div style={{ display: 'flex', gap: 8 }}>
+   847→              <input value={articleUrl} onChange={(e) => setArticleUrl(e.target.value)} placeholder="https://example.com/article" style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--bd2)', borderRadius: 4, padding: '8px 10px', color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit', outline: 'none', caretColor: 'var(--acc2)' }} />
+   848→              <button onClick={() => articleUrl.trim() && onAddUrl(articleUrl.trim())} style={{ background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 4, padding: '0 14px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>clip</button>
+   849→            </div>
+   850→          </div>
+   851→        </div>
+   852→      </div>
+   853→    </div>
+   854→  );
+   855→}
+   856→
