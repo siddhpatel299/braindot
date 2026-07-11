@@ -620,7 +620,7 @@ function DashboardGraph({
               y1={sy(a.y)}
               x2={sx(b.x)}
               y2={sy(b.y)}
-              stroke={isHighlighted ? 'var(--acc)' : '#3d378a'}
+              stroke={isHighlighted ? 'var(--acc)' : 'var(--acc-bd)'}
               strokeWidth={isHighlighted ? 1.5 : 0.8}
               opacity={isHighlighted ? 0.9 : 0.5}
             />

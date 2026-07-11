@@ -165,7 +165,7 @@ function HeaderButton({
         height: 22,
         borderRadius: 3,
         background: active ? 'var(--acc-bg)' : 'transparent',
-        border: '1px solid ' + (active ? '#3d378a' : 'transparent'),
+        border: '1px solid ' + (active ? 'var(--acc-bd)' : 'transparent'),
         color: active ? 'var(--acc2)' : 'var(--t3)',
         cursor: 'pointer',
         display: 'flex',
@@ -359,7 +359,7 @@ function MindMapCanvas({
               key={`edge-${node.id}`}
               d={path}
               fill="none"
-              stroke={isMainBranch ? '#3d378a' : 'var(--bd)'}
+              stroke={isMainBranch ? 'var(--acc-bd)' : 'var(--bd)'}
               strokeWidth={isMainBranch ? 1.3 : 1}
               opacity={0.7}
             />
@@ -376,7 +376,7 @@ function MindMapCanvas({
           const w = isRoot ? 140 : isBranch ? 130 : 110;
           const h = isRoot ? 40 : isBranch ? 36 : 30;
           const fill = isRoot ? 'var(--acc-bg)' : isBranch ? 'var(--bg1)' : 'var(--bg)';
-          const stroke = isRoot ? 'var(--acc)' : isBranch ? '#3d378a' : 'var(--bd)';
+          const stroke = isRoot ? 'var(--acc)' : isBranch ? 'var(--acc-bd)' : 'var(--bd)';
           const textColor = isRoot ? 'var(--acc2)' : isBranch ? 'var(--t1)' : 'var(--t2)';
           const fontSize = isRoot ? 12 : isBranch ? 11 : 10;
           const fontWeight = isRoot ? 700 : isBranch ? 600 : 400;

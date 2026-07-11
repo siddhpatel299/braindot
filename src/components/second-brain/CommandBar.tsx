@@ -1,6 +1,7 @@
 'use client';
 
-import { Search, Plus, Flame } from 'lucide-react';
+import { Search, Plus, Flame, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 
 interface CommandBarProps {
   search: string;
@@ -11,6 +12,8 @@ interface CommandBarProps {
 }
 
 export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, streak }: CommandBarProps) {
+  const { theme, toggle } = useTheme();
+
   return (
     <div
       style={{
@@ -95,7 +98,7 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
             height: 28,
             padding: '0 10px',
             background: 'var(--amb-bg)',
-            border: '1px solid #4a3010',
+            border: '1px solid var(--amb-bd)',
             borderRadius: 4,
             color: 'var(--amb)',
             fontSize: 12,
@@ -110,25 +113,35 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
           {streak}d
         </div>
 
-        {/* Version */}
-        <div
-          title="Workspace version"
+        {/* Theme toggle */}
+        <button
+          onClick={toggle}
+          aria-label="Toggle theme"
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           style={{
-            height: 28,
-            padding: '0 10px',
+            height: 32,
+            width: 32,
             background: 'var(--bg2)',
             border: '1px solid var(--bd2)',
             borderRadius: 4,
             color: 'var(--t2)',
-            fontSize: 12,
-            fontFamily: 'inherit',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            fontWeight: 500,
+            justifyContent: 'center',
+            transition: 'background 0.12s, color 0.12s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--bg3)';
+            e.currentTarget.style.color = 'var(--t1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--bg2)';
+            e.currentTarget.style.color = 'var(--t2)';
           }}
         >
-          v47
-        </div>
+          {theme === 'dark' ? <Sun size={15} strokeWidth={2} /> : <Moon size={15} strokeWidth={2} />}
+        </button>
 
         {/* New note */}
         <button

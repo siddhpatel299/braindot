@@ -295,7 +295,7 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
             if (!a || !b) return null;
             const fromHeat = heatMap.get(e.from) || 'cold';
             const toHeat = heatMap.get(e.to) || 'cold';
-            const edgeStyle = colorMode === 'activity' ? getEdgeStyle(fromHeat, toHeat) : { stroke: '#3d378a', strokeWidth: 0.8 };
+            const edgeStyle = colorMode === 'activity' ? getEdgeStyle(fromHeat, toHeat) : { stroke: 'var(--acc-bd)', strokeWidth: 0.8 };
             const isHighlighted = hoveredNode && (e.from === hoveredNode || e.to === hoveredNode) ||
                                   selectedNode && (e.from === selectedNode || e.to === selectedNode);
             const path = curvedPath(a.x, a.y, b.x, b.y);
@@ -404,7 +404,7 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
               <LegendDot color="#2e2e44" size={6} label="older" />
               <div style={{ height: 1, background: 'var(--bd)', margin: '3px 0' }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 20, height: 1, background: '#3d378a' }} />
+                <div style={{ width: 20, height: 1, background: 'var(--acc-bd)' }} />
                 <span>strong link</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -522,7 +522,7 @@ function GraphSidebar({
                     <button key={opt.id} onClick={() => setColorMode(opt.id)} style={{
                       flex: 1, padding: '5px 6px', borderRadius: 4,
                       background: colorMode === opt.id ? 'var(--acc-bg)' : 'transparent',
-                      border: '1px solid ' + (colorMode === opt.id ? '#3d378a' : 'var(--bd2)'),
+                      border: '1px solid ' + (colorMode === opt.id ? 'var(--acc-bd)' : 'var(--bd2)'),
                       color: colorMode === opt.id ? 'var(--acc2)' : 'var(--t3)',
                       fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
                       textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600,
@@ -548,7 +548,7 @@ function GraphSidebar({
               <button key={opt.id} onClick={() => setShowMode(opt.id)} style={{
                 flex: 1, padding: '5px 6px', borderRadius: 4,
                 background: showMode === opt.id ? 'var(--acc-bg)' : 'transparent',
-                border: '1px solid ' + (showMode === opt.id ? '#3d378a' : 'var(--bd2)'),
+                border: '1px solid ' + (showMode === opt.id ? 'var(--acc-bd)' : 'var(--bd2)'),
                 color: showMode === opt.id ? 'var(--acc2)' : 'var(--t3)',
                 fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
                 textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600,

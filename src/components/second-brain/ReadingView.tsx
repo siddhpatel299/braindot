@@ -915,7 +915,7 @@ function FeedPanel({
           <button key={c.id} onClick={() => setCat(c.id)} style={{
             padding: '3px 8px', borderRadius: 3,
             background: currentCat === c.id ? 'var(--acc-bg)' : 'transparent',
-            border: '1px solid ' + (currentCat === c.id ? '#3d378a' : 'var(--bd2)'),
+            border: '1px solid ' + (currentCat === c.id ? 'var(--acc-bd)' : 'var(--bd2)'),
             color: currentCat === c.id ? 'var(--acc2)' : 'var(--t3)',
             fontSize: 9, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '0.04em',

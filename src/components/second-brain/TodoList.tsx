@@ -200,7 +200,7 @@ export function TodoList({ todos, compact, notes, onToggle, onAdd, onUpdate, onD
               onClick={() => setTabFilter(t)}
               style={{
                 background: tabFilter === t ? 'var(--acc-bg)' : 'transparent',
-                border: '1px solid ' + (tabFilter === t ? '#3d378a' : 'var(--bd2)'),
+                border: '1px solid ' + (tabFilter === t ? 'var(--acc-bd)' : 'var(--bd2)'),
                 borderRadius: 3,
                 padding: '3px 8px',
                 color: tabFilter === t ? 'var(--acc2)' : 'var(--t3)',

@@ -10,9 +10,9 @@ interface KanbanEmbedProps {
 }
 
 const TAG_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  purple: { bg: 'rgba(124,110,247,0.12)', border: '#3d378a', text: '#b0a8fb' },
-  green: { bg: 'rgba(52,211,153,0.10)', border: '#1a4a2a', text: '#34d399' },
-  amber: { bg: 'rgba(251,191,36,0.10)', border: '#4a3010', text: '#fbbf24' },
+  purple: { bg: 'rgba(124,110,247,0.12)', border: 'var(--acc-bd)', text: '#b0a8fb' },
+  green: { bg: 'rgba(52,211,153,0.10)', border: 'var(--grn-bd)', text: '#34d399' },
+  amber: { bg: 'rgba(251,191,36,0.10)', border: 'var(--amb-bd)', text: '#fbbf24' },
   blue: { bg: 'rgba(96,165,250,0.10)', border: '#1e3a5a', text: '#60a5fa' },
 };
 

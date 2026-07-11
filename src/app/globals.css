@@ -9,7 +9,79 @@
   --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
 }
 
-/* ===== Second Brain Design System ===== */
+/* ===== Second Brain Design System — Theme Variables ===== */
+
+/* Dark mode (default) */
+[data-theme="dark"] {
+  --bg:       #0c0c0e;
+  --bg1:      #111113;
+  --bg2:      #171719;
+  --bg3:      #1e1e21;
+  --bg4:      #26262a;
+  --bd:       #252528;
+  --bd2:      #333338;
+  --t1:       #f0f0f2;
+  --t2:       #888894;
+  --t3:       #444450;
+  --acc:      #7c6ef7;
+  --acc2:     #b0a8fb;
+  --acc-bg:   #1a1830;
+  --acc-bd:   #3d378a;
+  --grn:      #34d399;
+  --grn-bg:   #0a1f16;
+  --grn-bd:   #1a4a2a;
+  --amb:      #fbbf24;
+  --amb-bg:   #1c1608;
+  --amb-bd:   #4a3010;
+  --blu:      #60a5fa;
+  --blu-bg:   #0c1f2e;
+  --blu-bd:   #0f3a50;
+  --red:      #f87171;
+  --red-bg:   #2a0f0f;
+  --coral:    #f0997b;
+  --coral-bg: #2a160c;
+  --coral-bd: #4a2515;
+  --callout-text: #9994cc;
+  --selection-bg: rgba(124, 110, 247, 0.25);
+  --canvas-dot: #18181b;
+}
+
+/* Light mode */
+[data-theme="light"] {
+  --bg:       #f5f5f3;
+  --bg1:      #ffffff;
+  --bg2:      #f0efed;
+  --bg3:      #e8e7e4;
+  --bg4:      #dddcda;
+  --bd:       #e0dedd;
+  --bd2:      #cccbc8;
+  --t1:       #1a1a18;
+  --t2:       #5a5a56;
+  --t3:       #9a9994;
+  --acc:      #5b4fe8;
+  --acc2:     #4338ca;
+  --acc-bg:   #eeecfd;
+  --acc-bd:   #c7c3f5;
+  --grn:      #0f7a56;
+  --grn-bg:   #e8f7f1;
+  --grn-bd:   #6ee7b7;
+  --amb:      #b45309;
+  --amb-bg:   #fef3c7;
+  --amb-bd:   #fcd34d;
+  --blu:      #1d6fa4;
+  --blu-bg:   #e8f2fb;
+  --blu-bd:   #93c5fd;
+  --red:      #b91c1c;
+  --red-bg:   #fef2f2;
+  --coral:    #c2410c;
+  --coral-bg: #fff7ed;
+  --coral-bd: #fed7aa;
+  --callout-text: #4338ca;
+  --selection-bg: rgba(91, 79, 232, 0.18);
+  --canvas-dot: #d8d7d4;
+}
+
+/* Default to dark if no attribute set yet (prevents flash before JS runs) */
 :root {
   --bg:       #0c0c0e;
   --bg1:      #111113;
@@ -24,15 +96,36 @@
   --acc:      #7c6ef7;
   --acc2:     #b0a8fb;
   --acc-bg:   #1a1830;
+  --acc-bd:   #3d378a;
   --grn:      #34d399;
   --grn-bg:   #0a1f16;
+  --grn-bd:   #1a4a2a;
   --amb:      #fbbf24;
   --amb-bg:   #1c1608;
+  --amb-bd:   #4a3010;
+  --blu:      #60a5fa;
+  --blu-bg:   #0c1f2e;
+  --blu-bd:   #0f3a50;
   --red:      #f87171;
+  --red-bg:   #2a0f0f;
+  --coral:    #f0997b;
+  --coral-bg: #2a160c;
+  --coral-bd: #4a2515;
+  --callout-text: #9994cc;
+  --selection-bg: rgba(124, 110, 247, 0.25);
+  --canvas-dot: #18181b;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Smooth theme transition */
+*, *::before, *::after {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 100ms ease;
 }
 
 html, body {
@@ -144,7 +237,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 
 .sb-editor-textarea::selection {
-  background: rgba(124, 110, 247, 0.25);
+  background: var(--selection-bg);
 }
 
 .sb-editor-pre {
@@ -162,10 +255,6 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 
 /* Token styles inside .sb-editor-pre */
-/* IMPORTANT: All tokens must be INLINE only — no display:block, no margins.
-   The overlay <pre> must have the same line-by-line geometry as the <textarea>.
-   Any block-level styling breaks cursor alignment.
-   Rich rendering (block headings, horizontal rules, callout boxes) is ONLY in Preview mode. */
 .sb-tok-h {
   color: var(--t1);
   font-weight: 700;
@@ -214,7 +303,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   color: var(--t3);
 }
 .sb-tok-callout {
-  color: #9994cc;
+  color: var(--callout-text);
   font-size: 1em;
 }
 .sb-tok-callout-label {
@@ -250,4 +339,46 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
 .sb-editor-wrap > textarea.sb-editor-textarea,
 .sb-editor-wrap > pre.sb-editor-pre {
   font-variant-ligatures: none;
+}
+
+/* ===== Light mode highlight colors (for reader) ===== */
+[data-theme="light"] .hl-yellow {
+  background: #fef9c3;
+  border-bottom: 1px solid #fbbf24;
+  color: #1a1a18;
+}
+[data-theme="light"] .hl-purple {
+  background: #eeecfd;
+  border-bottom: 1px solid #5b4fe8;
+  color: #1a1a18;
+}
+[data-theme="light"] .hl-green {
+  background: #e8f7f1;
+  border-bottom: 1px solid #34d399;
+  color: #1a1a18;
+}
+
+/* Dark mode highlight colors (default) */
+[data-theme="dark"] .hl-yellow {
+  background: rgba(251, 191, 36, 0.15);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.4);
+  color: var(--t1);
+}
+[data-theme="dark"] .hl-purple {
+  background: rgba(124, 110, 247, 0.15);
+  border-bottom: 1px solid rgba(124, 110, 247, 0.4);
+  color: var(--t1);
+}
+[data-theme="dark"] .hl-green {
+  background: rgba(52, 211, 153, 0.15);
+  border-bottom: 1px solid rgba(52, 211, 153, 0.4);
+  color: var(--t1);
+}
+
+/* Canvas dotted grid background — theme-aware */
+[data-theme="dark"] .canvas-area {
+  background: radial-gradient(circle, var(--canvas-dot) 0.6px, transparent 0.6px) 0 0/22px 22px;
+}
+[data-theme="light"] .canvas-area {
+  background: radial-gradient(circle, var(--canvas-dot) 0.6px, transparent 0.6px) 0 0/22px 22px;
 }

@@ -209,7 +209,7 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
                 maxWidth: '85%',
                 padding: '8px 12px',
                 background: m.role === 'user' ? 'var(--acc-bg)' : 'var(--bg3)',
-                border: '1px solid ' + (m.role === 'user' ? '#3d378a' : 'var(--bd)'),
+                border: '1px solid ' + (m.role === 'user' ? 'var(--acc-bd)' : 'var(--bd)'),
                 borderRadius: 4,
                 color: m.role === 'user' ? 'var(--t1)' : 'var(--t2)',
                 fontSize: 11,

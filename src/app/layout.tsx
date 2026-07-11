@@ -12,6 +12,20 @@ export const metadata: Metadata = {
   },
 };
 
+// Inline script to set theme BEFORE React hydrates — prevents flash of wrong theme
+const themeScript = `
+(function() {
+  try {
+    var saved = localStorage.getItem('sb-theme');
+    var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    var theme = (saved === 'dark' || saved === 'light') ? saved : system;
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -19,6 +33,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="antialiased">
         {children}
         <Toaster />

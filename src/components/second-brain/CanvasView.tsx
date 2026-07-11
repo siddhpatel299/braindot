@@ -264,7 +264,7 @@ export function CanvasView({
   const toolBtnStyle = (active: boolean): React.CSSProperties => ({
     width: 30, height: 30, borderRadius: 4,
     background: active ? 'var(--acc-bg)' : 'transparent',
-    border: '1px solid ' + (active ? '#3d378a' : 'var(--bd2)'),
+    border: '1px solid ' + (active ? 'var(--acc-bd)' : 'var(--bd2)'),
     color: active ? 'var(--acc2)' : 'var(--t3)',
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
     transition: 'background 0.1s, color 0.1s',
@@ -449,7 +449,7 @@ export function CanvasView({
               const d = `M ${path.x1} ${path.y1} C ${path.cx1} ${path.cy1}, ${path.cx2} ${path.cy2}, ${path.x2} ${path.y2}`;
               return (
                 <g key={conn.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }} onClick={() => onDeleteConnector(conn.id)}>
-                  <path d={d} fill="none" stroke={conn.style === 'solid' ? '#3d378a' : 'var(--bd)'} strokeWidth={conn.style === 'solid' ? 1.2 : 1} strokeDasharray={conn.style === 'dashed' ? '4,3' : undefined} markerEnd={conn.style === 'solid' ? 'url(#arrowhead)' : undefined} opacity={0.7} />
+                  <path d={d} fill="none" stroke={conn.style === 'solid' ? 'var(--acc-bd)' : 'var(--bd)'} strokeWidth={conn.style === 'solid' ? 1.2 : 1} strokeDasharray={conn.style === 'dashed' ? '4,3' : undefined} markerEnd={conn.style === 'solid' ? 'url(#arrowhead)' : undefined} opacity={0.7} />
                   {/* Invisible thicker hit area for easier clicking */}
                   <path d={d} fill="none" stroke="transparent" strokeWidth={10} />
                 </g>
@@ -723,7 +723,7 @@ function CanvasStickyView({
         left: card.x, top: card.y,
         width: w,
         background: isAmber ? 'var(--amb-bg)' : 'var(--bg2)',
-        border: '1px solid ' + (isConnectorSource ? 'var(--acc)' : isAmber ? '#4a3010' : 'var(--bd2)'),
+        border: '1px solid ' + (isConnectorSource ? 'var(--acc)' : isAmber ? 'var(--amb-bd)' : 'var(--bd2)'),
         borderRadius: 7,
         padding: '10px 11px',
         cursor: 'grab',

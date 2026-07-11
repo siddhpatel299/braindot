@@ -22,9 +22,9 @@ const COLUMNS: { id: KanbanCardItem['status']; label: string; dotColor: string }
 ];
 
 const TAG_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  purple: { bg: 'rgba(124,110,247,0.12)', border: '#3d378a', text: '#b0a8fb' },
-  green: { bg: 'rgba(52,211,153,0.10)', border: '#1a4a2a', text: '#34d399' },
-  amber: { bg: 'rgba(251,191,36,0.10)', border: '#4a3010', text: '#fbbf24' },
+  purple: { bg: 'rgba(124,110,247,0.12)', border: 'var(--acc-bd)', text: '#b0a8fb' },
+  green: { bg: 'rgba(52,211,153,0.10)', border: 'var(--grn-bd)', text: '#34d399' },
+  amber: { bg: 'rgba(251,191,36,0.10)', border: 'var(--amb-bd)', text: '#fbbf24' },
   blue: { bg: 'rgba(96,165,250,0.10)', border: '#1e3a5a', text: '#60a5fa' },
 };
 
@@ -416,7 +416,7 @@ function CardEditModal({
                   style={{
                     flex: 1, padding: '6px 8px', borderRadius: 4,
                     background: card.status === col.id ? 'var(--acc-bg)' : 'var(--bg3)',
-                    border: '1px solid ' + (card.status === col.id ? '#3d378a' : 'var(--bd2)'),
+                    border: '1px solid ' + (card.status === col.id ? 'var(--acc-bd)' : 'var(--bd2)'),
                     color: card.status === col.id ? 'var(--acc2)' : 'var(--t3)',
                     fontSize: 10, fontFamily: 'inherit', cursor: 'pointer', textTransform: 'uppercase',
                     letterSpacing: '0.04em', fontWeight: 600,

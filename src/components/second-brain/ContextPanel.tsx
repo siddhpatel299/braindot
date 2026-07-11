@@ -522,7 +522,7 @@ function GraphPanel({
               y1={a.y}
               x2={b.x}
               y2={b.y}
-              stroke={isCurrent ? 'var(--acc)' : '#3d378a'}
+              stroke={isCurrent ? 'var(--acc)' : 'var(--acc-bd)'}
               strokeWidth={isCurrent ? 1.2 : 0.6}
               opacity={isCurrent ? 0.85 : 0.5}
             />
@@ -533,7 +533,7 @@ function GraphPanel({
           const noteData = allNotes.find((x) => x.id === n.id);
           const isCurrent = n.id === note.id;
           const r = isCurrent ? 7 : Math.max(3, n.radius);
-          const fill = isCurrent ? 'var(--acc)' : n.degree > 0 ? '#534AB7' : '#3d378a';
+          const fill = isCurrent ? 'var(--acc)' : n.degree > 0 ? '#534AB7' : 'var(--acc-bd)';
           return (
             <g
               key={n.id}

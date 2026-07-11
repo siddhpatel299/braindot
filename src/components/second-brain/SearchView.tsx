@@ -380,7 +380,7 @@ function ResultCard({
   // Score bar color
   const scoreColor = scorePct >= 90 ? 'var(--acc)' :
     scorePct >= 75 ? '#534AB7' :
-    scorePct >= 60 ? '#3d378a' :
+    scorePct >= 60 ? 'var(--acc-bd)' :
     '#2e2e44';
 
   // Generate snippet
@@ -670,7 +670,7 @@ function ConceptBar({ label, score }: { label: string; score: number }) {
   const pct = Math.round(score * 100);
   const color = pct >= 90 ? 'var(--acc)' :
     pct >= 75 ? '#534AB7' :
-    pct >= 60 ? '#3d378a' :
+    pct >= 60 ? 'var(--acc-bd)' :
     '#2e2e44';
 
   return (
