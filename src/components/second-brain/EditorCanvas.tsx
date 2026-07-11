@@ -5,8 +5,10 @@ import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
-import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2 } from 'lucide-react';
 import { FormattingToolbar } from './FormattingToolbar';
+import { WriterAI } from './WriterAI';
+import { SlashMenu, SlashCommand } from './SlashMenu';
 
 type ViewMode = 'edit' | 'preview' | 'diff';
 
@@ -159,6 +161,8 @@ export function EditorCanvas({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashPos, setSlashPos] = useState<{ x: number; y: number } | null>(null);
 
   // Preview HTML
   const previewHtml = useMemo(() => renderMarkdownHtml(editor.body), [editor.body]);
@@ -250,7 +254,8 @@ export function EditorCanvas({
       const inserted = prefix + text + suffix;
       const next = editor.body.slice(0, start) + inserted + editor.body.slice(end);
       editor.updateBody(next);
-      requestAnimationFrame(() => {
+      setTimeout(() => {
+        ta.focus();
         if (selected) {
           ta.selectionStart = start;
           ta.selectionEnd = start + inserted.length;
@@ -258,15 +263,104 @@ export function EditorCanvas({
           ta.selectionStart = start + prefix.length;
           ta.selectionEnd = start + prefix.length + placeholder.length;
         }
-        ta.focus();
-      });
+      }, 0);
     },
     [editor],
   );
 
+  // Slash commands for the / menu
+  const slashCommands: SlashCommand[] = useMemo(() => {
+    const insertAtCursor = (text: string) => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const start = ta.selectionStart;
+      const next = editor.body.slice(0, start) + text + editor.body.slice(ta.selectionEnd);
+      editor.updateBody(next);
+      setTimeout(() => {
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = start + text.length;
+      }, 0);
+    };
+    return [
+      {
+        id: 'h1', label: 'Heading 1', description: 'Large section heading',
+        icon: ({ size }) => <span style={{ fontSize: size || 14, fontWeight: 700 }}>H1</span>,
+        action: () => insertAtCursor('\n# '),
+      },
+      {
+        id: 'h2', label: 'Heading 2', description: 'Medium section heading',
+        icon: ({ size }) => <span style={{ fontSize: size || 14, fontWeight: 700 }}>H2</span>,
+        action: () => insertAtCursor('\n## '),
+      },
+      {
+        id: 'h3', label: 'Heading 3', description: 'Small section heading',
+        icon: ({ size }) => <span style={{ fontSize: size || 14, fontWeight: 700 }}>H3</span>,
+        action: () => insertAtCursor('\n### '),
+      },
+      {
+        id: 'callout', label: 'Callout', description: 'Highlighted note block',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>📌</span>,
+        action: () => insertAtCursor('\n> [!callout]\n> '),
+      },
+      {
+        id: 'code', label: 'Code block', description: 'Fenced code block',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>⌘</span>,
+        action: () => insertAtCursor('\n```\n\n```\n'),
+      },
+      {
+        id: 'quote', label: 'Quote', description: 'Blockquote',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>❝</span>,
+        action: () => insertAtCursor('\n> '),
+      },
+      {
+        id: 'bullet', label: 'Bullet list', description: 'Unordered list',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>•</span>,
+        action: () => insertAtCursor('\n- '),
+      },
+      {
+        id: 'numbered', label: 'Numbered list', description: 'Ordered list',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>1.</span>,
+        action: () => insertAtCursor('\n1. '),
+      },
+      {
+        id: 'hr', label: 'Divider', description: 'Horizontal rule',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>―</span>,
+        action: () => insertAtCursor('\n---\n'),
+      },
+      {
+        id: 'wikilink', label: 'Wiki-link', description: 'Link to another note',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>🔗</span>,
+        action: () => insertAtCursor('[['),
+      },
+      {
+        id: 'table', label: 'Table', description: 'Insert a 3-column table',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>▦</span>,
+        action: () => insertAtCursor('\n| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell | Cell | Cell |\n'),
+      },
+      {
+        id: 'todo', label: 'Todo list', description: 'Checkbox todo items',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>☑</span>,
+        action: () => insertAtCursor('\n- [ ] '),
+      },
+    ];
+  }, [editor]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       const meta = e.metaKey || e.ctrlKey;
+
+      // Undo/redo
+      if (meta && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        editor.undo();
+        return;
+      }
+      if (meta && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+        e.preventDefault();
+        editor.redo();
+        return;
+      }
+
       if (e.key === 'Tab') {
         e.preventDefault();
         const ta = e.currentTarget;
@@ -274,11 +368,30 @@ export function EditorCanvas({
         const end = ta.selectionEnd;
         const next = editor.body.slice(0, start) + '  ' + editor.body.slice(end);
         editor.updateBody(next);
-        requestAnimationFrame(() => {
+        setTimeout(() => {
+          ta.focus();
           ta.selectionStart = ta.selectionEnd = start + 2;
-        });
+        }, 0);
         return;
       }
+
+      // Slash menu detection — open when user types / at start of line or after space
+      if (e.key === '/' && !slashOpen) {
+        const ta = e.currentTarget;
+        const pos = ta.selectionStart;
+        const charBefore = pos > 0 ? editor.body[pos - 1] : '\n';
+        if (charBefore === '\n' || charBefore === ' ' || pos === 0) {
+          // Calculate position for the menu
+          const rect = ta.getBoundingClientRect();
+          setSlashPos({ x: rect.left + 20, y: rect.top + 40 });
+          setSlashOpen(true);
+        }
+      }
+      // Close slash menu on Escape
+      if (e.key === 'Escape' && slashOpen) {
+        setSlashOpen(false);
+      }
+
       // Formatting shortcuts
       if (meta && e.key.toLowerCase() === 'b') {
         e.preventDefault();
@@ -295,8 +408,31 @@ export function EditorCanvas({
         wrapSelection('`', '`', 'code');
       }
     },
-    [editor, wrapSelection],
+    [editor, wrapSelection, slashOpen],
   );
+
+  // Handle slash command selection
+  const handleSlashSelect = useCallback((cmd: SlashCommand) => {
+    setSlashOpen(false);
+    // Remove the / that triggered the menu
+    const ta = textareaRef.current;
+    if (ta) {
+      const pos = ta.selectionStart;
+      if (editor.body[pos - 1] === '/') {
+        const next = editor.body.slice(0, pos - 1) + editor.body.slice(pos);
+        editor.updateBody(next);
+        setTimeout(() => {
+          ta.focus();
+          ta.selectionStart = ta.selectionEnd = pos - 1;
+          cmd.action();
+        }, 0);
+      } else {
+        cmd.action();
+      }
+    } else {
+      cmd.action();
+    }
+  }, [editor]);
 
   // Backlinks for this note: use the precomputed backlinks field, then
   // resolve to Note objects.
@@ -337,6 +473,44 @@ export function EditorCanvas({
           </div>
         )}
         {viewMode !== 'edit' && <div style={{ flex: 1 }} />}
+
+        {/* Undo/redo + Writer AI buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 4px', flexShrink: 0 }}>
+          <button
+            onClick={editor.undo}
+            disabled={!editor.canUndo}
+            title="Undo (⌘Z)"
+            style={{
+              width: 28, height: 28, borderRadius: 3,
+              background: 'transparent', border: '1px solid transparent',
+              color: editor.canUndo ? 'var(--t2)' : 'var(--t3)',
+              cursor: editor.canUndo ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: editor.canUndo ? 1 : 0.4,
+            }}
+            onMouseEnter={(e) => { if (editor.canUndo) { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+            onMouseLeave={(e) => { if (editor.canUndo) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; } }}
+          >
+            <Undo2 size={14} strokeWidth={2} />
+          </button>
+          <button
+            onClick={editor.redo}
+            disabled={!editor.canRedo}
+            title="Redo (⌘⇧Z)"
+            style={{
+              width: 28, height: 28, borderRadius: 3,
+              background: 'transparent', border: '1px solid transparent',
+              color: editor.canRedo ? 'var(--t2)' : 'var(--t3)',
+              cursor: editor.canRedo ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: editor.canRedo ? 1 : 0.4,
+            }}
+            onMouseEnter={(e) => { if (editor.canRedo) { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+            onMouseLeave={(e) => { if (editor.canRedo) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; } }}
+          >
+            <Redo2 size={14} strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       <div
@@ -578,6 +752,24 @@ export function EditorCanvas({
           tip: ⌘+click a [[wiki-link]] to open that note in a new tab
         </div>
       </div>
+
+      {/* Writer AI — manages its own open/close state */}
+      <WriterAI
+        textareaRef={textareaRef}
+        body={editor.body}
+        onBodyChange={editor.updateBody}
+        noteTitle={editor.title}
+        noteTags={note.tags}
+      />
+
+      {/* Slash command menu */}
+      <SlashMenu
+        open={slashOpen}
+        position={slashPos}
+        commands={slashCommands}
+        onSelect={handleSlashSelect}
+        onClose={() => setSlashOpen(false)}
+      />
     </div>
   );
 }

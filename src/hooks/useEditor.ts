@@ -7,12 +7,7 @@ import { countWords } from '@/utils/markdown';
 /**
  * Editor state hook: tracks unsaved changes (debounced save),
  * live word count, and the local working copy of the note body.
- *
- * Save semantics:
- *  - On body change, mark note as "dirty" (shows amber dot on tab)
- *  - After 1000ms of no further edits, call onSave with the new body
- *  - On tab switch, the debounced save will fire normally; we also
- *    expose flushSave() for explicit flush on ⌘S or unmount.
+ * Includes undo/redo history for the body.
  */
 export function useEditor(
   note: Note | undefined,
@@ -22,12 +17,18 @@ export function useEditor(
   const [title, setTitle] = useState<string>(note?.title ?? '');
   const [subtitle, setSubtitle] = useState<string>(note?.subtitle ?? '');
   const [dirty, setDirty] = useState<boolean>(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNoteId = useRef<string | undefined>(note?.id);
-  // We track this so we don't clobber user typing when the note prop updates
-  // from the save round-trip.
   const skipNextExternalUpdate = useRef<boolean>(false);
+
+  // Undo/redo stacks
+  const undoStack = useRef<string[]>([]);
+  const redoStack = useRef<string[]>([]);
+  const lastBodySnapshot = useRef<string>(note?.body ?? '');
+  const snapshotTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep latest values in refs so flushSave can read them without
   // being recreated on every keystroke.
@@ -42,6 +43,12 @@ export function useEditor(
   useEffect(() => { subtitleRef.current = subtitle; }, [subtitle]);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
   useEffect(() => { noteRef.current = note; }, [note]);
+
+  // Update undo/redo availability
+  useEffect(() => {
+    setCanUndo(undoStack.current.length > 0);
+    setCanRedo(redoStack.current.length > 0);
+  }, [body]);
 
   const flushSave = useCallback(() => {
     const n = noteRef.current;
@@ -73,6 +80,12 @@ export function useEditor(
       setSubtitle(note?.subtitle ?? '');
       setDirty(false);
       skipNextExternalUpdate.current = false;
+      // Reset undo/redo stacks for the new note
+      undoStack.current = [];
+      redoStack.current = [];
+      lastBodySnapshot.current = note?.body ?? '';
+      setCanUndo(false);
+      setCanRedo(false);
     } else if (note && !skipNextExternalUpdate.current) {
       // external change (e.g., reset all) — only sync if we are not dirty
       if (!dirty) {
@@ -83,9 +96,22 @@ export function useEditor(
     }
   }, [note?.id, note?.body, note?.title, note?.subtitle, dirty, flushSave, note]);
 
-  // Update body / title / subtitle with debounce
+  // Update body with debounce + undo snapshot
   const updateBody = useCallback(
     (next: string) => {
+      // Snapshot the previous body for undo (debounced — don't snapshot every keystroke)
+      if (snapshotTimer.current) clearTimeout(snapshotTimer.current);
+      snapshotTimer.current = setTimeout(() => {
+        if (lastBodySnapshot.current !== next) {
+          undoStack.current.push(lastBodySnapshot.current);
+          if (undoStack.current.length > 50) undoStack.current.shift();
+          redoStack.current = [];
+          lastBodySnapshot.current = next;
+          setCanUndo(undoStack.current.length > 0);
+          setCanRedo(false);
+        }
+      }, 500);
+
       setBody(next);
       setDirty(true);
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -99,6 +125,44 @@ export function useEditor(
     },
     [note, onSave],
   );
+
+  const undo = useCallback(() => {
+    if (undoStack.current.length === 0) return;
+    const prev = undoStack.current.pop()!;
+    redoStack.current.push(bodyRef.current);
+    lastBodySnapshot.current = prev;
+    setBody(prev);
+    setDirty(true);
+    setCanUndo(undoStack.current.length > 0);
+    setCanRedo(true);
+    if (note) {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        onSave(note.id, { body: prev });
+        setDirty(false);
+        skipNextExternalUpdate.current = true;
+      }, 500);
+    }
+  }, [note, onSave]);
+
+  const redo = useCallback(() => {
+    if (redoStack.current.length === 0) return;
+    const next = redoStack.current.pop()!;
+    undoStack.current.push(bodyRef.current);
+    lastBodySnapshot.current = next;
+    setBody(next);
+    setDirty(true);
+    setCanUndo(true);
+    setCanRedo(redoStack.current.length > 0);
+    if (note) {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        onSave(note.id, { body: next });
+        setDirty(false);
+        skipNextExternalUpdate.current = true;
+      }, 500);
+    }
+  }, [note, onSave]);
 
   const updateTitle = useCallback(
     (next: string) => {
@@ -147,9 +211,13 @@ export function useEditor(
     subtitle,
     dirty,
     wordCount,
+    canUndo,
+    canRedo,
     updateBody,
     updateTitle,
     updateSubtitle,
     flushSave,
+    undo,
+    redo,
   };
 }

@@ -6,7 +6,7 @@ import { forceDirectedLayout } from '@/utils/graph';
 import { relativeTime, countWords } from '@/utils/markdown';
 import {
   FileText, Link2, AlignLeft, Flame, TrendingUp, ArrowRight,
-  Sparkles, Plus, Calendar, Tag, Hash,
+  Sparkles, Plus, Calendar, Tag, Hash, Download, Upload,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -19,6 +19,8 @@ interface DashboardProps {
   onCreateJournal: () => void;
   onAskAI: () => void;
   onViewGraph: () => void;
+  onExportVault: () => void;
+  onImportVault: (file: File) => void;
 }
 
 export function Dashboard({
@@ -31,6 +33,8 @@ export function Dashboard({
   onCreateJournal,
   onAskAI,
   onViewGraph,
+  onExportVault,
+  onImportVault,
 }: DashboardProps) {
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
@@ -219,6 +223,8 @@ export function Dashboard({
         <QuickAction icon={Calendar} label="daily journal" onClick={onCreateJournal} />
         <QuickAction icon={Sparkles} label="ask AI" onClick={onAskAI} />
         <QuickAction icon={TrendingUp} label="view graph" onClick={onViewGraph} />
+        <QuickAction icon={Download} label="export" onClick={onExportVault} />
+        <QuickAction icon={Upload} label="import" onClick={() => document.getElementById('sb-import-input')?.click()} />
       </div>
 
       {/* Main grid: recent notes + graph */}
@@ -330,6 +336,22 @@ export function Dashboard({
           </div>
         </Panel>
       </div>
+
+      {/* Hidden file input for import */}
+      <input
+        id="sb-import-input"
+        type="file"
+        accept=".json,.md,.txt"
+        multiple
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const files = e.target.files;
+          if (files && files.length > 0) {
+            Array.from(files).forEach((f) => onImportVault(f));
+            e.target.value = '';
+          }
+        }}
+      />
     </div>
   );
 }

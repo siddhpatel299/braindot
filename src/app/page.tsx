@@ -346,6 +346,85 @@ export default function Home() {
     showToast(`review scheduled for ${dateStr}`);
   }, [activeNote, pushHistory, showToast]);
 
+  // ---------- Export vault as JSON ----------
+  const handleExportVault = useCallback(() => {
+    const data = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      notes: state.notes,
+      folders: state.folders,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `second-brain-vault-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`exported ${state.notes.length} notes`);
+  }, [state.notes, state.folders, showToast]);
+
+  // ---------- Import vault from JSON or Markdown ----------
+  const handleImportVault = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (!content) return;
+
+      if (file.name.endsWith('.json')) {
+        // Second Brain JSON format
+        try {
+          const data = JSON.parse(content);
+          if (data.notes && Array.isArray(data.notes)) {
+            let imported = 0;
+            for (const n of data.notes) {
+              // Check if note already exists (by title)
+              const exists = state.notes.find(
+                (existing) => existing.title.toLowerCase() === n.title.toLowerCase(),
+              );
+              if (exists) continue;
+              const newNote = createNote(n.folderId || SEED_FOLDER_IDS.resourcesPkm);
+              updateNote(newNote.id, {
+                title: n.title || 'Imported note',
+                filename: n.filename || `imported-${newNote.id.slice(-6)}.md`,
+                subtitle: n.subtitle || '',
+                tags: n.tags || [],
+                body: n.body || '',
+                status: n.status || 'draft',
+              });
+              imported++;
+            }
+            showToast(`imported ${imported} notes from JSON`);
+          }
+        } catch {
+          showToast('invalid JSON file');
+        }
+      } else if (file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+        // Obsidian/Markdown format — each file becomes a note
+        const title = file.name.replace(/\.(md|txt)$/, '');
+        const exists = state.notes.find(
+          (n) => n.title.toLowerCase() === title.toLowerCase(),
+        );
+        if (exists) {
+          showToast(`"${title}" already exists`);
+          return;
+        }
+        const newNote = createNote(SEED_FOLDER_IDS.resourcesPkm);
+        updateNote(newNote.id, {
+          title,
+          filename: file.name,
+          subtitle: 'Imported from file',
+          body: content,
+          status: 'draft',
+        });
+        showToast(`imported "${title}"`);
+      }
+    };
+    reader.readAsText(file);
+  }, [state.notes, createNote, updateNote, showToast]);
+
   // ---------- Folder actions ----------
   const handleCreateFolder = useCallback((parentId: string | null) => {
     const name = prompt('Folder name:', parentId === null ? 'New folder' : 'Subfolder');
@@ -553,6 +632,8 @@ export default function Home() {
               setAppView('notes');
               setContextTab('graph');
             }}
+            onExportVault={handleExportVault}
+            onImportVault={handleImportVault}
           />
         ) : appView === 'search' ? (
           <SearchView

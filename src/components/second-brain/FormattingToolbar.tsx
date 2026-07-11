@@ -25,8 +25,10 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
       const inserted = prefix + text + suffix;
       const next = body.slice(0, start) + inserted + body.slice(end);
       onBodyChange(next);
-      // restore selection after re-render
-      requestAnimationFrame(() => {
+      // restore selection after re-render — use setTimeout(0) to ensure
+      // React has committed the new value to the DOM before we set selection
+      setTimeout(() => {
+        ta.focus();
         if (selected) {
           ta.selectionStart = start;
           ta.selectionEnd = start + inserted.length;
@@ -34,8 +36,7 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
           ta.selectionStart = start + prefix.length;
           ta.selectionEnd = start + prefix.length + placeholder.length;
         }
-        ta.focus();
-      });
+      }, 0);
     },
     [textareaRef, body, onBodyChange],
   );
@@ -56,11 +57,11 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
       const inserted = newLines.join('\n');
       const next = body.slice(0, start) + inserted + body.slice(end);
       onBodyChange(next);
-      requestAnimationFrame(() => {
+      setTimeout(() => {
+        ta.focus();
         ta.selectionStart = start;
         ta.selectionEnd = start + inserted.length;
-        ta.focus();
-      });
+      }, 0);
     },
     [textareaRef, body, onBodyChange],
   );
@@ -75,7 +76,7 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
     const inserted = '```\n' + selected + '\n```';
     const next = body.slice(0, start) + inserted + body.slice(end);
     onBodyChange(next);
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       ta.selectionStart = start + 4;
       ta.selectionEnd = start + 4 + selected.length;
       ta.focus();
@@ -99,11 +100,11 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
       const newLine = prefix + stripped;
       const next = body.slice(0, lineStart) + newLine + body.slice(lineEnd === -1 ? body.length : lineEnd);
       onBodyChange(next);
-      requestAnimationFrame(() => {
+      setTimeout(() => {
+        ta.focus();
         ta.selectionStart = lineStart + prefix.length;
         ta.selectionEnd = lineStart + newLine.length;
-        ta.focus();
-      });
+      }, 0);
     },
     [textareaRef, body, onBodyChange],
   );
@@ -119,7 +120,8 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
     const inserted = '[[' + text + ']]';
     const next = body.slice(0, start) + inserted + body.slice(end);
     onBodyChange(next);
-    requestAnimationFrame(() => {
+    setTimeout(() => {
+      ta.focus();
       if (selected) {
         ta.selectionStart = start;
         ta.selectionEnd = start + inserted.length;
@@ -127,8 +129,7 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
         ta.selectionStart = start + 2;
         ta.selectionEnd = start + 2 + text.length;
       }
-      ta.focus();
-    });
+    }, 0);
   }, [textareaRef, body, onBodyChange]);
 
   // Insert a regular markdown link [text](url)
@@ -141,12 +142,12 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
     const inserted = '[' + selected + '](https://)';
     const next = body.slice(0, start) + inserted + body.slice(end);
     onBodyChange(next);
-    requestAnimationFrame(() => {
+    setTimeout(() => {
+      ta.focus();
       const urlStart = start + selected.length + 3;
       ta.selectionStart = urlStart;
       ta.selectionEnd = urlStart + 8; // "https://"
-      ta.focus();
-    });
+    }, 0);
   }, [textareaRef, body, onBodyChange]);
 
   const btnStyle: React.CSSProperties = {
