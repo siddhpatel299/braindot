@@ -10,9 +10,12 @@ import {
   Search,
   Brain,
   LayoutDashboard,
+  KanbanSquare,
+  PenTool,
+  BookOpen,
 } from 'lucide-react';
 
-export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'journal' | 'ai' | 'tags' | 'search';
+export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'journal' | 'ai' | 'tags' | 'search' | 'kanban' | 'canvas' | 'reading';
 
 interface IconRailProps {
   active: IconRailView;
@@ -42,7 +45,7 @@ function RailButton({ icon: Icon, label, active, onClick }: RailButtonProps) {
         justifyContent: 'center',
         background: active ? 'var(--acc-bg)' : 'transparent',
         color: active ? 'var(--acc2)' : 'var(--t2)',
-        border: active ? '1px solid #3d378a' : '1px solid transparent',
+        border: active ? '1px solid var(--acc-bd)' : '1px solid transparent',
         cursor: 'pointer',
         transition: 'background 0.12s, color 0.12s, border 0.12s',
       }}
@@ -114,6 +117,9 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
       <RailButton icon={LayoutDashboard} label="Dashboard" active={active === 'dashboard'} onClick={() => onSelect('dashboard')} />
       <RailButton icon={StickyNote} label="Notes" active={active === 'notes'} onClick={() => onSelect('notes')} />
       <RailButton icon={Share2} label="Graph view" active={active === 'graph'} onClick={() => onSelect('graph')} />
+      <RailButton icon={KanbanSquare} label="Kanban + Todos" active={active === 'kanban'} onClick={() => onSelect('kanban')} />
+      <RailButton icon={PenTool} label="Canvas" active={active === 'canvas'} onClick={() => onSelect('canvas')} />
+      <RailButton icon={BookOpen} label="Reading" active={active === 'reading'} onClick={() => onSelect('reading')} />
       <RailButton icon={CalendarDays} label="Daily journal" active={active === 'journal'} onClick={() => onSelect('journal')} />
       <RailButton icon={Sparkles} label="AI synthesis" active={active === 'ai'} onClick={() => onSelect('ai')} />
 

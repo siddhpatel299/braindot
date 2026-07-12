@@ -18,6 +18,11 @@ import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
+import { GraphView } from '@/components/second-brain/GraphView';
+import { KanbanTodoPage } from '@/components/second-brain/KanbanTodoPage';
+import { CanvasView } from '@/components/second-brain/CanvasView';
+import { ReadingView } from '@/components/second-brain/ReadingView';
+import { useKanbanTodos, useCanvas, useReading } from '@/hooks/useVaultData';
 
 interface HistoryEntry {
   id: string;
@@ -63,8 +68,13 @@ export default function Home() {
     toggleFolderExpanded,
   } = useNotes();
 
+  // Kanban + Todos + Canvas + Reading state (localStorage)
+  const kanbanTodos = useKanbanTodos();
+  const canvas = useCanvas();
+  const reading = useReading();
+
   const [iconView, setIconView] = useState<IconRailView>('notes');
-  const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search'>('dashboard');
+  const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search' | 'graph' | 'kanban' | 'canvas' | 'reading'>('dashboard');
   const [search, setSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [contextTab, setContextTab] = useState<'ai' | 'graph' | 'history'>('ai');
@@ -440,12 +450,17 @@ export default function Home() {
       setAppView('search');
     } else if (v === 'dashboard') {
       setAppView('dashboard');
+    } else if (v === 'graph') {
+      setAppView('graph');
+    } else if (v === 'kanban') {
+      setAppView('kanban');
+    } else if (v === 'canvas') {
+      setAppView('canvas');
+    } else if (v === 'reading') {
+      setAppView('reading');
     } else if (v === 'ai') {
       setContextTab('ai');
       setAskAIOpen(true);
-    } else if (v === 'graph') {
-      setAppView('notes');
-      setContextTab('graph');
     } else if (v === 'journal') {
       handleCreateJournal();
     } else if (v === 'tags') {
@@ -642,6 +657,92 @@ export default function Home() {
             onSynthesize={(notesToSynth) => {
               handleDraftSynthesis();
               setAppView('notes');
+            }}
+          />
+        ) : appView === 'graph' ? (
+          <GraphView
+            notes={state.notes}
+            folders={state.folders}
+            onOpenNote={handleOpenNote}
+            onBack={() => setAppView('dashboard')}
+          />
+        ) : appView === 'kanban' ? (
+          <KanbanTodoPage
+            notes={state.notes}
+            folders={state.folders}
+            kanbanCards={kanbanTodos.kanbanCards}
+            todos={kanbanTodos.todos}
+            onAddKanbanCard={kanbanTodos.addKanbanCard}
+            onMoveKanbanCard={kanbanTodos.moveKanbanCard}
+            onUpdateKanbanCard={kanbanTodos.updateKanbanCard}
+            onDeleteKanbanCard={kanbanTodos.deleteKanbanCard}
+            onAddTodo={kanbanTodos.addTodo}
+            onToggleTodo={kanbanTodos.toggleTodo}
+            onUpdateTodo={kanbanTodos.updateTodo}
+            onDeleteTodo={kanbanTodos.deleteTodo}
+            onOpenNote={handleOpenNote}
+            onBack={() => setAppView('dashboard')}
+          />
+        ) : appView === 'canvas' ? (
+          canvas.activeBoard ? (
+            <CanvasView
+              board={canvas.activeBoard}
+              allBoards={canvas.boards}
+              notes={state.notes}
+              onOpenNote={handleOpenNote}
+              onBack={() => setAppView('dashboard')}
+              onUpdateBoard={canvas.updateBoard}
+              onAddCard={canvas.addCard}
+              onUpdateCard={canvas.updateCard}
+              onDeleteCard={canvas.deleteCard}
+              onAddGroup={canvas.addGroup}
+              onDeleteGroup={canvas.deleteGroup}
+              onAddConnector={canvas.addConnector}
+              onDeleteConnector={canvas.deleteConnector}
+              onSwitchBoard={canvas.setActiveBoardId}
+              onCreateBoard={canvas.createBoard}
+              onDeleteBoard={canvas.deleteBoard}
+              onRenameBoard={canvas.renameBoard}
+              onCreateNoteFromSynthesis={(title, subtitle) => {
+                const n = handleCreateNote();
+                updateNote(n.id, { title, subtitle });
+                showToast('created note from synthesis');
+              }}
+            />
+          ) : (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 13 }}>
+              <button
+                onClick={() => canvas.createBoard('My First Canvas')}
+                style={{
+                  background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 5,
+                  padding: '12px 24px', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
+                }}
+              >
+                + create your first canvas
+              </button>
+            </div>
+          )
+        ) : appView === 'reading' ? (
+          <ReadingView
+            libraryItems={reading.libraryItems}
+            highlights={reading.highlights}
+            notes={state.notes}
+            onBack={() => setAppView('dashboard')}
+            onOpenNote={handleOpenNote}
+            onAddLibraryItem={reading.addLibraryItem}
+            onUpdateLibraryItem={reading.updateLibraryItem}
+            onDeleteLibraryItem={reading.deleteLibraryItem}
+            onAddHighlight={reading.addHighlight}
+            onUpdateHighlight={reading.updateHighlight}
+            onDeleteHighlight={reading.deleteHighlight}
+            onCreateNoteFromHighlight={(highlight, sourceTitle) => {
+              const n = handleCreateNote();
+              updateNote(n.id, {
+                title: `Highlight: ${highlight.text.slice(0, 50)}…`,
+                subtitle: `From "${sourceTitle}"`,
+                body: `> ${highlight.text}\n\n## Context\n\nThis highlight came from [[${sourceTitle}]].\n\n## Thoughts\n\n`,
+              });
+              showToast('created note from highlight');
             }}
           />
         ) : (

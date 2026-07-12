@@ -80,3 +80,131 @@ export const PARA_FOLDERS: { type: ParaType; name: string; description: string }
   { type: 'resources', name: 'Resources', description: 'Topical interest, no commitment' },
   { type: 'archives',  name: 'Archives',  description: 'Inactive items from the other three' },
 ];
+
+// ============================================================
+// Kanban + Todo types
+// ============================================================
+export type KanbanStatus = 'backlog' | 'in-progress' | 'review' | 'done';
+
+export interface KanbanCardItem {
+  id: string;
+  title: string;
+  description: string;
+  status: KanbanStatus;
+  tags: string[];           // colored tag chips (purple, green, amber, blue)
+  linkedNoteId: string | null;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TodoPriority = 'urgent' | 'high' | 'medium' | 'low';
+export type TodoDueGroup = 'today' | 'tomorrow' | 'week' | 'someday' | null;
+
+export interface TodoItem {
+  id: string;
+  text: string;
+  done: boolean;
+  priority: TodoPriority;
+  dueGroup: TodoDueGroup;
+  dueDate: string | null;   // ISO date
+  linkedNoteId: string | null;
+  order: number;
+  createdAt: string;
+}
+
+// ============================================================
+// Canvas types
+// ============================================================
+export type CanvasCardType = 'note' | 'sticky' | 'synthesis';
+
+export interface CanvasNoteCard {
+  type: 'note';
+  noteId: string;
+  title: string;
+  preview: string;
+}
+
+export interface CanvasSticky {
+  type: 'sticky';
+  text: string;
+  color: 'amber' | 'green' | 'blue' | 'purple';
+}
+
+export interface CanvasSynthesisCard {
+  type: 'synthesis';
+  title: string;
+  body: string;
+  linkedNoteIds: string[];
+}
+
+export type CanvasCardData = CanvasNoteCard | CanvasSticky | CanvasSynthesisCard;
+
+export interface CanvasCard {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  data: CanvasCardData;
+  groupId: string | null;
+}
+
+export interface CanvasGroup {
+  id: string;
+  label: string;
+  color: string;
+  cardIds: string[];
+}
+
+export interface CanvasConnector {
+  id: string;
+  fromCardId: string;
+  toCardId: string;
+  style: 'solid' | 'dashed';
+  label?: string;
+}
+
+export interface CanvasBoard {
+  id: string;
+  name: string;
+  cards: CanvasCard[];
+  groups: CanvasGroup[];
+  connectors: CanvasConnector[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// Reading / Library types
+// ============================================================
+export type LibraryItemType = 'epub' | 'pdf' | 'rss' | 'url' | 'paper' | 'news';
+export type LibraryItemStatus = 'unread' | 'reading' | 'done';
+
+export interface LibraryItem {
+  id: string;
+  title: string;
+  author: string | null;
+  type: LibraryItemType;
+  source: string;        // URL or filename
+  content: string;       // extracted text
+  excerpt: string;
+  status: LibraryItemStatus;
+  progress: number;      // 0-100
+  coverUrl: string | null;
+  addedAt: string;
+  updatedAt: string;
+  highlights: string[];  // highlight IDs
+}
+
+export type HighlightColor = 'yellow' | 'purple' | 'green';
+
+export interface Highlight {
+  id: string;
+  libraryItemId: string;
+  noteId: string | null;
+  text: string;
+  color: HighlightColor;
+  page: number | null;
+  createdAt: string;
+}
