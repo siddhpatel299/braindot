@@ -8,55 +8,32 @@ Convex functions/schema are pushed to your Convex deployment.
 
 ## Current status
 
-- **Convex works.** Schema, functions, auth, and live sync are all verified.
-- **BUT the key in `.env.local` is a _preview_ key.** Convex preview
-  deployments are ephemeral — they get auto-deleted and change URLs (this
-  already happened once: `determined-starling-161` → `merry-beagle-541`).
-  They are for CI branch previews, **not** for a hosted app.
-- **For hosting you need a _production_ Convex deploy key** (one-time, from the
-  dashboard). Everything else is ready.
+**Done:**
+- ✅ Production Convex deployed — schema + functions live on `aware-grouse-813`.
+- ✅ Auth configured on production (JWT_PRIVATE_KEY, JWKS, SITE_URL set).
+- ✅ Repo pushed: https://github.com/siddhpatel299/braindot (private).
+- ✅ `vercel.json` build command deploys Convex + Next together.
+
+**What's left — just the Vercel project (steps 4–5 below):**
+1. Import the repo at vercel.com.
+2. Add env vars: `CONVEX_DEPLOY_KEY` (prod key), `OPENAI_API_KEY`, `OPENAI_MODEL`.
+3. Deploy, then set `SITE_URL` on Convex prod to the real Vercel URL.
+
+The dev environment still uses a _preview_ key in `.env.local` (ephemeral,
+separate from production).
 
 ---
 
 ## One-time setup
 
-### 1. Get a production Convex deploy key
+### 1–3. Production Convex + repo — ✅ DONE
 
-1. Open the Convex dashboard → **braindot** project → your **production**
-   deployment (the dashboard showed `aware-grouse-813`).
-2. **Settings → Deploy Keys → Generate Production Deploy Key**.
-3. Copy it — it looks like `prod:...|...`.
+Already completed:
+- Production deploy key generated and used to deploy schema + functions.
+- Auth env vars (JWT_PRIVATE_KEY, JWKS, SITE_URL) set on production.
+- Repo pushed to https://github.com/siddhpatel299/braindot.
 
-### 2. Configure auth on the production deployment
-
-Convex Auth needs three env vars on the **production** deployment. Run these
-locally with your production key (replace `prod:...` with the real key):
-
-```bash
-# One-off: generate a JWT keypair
-node -e "const {exportJWK,exportPKCS8,generateKeyPair}=require('jose');(async()=>{const k=await generateKeyPair('RS256',{extractable:true});const pk=await exportPKCS8(k.privateKey);const jwk=await exportJWK(k.publicKey);require('fs').writeFileSync('jwt.txt',pk.trim().replace(/\n/g,' '));require('fs').writeFileSync('jwks.txt',JSON.stringify({keys:[{use:'sig',...jwk}]}));console.log('ok')})()"
-
-# Set them on production (uses CONVEX_DEPLOY_KEY from the env)
-CONVEX_DEPLOY_KEY="prod:..." npx convex env set --prod JWT_PRIVATE_KEY -- "$(cat jwt.txt)"
-CONVEX_DEPLOY_KEY="prod:..." npx convex env set --prod JWKS -- "$(cat jwks.txt)"
-# SITE_URL must be your final Vercel URL (set after the first deploy, then redeploy)
-CONVEX_DEPLOY_KEY="prod:..." npx convex env set --prod SITE_URL https://YOUR-APP.vercel.app
-
-rm jwt.txt jwks.txt
-```
-
-### 3. Push the repo to GitHub (for Vercel's git integration)
-
-There's no git remote yet. Create an empty GitHub repo, then:
-
-```bash
-git add -A
-git commit -m "Prepare for Vercel deploy"
-git remote add origin https://github.com/<you>/braindot.git
-git push -u origin main
-```
-
-(`.env.local` is gitignored — your secrets are never committed.)
+Keep your `prod:...` deploy key handy — you'll paste it into Vercel below.
 
 ### 4. Create the Vercel project
 
