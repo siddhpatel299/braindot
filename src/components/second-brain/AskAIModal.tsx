@@ -1,36 +1,65 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, Loader2 } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, FileText, Library } from 'lucide-react';
 import { Note } from '@/types';
+import { streamAsk } from '@/lib/aiClient';
+import { retrieveRelevantNotes, toContextNotes } from '@/utils/retrieval';
+
+type Scope = 'note' | 'vault';
 
 interface AskAIModalProps {
   open: boolean;
   onClose: () => void;
   note: Note | null;
+  allNotes: Note[];
+  /** Open directly in vault mode (e.g. from the dashboard) */
+  initialScope?: Scope;
+  onOpenNoteByTitle?: (title: string) => void;
 }
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  /** titles of the vault notes used as context (assistant messages, vault scope) */
+  sources?: string[];
 }
 
-export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
+const NOTE_SUGGESTIONS = [
+  'What is the strongest counter-argument to this note?',
+  'What is missing from this note?',
+  'How could I connect this to my other notes?',
+  'Rewrite the opening paragraph to be more direct.',
+];
+
+const VAULT_SUGGESTIONS = [
+  'What themes keep showing up across my notes?',
+  'Summarize what I know about learning techniques.',
+  'Which of my notes contradict each other?',
+  'What should I write about next, given my recent notes?',
+];
+
+export function AskAIModal({ open, onClose, note, allNotes, initialScope, onOpenNoteByTitle }: AskAIModalProps) {
+  const [scope, setScope] = useState<Scope>('note');
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (open) {
       setQuestion('');
       setMessages([]);
       setError(null);
+      setScope(initialScope || (note ? 'note' : 'vault'));
       requestAnimationFrame(() => inputRef.current?.focus());
+    } else {
+      abortRef.current?.abort();
     }
-  }, [open, note?.id]);
+  }, [open, note?.id, initialScope, note]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -38,44 +67,79 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
     }
   }, [messages, loading]);
 
-  const suggestedQuestions = [
-    'What is the strongest counter-argument to this note?',
-    'What is missing from this note?',
-    'How could I connect this to my other notes?',
-    'Rewrite the opening paragraph to be more direct.',
-  ];
+  const switchScope = (s: Scope) => {
+    if (s === scope) return;
+    abortRef.current?.abort();
+    setScope(s);
+    setMessages([]);
+    setError(null);
+    setLoading(false);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
 
   const ask = async (q: string) => {
-    if (!q.trim() || !note || loading) return;
+    if (!q.trim() || loading) return;
+    if (scope === 'note' && !note) return;
+
     const userMsg: ChatMessage = { role: 'user', content: q.trim() };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
+    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+    setMessages((prev) => [...prev, userMsg]);
     setQuestion('');
     setLoading(true);
     setError(null);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await fetch('/api/ai/ask?XTransformPort=3000', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          noteTitle: note.title,
-          noteBody: note.body,
-          noteTags: note.tags,
+      let sources: string[] | undefined;
+      let payload;
+      if (scope === 'vault') {
+        const retrieved = retrieveRelevantNotes(q, allNotes, 6);
+        sources = retrieved.map((r) => r.note.title);
+        payload = {
           question: q.trim(),
-          history: messages.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+          history,
+          scope: 'vault' as const,
+          contextNotes: toContextNotes(retrieved),
+        };
+      } else {
+        payload = {
+          noteTitle: note!.title,
+          noteBody: note!.body,
+          noteTags: note!.tags,
+          question: q.trim(),
+          history,
+          scope: 'note' as const,
+        };
       }
-      const data = await res.json();
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
+
+      // Stream into a live assistant bubble
+      let started = false;
+      await streamAsk(payload, (full) => {
+        if (!started) {
+          started = true;
+          setLoading(false);
+          setMessages((prev) => [...prev, { role: 'assistant', content: full, sources }]);
+        } else {
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.role === 'assistant') next[next.length - 1] = { ...last, content: full };
+            return next;
+          });
+        }
+      }, controller.signal);
+      if (!started) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: '(no response)', sources }]);
+      }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown error';
-      setError(msg);
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        setError(e instanceof Error ? e.message : 'Unknown error');
+      }
     } finally {
       setLoading(false);
+      abortRef.current = null;
     }
   };
 
@@ -86,7 +150,29 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
     }
   };
 
+  // Render [[wiki-links]] in assistant messages as clickable spans
+  const renderContent = (content: string) => {
+    const parts = content.split(/(\[\[[^\]]+\]\])/g);
+    return parts.map((part, i) => {
+      const m = part.match(/^\[\[([^\]]+)\]\]$/);
+      if (m && onOpenNoteByTitle) {
+        return (
+          <span
+            key={i}
+            onClick={() => { onOpenNoteByTitle(m[1]); onClose(); }}
+            style={{ color: 'var(--acc2)', textDecoration: 'underline', textUnderlineOffset: 2, cursor: 'pointer' }}
+          >
+            {part}
+          </span>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   if (!open) return null;
+
+  const suggestions = scope === 'vault' ? VAULT_SUGGESTIONS : NOTE_SUGGESTIONS;
 
   return (
     <div
@@ -107,10 +193,10 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
         onClick={(e) => e.stopPropagation()}
         className="sb-fade-in"
         style={{
-          width: 640,
+          width: 680,
           maxWidth: '100%',
-          height: '70vh',
-          maxHeight: 600,
+          height: '72vh',
+          maxHeight: 640,
           background: 'var(--bg2)',
           border: '1px solid var(--bd2)',
           borderRadius: 8,
@@ -120,22 +206,34 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
           overflow: 'hidden',
         }}
       >
-        {/* Header */}
+        {/* Header with scope toggle */}
         <div
           style={{
-            padding: '12px 14px',
+            padding: '10px 14px',
             borderBottom: '1px solid var(--bd)',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            gap: 10,
           }}
         >
           <Sparkles size={14} color="var(--acc2)" />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: 'var(--t1)', fontWeight: 600 }}>ask AI about this note</div>
-            <div style={{ fontSize: 9, color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {note?.title}
-            </div>
+          <div style={{ display: 'flex', gap: 2, background: 'var(--bg3)', borderRadius: 4, padding: 2 }}>
+            <ScopeTab
+              icon={FileText}
+              label="this note"
+              active={scope === 'note'}
+              disabled={!note}
+              onClick={() => switchScope('note')}
+            />
+            <ScopeTab
+              icon={Library}
+              label="whole vault"
+              active={scope === 'vault'}
+              onClick={() => switchScope('vault')}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 10, color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {scope === 'note' ? note?.title : `${allNotes.length} notes searchable`}
           </div>
           <button
             onClick={onClose}
@@ -167,9 +265,11 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
           {messages.length === 0 && !loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 4 }}>
-                The AI can see the full note body. Try one of these:
+                {scope === 'vault'
+                  ? 'The AI searches your whole vault and cites the notes it uses. Try:'
+                  : 'The AI can see the full note body. Try one of these:'}
               </div>
-              {suggestedQuestions.map((sq) => (
+              {suggestions.map((sq) => (
                 <button
                   key={sq}
                   onClick={() => ask(sq)}
@@ -202,22 +302,41 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
             </div>
           )}
           {messages.map((m, i) => (
-            <div
-              key={i}
-              style={{
-                alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '85%',
-                padding: '8px 12px',
-                background: m.role === 'user' ? 'var(--acc-bg)' : 'var(--bg3)',
-                border: '1px solid ' + (m.role === 'user' ? 'var(--acc-bd)' : 'var(--bd)'),
-                borderRadius: 4,
-                color: m.role === 'user' ? 'var(--t1)' : 'var(--t2)',
-                fontSize: 11,
-                lineHeight: 1.6,
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {m.content}
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 4 }}>
+              <div
+                style={{
+                  maxWidth: '88%',
+                  padding: '8px 12px',
+                  background: m.role === 'user' ? 'var(--acc-bg)' : 'var(--bg3)',
+                  border: '1px solid ' + (m.role === 'user' ? 'var(--acc-bd)' : 'var(--bd)'),
+                  borderRadius: 4,
+                  color: m.role === 'user' ? 'var(--t1)' : 'var(--t2)',
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {m.role === 'assistant' ? renderContent(m.content) : m.content}
+              </div>
+              {m.role === 'assistant' && m.sources && m.sources.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: '88%' }}>
+                  <span style={{ fontSize: 9, color: 'var(--t3)', alignSelf: 'center' }}>searched:</span>
+                  {m.sources.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { onOpenNoteByTitle?.(s); onClose(); }}
+                      style={{
+                        fontSize: 9, padding: '1px 6px', borderRadius: 3,
+                        background: 'var(--bg3)', border: '1px solid var(--bd)',
+                        color: 'var(--t3)', fontFamily: 'inherit',
+                        cursor: onOpenNoteByTitle ? 'pointer' : 'default',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {loading && (
@@ -236,7 +355,7 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
               }}
             >
               <Loader2 size={12} className="sb-spin" />
-              thinking…
+              {scope === 'vault' ? 'searching your vault…' : 'thinking…'}
             </div>
           )}
           {error && (
@@ -271,7 +390,11 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="ask anything about this note… (Enter to send, Shift+Enter for newline)"
+            placeholder={
+              scope === 'vault'
+                ? 'ask your whole vault… (Enter to send)'
+                : 'ask anything about this note… (Enter to send, Shift+Enter for newline)'
+            }
             rows={1}
             style={{
               flex: 1,
@@ -318,5 +441,44 @@ export function AskAIModal({ open, onClose, note }: AskAIModalProps) {
         .sb-spin { animation: sb-spin 1s linear infinite; }
       `}</style>
     </div>
+  );
+}
+
+function ScopeTab({
+  icon: Icon,
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: React.ComponentType<{ size?: number }>;
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        padding: '4px 10px',
+        borderRadius: 3,
+        background: active ? 'var(--bg1)' : 'transparent',
+        border: 'none',
+        color: disabled ? 'var(--t3)' : active ? 'var(--t1)' : 'var(--t3)',
+        opacity: disabled ? 0.4 : 1,
+        fontSize: 11,
+        fontFamily: 'inherit',
+        cursor: disabled ? 'default' : 'pointer',
+        fontWeight: active ? 600 : 400,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 5,
+      }}
+    >
+      <Icon size={11} />
+      {label}
+    </button>
   );
 }

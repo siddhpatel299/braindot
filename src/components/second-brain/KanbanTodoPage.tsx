@@ -11,11 +11,11 @@ interface KanbanTodoPageProps {
   folders: Folder[];
   kanbanCards: KanbanCardItem[];
   todos: TodoItem[];
-  onAddKanbanCard: (card: Omit<KanbanCardItem, 'id' | 'createdAt'>) => KanbanCardItem;
+  onAddKanbanCard: (card: Partial<KanbanCardItem> & Pick<KanbanCardItem, 'title' | 'status'>) => KanbanCardItem;
   onMoveKanbanCard: (cardId: string, newStatus: KanbanCardItem['status']) => void;
   onUpdateKanbanCard: (cardId: string, patch: Partial<KanbanCardItem>) => void;
   onDeleteKanbanCard: (cardId: string) => void;
-  onAddTodo: (todo: Omit<TodoItem, 'id'>) => TodoItem;
+  onAddTodo: (todo: Partial<TodoItem> & Pick<TodoItem, 'text'>) => TodoItem;
   onToggleTodo: (id: string) => void;
   onUpdateTodo: (id: string, patch: Partial<TodoItem>) => void;
   onDeleteTodo: (id: string) => void;
@@ -44,11 +44,14 @@ export function KanbanTodoPage({
 
   const linkedNoteCount = kanbanCards.filter((c) => c.linkedNoteId).length + todos.filter((t) => t.linkedNoteId).length;
 
-  const handleAddCard = (status: KanbanCardItem['status']) => {
+  const handleAddCard = (status: KanbanCardItem['status'], title: string) => {
     onAddKanbanCard({
-      title: 'New card',
+      title,
+      description: '',
       status,
-      tag: undefined,
+      tags: [],
+      linkedNoteId: null,
+      order: kanbanCards.length,
     });
   };
 
@@ -58,6 +61,9 @@ export function KanbanTodoPage({
       done: false,
       priority,
       dueGroup,
+      dueDate: null,
+      linkedNoteId: null,
+      order: todos.length,
     });
   };
 

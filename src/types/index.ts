@@ -171,6 +171,10 @@ export interface CanvasBoard {
   cards: CanvasCard[];
   groups: CanvasGroup[];
   connectors: CanvasConnector[];
+  // View state — required by CanvasView for all coordinate math
+  zoom: number;
+  panX: number;
+  panY: number;
   createdAt: string;
   updatedAt: string;
 }

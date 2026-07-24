@@ -82,26 +82,15 @@ function escapeHtml(s: string): string {
  *  - > [!callout]  blocks → .sb-tok-callout with .sb-tok-callout-label
  *  - - bullet     → bullet char in .sb-tok-bullet
  */
+// The overlay sits behind a transparent textarea, so every source line must
+// be rendered VERBATIM (same characters, same count of lines) — styling may
+// only wrap text in spans, never add, drop, or resize it. Otherwise the
+// caret and selection drift out of alignment with the visible text.
 export function renderMarkdownOverlay(body: string): string {
   const lines = body.split('\n');
   const out: string[] = [];
 
   let i = 0;
-  let inCallout = false;
-  let calloutBuffer: string[] = [];
-  let calloutType = 'callout';
-
-  const flushCallout = () => {
-    if (!inCallout) return;
-    const labelHtml = `<span class="sb-tok-callout-label">${escapeHtml(calloutType)}</span>`;
-    const bodyHtml = calloutBuffer
-      .map((line) => renderInline(line))
-      .join('<br/>');
-    out.push(`<span class="sb-tok-callout">${labelHtml}${bodyHtml}</span>`);
-    inCallout = false;
-    calloutBuffer = [];
-    calloutType = 'callout';
-  };
 
   const renderInline = (line: string): string => {
     let s = escapeHtml(line);
@@ -129,39 +118,31 @@ export function renderMarkdownOverlay(body: string): string {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Code block: starts with ``` and ends with ```
+    // Code block: fence lines stay visible as muted meta, code lines styled
     if (/^```/.test(line)) {
-      const lang = line.replace(/^```/, '').trim();
-      const codeLines: string[] = [];
+      out.push(`<span class="sb-tok-meta">${escapeHtml(line)}</span>`);
       i++;
       while (i < lines.length && !/^```/.test(lines[i])) {
-        codeLines.push(lines[i]);
+        out.push(`<span class="sb-tok-codeblock">${escapeHtml(lines[i])}</span>`);
         i++;
       }
-      // skip closing ```
-      if (i < lines.length) i++;
-      const langLabel = lang ? `<span class="sb-tok-callout-label">${escapeHtml(lang)}</span>` : '';
-      const codeHtml = escapeHtml(codeLines.join('\n'));
-      out.push(`<span class="sb-tok-codeblock">${langLabel}${codeHtml}</span>`);
+      if (i < lines.length) {
+        out.push(`<span class="sb-tok-meta">${escapeHtml(lines[i])}</span>`);
+        i++;
+      }
       continue;
     }
 
-    // Callout block: starts with > [!type], continues with > lines
+    // Callout block: first line (> [!type]) styled as label, body lines
+    // tinted — every character stays in place
     const calloutStart = line.match(/^>\s*\[!([^\]]+)\]/);
     if (calloutStart) {
-      flushCallout();
-      inCallout = true;
-      calloutType = calloutStart[1].toLowerCase();
-      // Capture rest of the first line after the [!type] marker
-      const rest = line.replace(/^>\s*\[![^\]]+\]\s*/, '');
-      if (rest.trim()) calloutBuffer.push(rest);
+      out.push(`<span class="sb-tok-callout-label">${escapeHtml(line)}</span>`);
       i++;
       while (i < lines.length && /^>/.test(lines[i])) {
-        const cl = lines[i].replace(/^>\s?/, '');
-        calloutBuffer.push(cl);
+        out.push(`<span class="sb-tok-callout">${escapeHtml(lines[i])}</span>`);
         i++;
       }
-      flushCallout();
       continue;
     }
 
@@ -184,9 +165,9 @@ export function renderMarkdownOverlay(body: string): string {
     i++;
   }
 
-  flushCallout();
-  // Join with \n so the <pre> wraps with correct line breaks
-  return out.join('\n');
+  // Join with \n so the <pre> wraps with correct line breaks. The trailing
+  // \n stops <pre> from collapsing a final empty line the textarea shows.
+  return out.join('\n') + '\n';
 }
 
 /** Format a relative time like "2 min ago", "1h ago", "3d ago". */

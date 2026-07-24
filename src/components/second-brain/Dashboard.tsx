@@ -164,7 +164,7 @@ export function Dashboard({
           margin: 0,
           fontStyle: 'italic',
         }}>
-          {notes.length} notes · {graph.edges.length} connections · {stats.totalWords.toLocaleString()} words written
+          {notes.length} {notes.length === 1 ? 'note' : 'notes'} · {graph.edges.length} {graph.edges.length === 1 ? 'connection' : 'connections'} · {stats.totalWords.toLocaleString()} words written
         </p>
       </div>
 

@@ -254,11 +254,14 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   z-index: 1;
 }
 
-/* Token styles inside .sb-editor-pre */
+/* Token styles inside .sb-editor-pre.
+   IMPORTANT: tokens must never change glyph geometry (font-size, padding,
+   borders) — the transparent textarea on top shares the exact same text
+   metrics, and any size change makes the caret drift. Color, weight,
+   background and text-decoration are safe in a monospace font. */
 .sb-tok-h {
   color: var(--t1);
   font-weight: 700;
-  font-size: 1.05em;
 }
 .sb-tok-bold {
   color: var(--t1);
@@ -280,14 +283,11 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .sb-tok-code {
   background: var(--bg3);
   color: var(--grn);
-  padding: 1px 5px;
   border-radius: 3px;
-  font-size: 0.92em;
-  border: 1px solid var(--bd);
 }
 .sb-tok-codeblock {
   color: var(--grn);
-  font-size: 0.95em;
+  background: var(--bg1);
 }
 .sb-tok-wiki {
   color: var(--acc2);
@@ -304,12 +304,12 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 .sb-tok-callout {
   color: var(--callout-text);
-  font-size: 1em;
+  background: var(--acc-bg);
 }
 .sb-tok-callout-label {
   color: var(--acc2);
   font-weight: 600;
-  font-size: 0.85em;
+  background: var(--acc-bg);
 }
 .sb-tok-meta {
   color: var(--t3);
@@ -324,6 +324,11 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 /* Reset focus rings on the app (we want minimal chrome) */
 button:focus, input:focus, textarea:focus {
   outline: none;
+}
+
+/* Gentle, uniform hover feel across all controls */
+button {
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 }
 
 /* Hide scrollbar but keep functionality where needed */

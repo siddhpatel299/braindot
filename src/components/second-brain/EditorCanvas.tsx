@@ -3,9 +3,10 @@
 import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown';
+import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
-import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2 } from 'lucide-react';
 import { FormattingToolbar } from './FormattingToolbar';
 import { WriterAI } from './WriterAI';
 import { SlashMenu, SlashCommand } from './SlashMenu';
@@ -146,6 +147,7 @@ interface EditorCanvasProps {
   onOpenNote: (id: string) => void;
   onOpenNoteByTitle: (title: string) => void;
   onToggleEvergreen: (id: string) => void;
+  onDeleteNote?: (id: string) => void;
 }
 
 export function EditorCanvas({
@@ -157,12 +159,18 @@ export function EditorCanvas({
   onOpenNote,
   onOpenNoteByTitle,
   onToggleEvergreen,
+  onDeleteNote,
 }: EditorCanvasProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Wiki-link autocomplete: opens while typing "[[…" and lists note titles
+  const [linkAuto, setLinkAuto] = useState<{ start: number; query: string } | null>(null);
+  const [linkPos, setLinkPos] = useState<{ x: number; y: number } | null>(null);
+  const [linkSel, setLinkSel] = useState(0);
 
   // Preview HTML
   const previewHtml = useMemo(() => renderMarkdownHtml(editor.body), [editor.body]);
@@ -171,19 +179,19 @@ export function EditorCanvas({
   const diffLines = useMemo(() => computeLineDiff(note.body, editor.body), [note.body, editor.body]);
   const stats = useMemo(() => diffStats(note.body, editor.body), [note.body, editor.body]);
 
-  // Track whether note has been opened before (for default mode)
-  // First open → edit mode; subsequent opens → preview mode
+  // This is a writing-first app: stay in the mode the user chose instead of
+  // flipping back to preview on every note open. The last chosen mode
+  // (edit/preview) is restored across sessions; diff is always transient.
   useEffect(() => {
-    if (!note?.id) return;
-    const openedKey = `sb-opened-${note.id}`;
-    const hasOpened = localStorage.getItem(openedKey) === 'true';
-    if (!hasOpened) {
-      setViewMode('edit');
-      localStorage.setItem(openedKey, 'true');
-    } else {
-      setViewMode('preview');
-    }
-  }, [note?.id]);
+    const saved = localStorage.getItem('sb-editor-mode');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved === 'preview' || saved === 'edit') setViewMode(saved);
+  }, []);
+
+  const changeViewMode = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    if (mode !== 'diff') localStorage.setItem('sb-editor-mode', mode);
+  }, []);
 
   // Auto-resize textarea to match content height
   const autoResize = useCallback(() => {
@@ -345,9 +353,90 @@ export function EditorCanvas({
     ];
   }, [editor]);
 
+  // ---- Wiki-link autocomplete ----
+  const linkMatches = useMemo(() => {
+    if (!linkAuto) return [];
+    const q = linkAuto.query.toLowerCase();
+    return allNotes
+      .filter((n) => n.id !== note.id && n.title.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [linkAuto, allNotes, note.id]);
+
+  const closeLinkAuto = useCallback(() => {
+    setLinkAuto(null);
+    setLinkSel(0);
+  }, []);
+
+  // Detect an unclosed "[[query" immediately before the caret
+  const detectLinkAuto = useCallback((val: string, caret: number, ta: HTMLTextAreaElement) => {
+    const before = val.slice(0, caret);
+    const openIdx = before.lastIndexOf('[[');
+    if (openIdx >= 0) {
+      const between = before.slice(openIdx + 2);
+      if (!between.includes(']]') && !between.includes('\n') && between.length <= 60) {
+        setLinkAuto({ start: openIdx + 2, query: between });
+        setLinkSel(0);
+        setLinkPos(clampToViewport(getCaretCoordinates(ta, caret), 280, 240));
+        return;
+      }
+    }
+    closeLinkAuto();
+  }, [closeLinkAuto]);
+
+  const handleBodyChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    editor.updateBody(val);
+    detectLinkAuto(val, e.target.selectionStart, e.target);
+  }, [editor, detectLinkAuto]);
+
+  const selectWikiLink = useCallback((title: string) => {
+    const ta = textareaRef.current;
+    if (!ta || !linkAuto) return;
+    const caret = ta.selectionStart;
+    // Skip over a "]]" the user may already have typed after the caret
+    const after = editor.body.slice(caret);
+    const closing = after.startsWith(']]') ? 2 : 0;
+    const next = editor.body.slice(0, linkAuto.start) + title + ']]' + editor.body.slice(caret + closing);
+    editor.updateBody(next);
+    const newPos = linkAuto.start + title.length + 2;
+    setTimeout(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = newPos;
+    }, 0);
+    closeLinkAuto();
+  }, [editor, linkAuto, closeLinkAuto]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       const meta = e.metaKey || e.ctrlKey;
+
+      // Wiki-link autocomplete captures navigation keys while open
+      if (linkAuto && linkMatches.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setLinkSel((s) => Math.min(s + 1, linkMatches.length - 1));
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setLinkSel((s) => Math.max(s - 1, 0));
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          selectWikiLink(linkMatches[linkSel]?.title ?? linkMatches[0].title);
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeLinkAuto();
+          return;
+        }
+      } else if (linkAuto && e.key === 'Escape') {
+        e.preventDefault();
+        closeLinkAuto();
+        return;
+      }
 
       // Undo/redo
       if (meta && e.key.toLowerCase() === 'z' && !e.shiftKey) {
@@ -359,6 +448,44 @@ export function EditorCanvas({
         e.preventDefault();
         editor.redo();
         return;
+      }
+
+      // Continue lists on Enter: "- ", "* ", "1. ", "- [ ] ", "> "
+      if (e.key === 'Enter' && !e.shiftKey && !meta) {
+        const ta = e.currentTarget;
+        const pos = ta.selectionStart;
+        if (pos === ta.selectionEnd) {
+          const lineStart = editor.body.lastIndexOf('\n', pos - 1) + 1;
+          const line = editor.body.slice(lineStart, pos);
+          const m = line.match(/^(\s*)(- \[[ xX]\] |[-*+] |(\d+)\. |> )/);
+          if (m) {
+            e.preventDefault();
+            const content = line.slice(m[0].length);
+            if (!content.trim()) {
+              // Empty item → end the list (remove the marker)
+              const next = editor.body.slice(0, lineStart) + editor.body.slice(pos);
+              editor.updateBody(next);
+              setTimeout(() => {
+                ta.focus();
+                ta.selectionStart = ta.selectionEnd = lineStart;
+              }, 0);
+            } else {
+              const marker = m[3]
+                ? `${m[1]}${parseInt(m[3], 10) + 1}. `
+                : m[2].startsWith('- [')
+                  ? `${m[1]}- [ ] `
+                  : `${m[1]}${m[2]}`;
+              const inserted = '\n' + marker;
+              const next = editor.body.slice(0, pos) + inserted + editor.body.slice(ta.selectionEnd);
+              editor.updateBody(next);
+              setTimeout(() => {
+                ta.focus();
+                ta.selectionStart = ta.selectionEnd = pos + inserted.length;
+              }, 0);
+            }
+            return;
+          }
+        }
       }
 
       if (e.key === 'Tab') {
@@ -376,14 +503,13 @@ export function EditorCanvas({
       }
 
       // Slash menu detection — open when user types / at start of line or after space
-      if (e.key === '/' && !slashOpen) {
+      if (e.key === '/' && !slashOpen && !linkAuto) {
         const ta = e.currentTarget;
         const pos = ta.selectionStart;
         const charBefore = pos > 0 ? editor.body[pos - 1] : '\n';
         if (charBefore === '\n' || charBefore === ' ' || pos === 0) {
-          // Calculate position for the menu
-          const rect = ta.getBoundingClientRect();
-          setSlashPos({ x: rect.left + 20, y: rect.top + 40 });
+          // Anchor the menu at the caret, not a fixed corner
+          setSlashPos(clampToViewport(getCaretCoordinates(ta, pos), 280, 280));
           setSlashOpen(true);
         }
       }
@@ -408,7 +534,7 @@ export function EditorCanvas({
         wrapSelection('`', '`', 'code');
       }
     },
-    [editor, wrapSelection, slashOpen],
+    [editor, wrapSelection, slashOpen, linkAuto, linkMatches, linkSel, selectWikiLink, closeLinkAuto],
   );
 
   // Handle slash command selection
@@ -459,9 +585,9 @@ export function EditorCanvas({
         borderBottom: '1px solid var(--bd)', background: 'var(--bg1)', flexShrink: 0,
       }}>
         <div style={{ display: 'flex', padding: '0 4px' }}>
-          <ModeTab icon={Pencil} label="edit" active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
-          <ModeTab icon={Eye} label="preview" active={viewMode === 'preview'} onClick={() => setViewMode('preview')} />
-          <ModeTab icon={GitCompare} label="diff" active={viewMode === 'diff'} onClick={() => setViewMode('diff')} />
+          <ModeTab icon={Pencil} label="edit" active={viewMode === 'edit'} onClick={() => changeViewMode('edit')} />
+          <ModeTab icon={Eye} label="preview" active={viewMode === 'preview'} onClick={() => changeViewMode('preview')} />
+          <ModeTab icon={GitCompare} label="diff" active={viewMode === 'diff'} onClick={() => changeViewMode('diff')} />
         </div>
         {viewMode === 'edit' && (
           <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
@@ -521,6 +647,9 @@ export function EditorCanvas({
           padding: '28px 48px 80px',
         }}
       >
+        {/* Comfortable writing measure — don't let lines run edge-to-edge
+            on wide screens */}
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
         {/* Note header: tags + metadata */}
         <div
           style={{
@@ -587,6 +716,39 @@ export function EditorCanvas({
               </>
             )}
           </button>
+          {onDeleteNote && (
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete "${note.title}"? This cannot be undone.`)) {
+                  onDeleteNote(note.id);
+                }
+              }}
+              title="Delete note"
+              style={{
+                fontSize: 11,
+                color: 'var(--t3)',
+                background: 'transparent',
+                border: '1px solid transparent',
+                padding: '3px 6px',
+                borderRadius: 3,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                fontFamily: 'inherit',
+                marginLeft: 'auto',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--red)';
+                e.currentTarget.style.borderColor = 'var(--bd2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--t3)';
+                e.currentTarget.style.borderColor = 'transparent';
+              }}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
         </div>
 
         {/* Title */}
@@ -647,12 +809,59 @@ export function EditorCanvas({
               ref={textareaRef}
               className="sb-editor-textarea"
               value={editor.body}
-              onChange={(e) => editor.updateBody(e.target.value)}
+              onChange={handleBodyChange}
               onKeyDown={handleKeyDown}
+              onBlur={() => setTimeout(closeLinkAuto, 150)}
               placeholder="# Start writing your note…"
               spellCheck={false}
               rows={1}
             />
+          </div>
+        )}
+
+        {/* Wiki-link autocomplete dropdown */}
+        {viewMode === 'edit' && linkAuto && linkMatches.length > 0 && linkPos && (
+          <div
+            style={{
+              position: 'fixed', left: linkPos.x, top: linkPos.y, zIndex: 300,
+              width: 280, background: 'var(--bg2)', border: '1px solid var(--bd2)',
+              borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              overflow: 'hidden', padding: 4,
+            }}
+          >
+            <div style={{
+              fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em',
+              color: 'var(--t3)', fontWeight: 600, padding: '4px 8px 6px',
+            }}>
+              link to note {linkAuto.query ? `— “${linkAuto.query}”` : ''}
+            </div>
+            {linkMatches.map((n, i) => (
+              <div
+                key={n.id}
+                onMouseEnter={() => setLinkSel(i)}
+                onMouseDown={(e) => { e.preventDefault(); selectWikiLink(n.title); }}
+                style={{
+                  padding: '6px 8px', borderRadius: 4, cursor: 'pointer',
+                  background: i === linkSel ? 'var(--acc-bg)' : 'transparent',
+                  border: i === linkSel ? '1px solid #3d378a' : '1px solid transparent',
+                }}
+              >
+                <div style={{ fontSize: 12, color: i === linkSel ? 'var(--t1)' : 'var(--t2)', fontWeight: 500 }}>
+                  [[{n.title}]]
+                </div>
+                {n.subtitle && (
+                  <div style={{
+                    fontSize: 10, color: 'var(--t3)', whiteSpace: 'nowrap',
+                    overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>
+                    {n.subtitle}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div style={{ fontSize: 9, color: 'var(--t3)', padding: '5px 8px 3px', opacity: 0.7 }}>
+              ↑↓ navigate · ↵ link · esc dismiss
+            </div>
           </div>
         )}
 
@@ -750,6 +959,7 @@ export function EditorCanvas({
           }}
         >
           tip: ⌘+click a [[wiki-link]] to open that note in a new tab
+        </div>
         </div>
       </div>
 

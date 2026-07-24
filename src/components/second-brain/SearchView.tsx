@@ -36,6 +36,7 @@ export function SearchView({ notes, onOpenNote, onSynthesize }: SearchViewProps)
   // Load saved mode preference
   useEffect(() => {
     const saved = localStorage.getItem('sb-search-mode') as SearchMode | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) setMode(saved);
   }, []);
 

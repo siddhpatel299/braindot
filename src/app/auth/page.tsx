@@ -2,10 +2,33 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useConvexAuth } from 'convex/react';
+import { useAuthActions } from '@convex-dev/auth/react';
 import { Brain, ArrowRight, Sparkles } from 'lucide-react';
+
+function friendlyAuthError(raw: string, mode: 'signin' | 'signup'): string {
+  const msg = raw.toLowerCase();
+  if (msg.includes('invalidsecret') || msg.includes('invalid password') || msg.includes('invalidaccountid')) {
+    return mode === 'signin'
+      ? 'Wrong email or password. If you\'re new here, switch to sign up.'
+      : 'An account with this email already exists — try signing in.';
+  }
+  if (msg.includes('account already exists')) {
+    return 'An account with this email already exists — try signing in.';
+  }
+  if (msg.includes('password') && (msg.includes('short') || msg.includes('length') || msg.includes('validation'))) {
+    return 'Password must be at least 8 characters.';
+  }
+  if (msg.includes('fetch') || msg.includes('network')) {
+    return 'Could not reach the server — check your connection and try again.';
+  }
+  return 'Authentication failed. Please try again.';
+}
 
 function AuthContent() {
   const searchParams = useSearchParams();
+  const { signIn } = useAuthActions();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,25 +37,52 @@ function AuthContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (searchParams.get('mode') === 'signup') setMode('signup');
   }, [searchParams]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Already signed in → straight to the app
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      window.location.href = '/';
+    }
+  }, [isAuthenticated, authLoading]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
-    setTimeout(() => {
-      // Simple localStorage-based auth (no server verification)
+    try {
+      if (mode === 'signup' && password.length < 8) {
+        throw new Error('Password must be at least 8 characters.');
+      }
+      const params: Record<string, string> = {
+        email,
+        password,
+        flow: mode === 'signup' ? 'signUp' : 'signIn',
+      };
+      if (mode === 'signup') {
+        params.name = name || email.split('@')[0];
+      }
+      await signIn('password', params);
+
+      // Minimal profile info for UI display — the actual session is a
+      // server-verified Convex Auth token.
       localStorage.setItem('second-brain-user', JSON.stringify({
         email,
         name: name || email.split('@')[0],
       }));
+      localStorage.removeItem('second-brain-demo');
       if (mode === 'signup') {
         localStorage.setItem('second-brain-new-user', 'true');
       }
       window.location.href = '/';
-    }, 400);
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : 'Something went wrong';
+      setError(raw.includes('Password must be') ? raw : friendlyAuthError(raw, mode));
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,7 +119,7 @@ function AuthContent() {
 
         <div style={{ display: 'flex', gap: 2, background: '#1e1e21', borderRadius: 6, padding: 3, marginBottom: 24 }}>
           {(['signin', 'signup'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)} style={{
+            <button key={m} onClick={() => { setMode(m); setError(null); }} style={{
               flex: 1, padding: '8px 0', borderRadius: 4,
               background: mode === m ? '#111113' : 'transparent',
               border: 'none', color: mode === m ? '#f0f0f2' : '#444450',
@@ -84,7 +134,7 @@ function AuthContent() {
         </h1>
         <p style={{ fontSize: 12, color: '#444450', margin: '0 0 24px', lineHeight: 1.6 }}>
           {mode === 'signup'
-            ? 'Start with an empty vault + starter templates. Your knowledge, connected.'
+            ? 'Your vault syncs to the cloud — sign in from anywhere.'
             : 'Sign in to access your notes, reading, and canvas.'}
         </p>
 
@@ -113,7 +163,7 @@ function AuthContent() {
           </div>
           <div>
             <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#444450', fontWeight: 600, marginBottom: 5, display: 'block' }}>password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === 'signup' ? 'at least 8 characters' : '••••••••'} required
               style={{ width: '100%', background: '#1e1e21', border: '1px solid #333338', borderRadius: 5, padding: '10px 12px', color: '#f0f0f2', fontSize: 13, fontFamily: 'inherit', outline: 'none', caretColor: '#b0a8fb' }} />
           </div>
           <button type="submit" disabled={loading} style={{

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useConvexAuth } from 'convex/react';
+import { useAuthActions } from '@convex-dev/auth/react';
 import { useNotes } from '@/hooks/useNotes';
 import { useEditor } from '@/hooks/useEditor';
 import { useBacklinks } from '@/hooks/useBacklinks';
@@ -32,27 +34,49 @@ interface HistoryEntry {
 }
 
 export default function Home() {
-  // Auth check — localStorage only (no Convex/Auth)
+  // Auth — Convex Auth session (server-verified) or local demo mode
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
+  const { signOut } = useAuthActions();
   const [authMode, setAuthMode] = useState<'demo' | 'user' | 'loading'>('loading');
 
   useEffect(() => {
     const isDemo = localStorage.getItem('second-brain-demo') === 'true';
-    const user = localStorage.getItem('second-brain-user');
     /* eslint-disable react-hooks/set-state-in-effect */
     if (isDemo) {
       setAuthMode('demo');
-    } else if (user) {
+      return;
+    }
+    if (authLoading) return;
+    if (isAuthenticated) {
       setAuthMode('user');
     } else {
       /* eslint-enable react-hooks/set-state-in-effect */
       window.location.href = '/landing';
       return;
     }
-  }, []);
+  }, [authLoading, isAuthenticated]);
+
+  const handleSignOut = useCallback(async () => {
+    // Stop every debounced/pagehide localStorage flush from re-writing the
+    // vault we are about to clear (the sign-out navigation fires pagehide).
+    (window as unknown as { __sbSignout?: boolean }).__sbSignout = true;
+    try { await signOut(); } catch {}
+    // Clear the local mirror of the vault — otherwise the next account to
+    // sign in on this machine would migrate this user's data into itself.
+    for (const key of [
+      'second-brain-user', 'second-brain-demo', 'second-brain-state-v2',
+      'second-brain-ui-state', 'sb-kanban-cards', 'sb-todos',
+      'sb-canvas-boards', 'sb-library-items', 'sb-highlights',
+    ]) {
+      localStorage.removeItem(key);
+    }
+    window.location.href = '/landing';
+  }, [signOut]);
 
   const {
     state,
     hydrated,
+    cloudSync,
     updateNote,
     createNote,
     deleteNote,
@@ -191,6 +215,7 @@ export default function Home() {
     );
     if (existing) {
       openTab(existing.id);
+      setAppView('notes');
       showToast(`opened today's journal`);
       return;
     }
@@ -203,6 +228,7 @@ export default function Home() {
       tags: [],
     });
     createdOpenRef.current = n.id;
+    setAppView('notes');
     showToast(`created today's journal`);
   }, [state.notes, createNote, updateNote, openTab, showToast]);
 
@@ -547,7 +573,7 @@ export default function Home() {
     );
   }
 
-  if (!hydrated) {
+  if (!hydrated || (cloudSync.enabled && !cloudSync.ready)) {
     return (
       <div
         style={{
@@ -561,7 +587,7 @@ export default function Home() {
           fontSize: 11,
         }}
       >
-        loading second brain…
+        {cloudSync.enabled && !cloudSync.ready ? 'syncing your vault…' : 'loading second brain…'}
       </div>
     );
   }
@@ -585,6 +611,12 @@ export default function Home() {
         onOpenPalette={() => setPaletteOpen(true)}
         onCreate={() => handleCreateNote()}
         streak={state.streak}
+        syncState={
+          authMode === 'user'
+            ? (cloudSync.syncing ? 'syncing' : 'synced')
+            : 'local'
+        }
+        onSignOut={authMode === 'user' ? handleSignOut : undefined}
       />
 
       {/* Demo banner */}
@@ -603,25 +635,6 @@ export default function Home() {
             background: 'transparent', border: '1px solid #4a3010', borderRadius: 3,
             padding: '2px 8px', color: 'var(--amb)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
           }}>exit</button>
-        </div>
-      )}
-
-      {/* Authenticated user banner with sign-out */}
-      {authMode === 'user' && (
-        <div style={{
-          height: 28, background: 'var(--bg2)', borderBottom: '1px solid var(--bd)',
-          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10,
-          padding: '0 14px', fontSize: 11, color: 'var(--t3)', fontFamily: 'inherit', flexShrink: 0,
-        }}>
-          <span style={{ color: 'var(--grn)' }}>● signed in</span>
-          <button onClick={() => {
-            localStorage.removeItem('second-brain-user');
-            localStorage.removeItem('second-brain-demo');
-            window.location.href = '/landing';
-          }} style={{
-            background: 'transparent', border: '1px solid var(--bd2)', borderRadius: 3,
-            padding: '2px 8px', color: 'var(--t3)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
-          }}>sign out</button>
         </div>
       )}
 
@@ -786,6 +799,10 @@ export default function Home() {
                   onOpenNote={handleOpenNote}
                   onOpenNoteByTitle={handleOpenNoteByTitle}
                   onToggleEvergreen={handleToggleEvergreen}
+                  onDeleteNote={(id) => {
+                    deleteNote(id);
+                    showToast('note deleted');
+                  }}
                 />
               )}
             </div>
@@ -835,6 +852,8 @@ export default function Home() {
         open={askAIOpen}
         onClose={() => setAskAIOpen(false)}
         note={activeNote}
+        allNotes={state.notes}
+        onOpenNoteByTitle={handleOpenNoteByTitle}
       />
 
       {/* Toast */}

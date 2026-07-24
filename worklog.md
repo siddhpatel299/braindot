@@ -170,3 +170,30 @@ Stage Summary:
 - Navigation is bidirectional: dashboard → note (click any note) → dashboard (click brain logo or Dashboard icon)
 - Lint passes with 0 errors, 0 warnings
 - All features verified end-to-end via Agent Browser
+
+---
+Task ID: second-brain-v5 (convex + openai + writing polish)
+Agent: Claude Code
+
+Work Log:
+- Installed dependencies (they were missing entirely); added adm-zip, pdfjs-dist (used by /api/reading/extract but never declared), and openai
+- Replaced z-ai-web-dev-sdk with the OpenAI API in /api/ai/ask (env: OPENAI_API_KEY, OPENAI_MODEL, default gpt-4o-mini); fixed multi-turn history ordering bug (history was appended AFTER the current question); removed leftover ?XTransformPort=3000 params from client fetches
+- Re-enabled Convex using the provided preview deploy key: deployment "dev" (determined-starling-161) in the braindot project; generated JWT keys + set JWT_PRIVATE_KEY/JWKS/SITE_URL; added convex/auth.config.ts (was missing — auth could never verify tokens); removed invalid convex.config.ts
+- New local-first sync architecture: all collections stay in client state (instant editing), mirrored per-user to Convex via pull-once-on-login + debounced diff push (src/hooks/useCollectionSync.ts). Covers notes, folders, kanban, todos, canvas, library, highlights, profile/streak
+- CRITICAL fix: keyed rows by identity.subject userId instead of tokenIdentifier — the tokenIdentifier includes the session id, so every re-login looked like a new user (empty vault)
+- Real auth: Convex Auth Password provider wired into /auth (was fake — any email/password stored in localStorage); sign-out clears the local vault so the next account can't inherit it (with a signout guard so debounced saves don't re-write cleared keys)
+- Editor/writing fixes:
+  - useEditor: debounced save now writes body+title+subtitle together (previously only the last-edited field was saved — title edits could be silently lost); flush on pagehide/visibilitychange
+  - Overlay renderer rewritten to emit every source line verbatim — callouts and code blocks previously collapsed lines, so the caret drifted vertically after them; removed all fractional font-sizes/padding from token CSS (1.05em headings etc.). Overlay and textarea now measure pixel-identical
+  - [[wiki-link]] autocomplete at the caret (arrow keys + enter/tab)
+  - Enter continues lists (-, *, 1., - [ ], >); empty item ends the list
+  - Slash menu opens at the caret (mirror-div measurement) instead of a fixed corner
+  - Editor stays in the user's chosen mode instead of flipping to preview on every note open; comfortable max-width writing column
+- Kanban fixes: add-card ignored the typed title and produced schema-invalid cards (missing description/tags/order); creators now defensive-default all fields
+- Canvas fix: new boards had no zoom/panX/panY → all coordinate math was NaN (placing cards was broken); type + creators + normalization fixed, view state syncs
+- Cleanup: removed unused Prisma (deps, schema, db/), simplified package.json scripts (were unix-only with tee/cp), stale z-cdn favicon → /logo.svg, HN excerpt HTML entities decoded, lint now passes 0 errors
+- Verified end-to-end: signup → seed → edit → cloud push; full localStorage wipe → vault restored from Convex (notes+kanban+todos+canvas); sign out → sign in → vault intact; production build passes
+
+Notes:
+- OPENAI_API_KEY must be set in .env.local for AI features (route returns a clear error until then)
+- The provided key is a PREVIEW deploy key: data lives on preview deployment determined-starling-161, deploy with `bun run convex:deploy` (uses --preview-name dev so the deployment and its data/env are reused). For production, generate a prod deploy key and set NEXT_PUBLIC_CONVEX_URL to the prod URL

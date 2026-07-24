@@ -22,7 +22,6 @@ export function useEditor(
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNoteId = useRef<string | undefined>(note?.id);
-  const skipNextExternalUpdate = useRef<boolean>(false);
 
   // Undo/redo stacks
   const undoStack = useRef<string[]>([]);
@@ -64,8 +63,24 @@ export function useEditor(
         subtitle: subtitleRef.current,
       });
       setDirty(false);
-      skipNextExternalUpdate.current = true;
     }
+  }, [onSave]);
+
+  // Debounced save always writes the full working copy (body + title +
+  // subtitle). Saving only the last-edited field would silently drop a
+  // pending change to one of the others, since they share one timer.
+  const scheduleSave = useCallback((delay = 1000) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const n = noteRef.current;
+      if (!n) return;
+      onSave(n.id, {
+        body: bodyRef.current,
+        title: titleRef.current,
+        subtitle: subtitleRef.current,
+      });
+      setDirty(false);
+    }, delay);
   }, [onSave]);
 
   // When note id changes (tab switch), reset local state from the new note.
@@ -79,20 +94,20 @@ export function useEditor(
       setTitle(note?.title ?? '');
       setSubtitle(note?.subtitle ?? '');
       setDirty(false);
-      skipNextExternalUpdate.current = false;
       // Reset undo/redo stacks for the new note
       undoStack.current = [];
       redoStack.current = [];
       lastBodySnapshot.current = note?.body ?? '';
       setCanUndo(false);
       setCanRedo(false);
-    } else if (note && !skipNextExternalUpdate.current) {
-      // external change (e.g., reset all) — only sync if we are not dirty
-      if (!dirty) {
-        setBody(note.body);
-        setTitle(note.title);
-        setSubtitle(note.subtitle);
-      }
+    } else if (note && !dirty) {
+      // External change (import, reset, cloud hydration) — safe to sync
+      // because we have no unsaved local edits. When the change is just the
+      // echo of our own save, these setters are no-ops (identical strings),
+      // so the cursor is unaffected.
+      setBody(note.body);
+      setTitle(note.title);
+      setSubtitle(note.subtitle);
     }
   }, [note?.id, note?.body, note?.title, note?.subtitle, dirty, flushSave, note]);
 
@@ -113,17 +128,11 @@ export function useEditor(
       }, 500);
 
       setBody(next);
+      bodyRef.current = next;
       setDirty(true);
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        if (note) {
-          onSave(note.id, { body: next });
-          setDirty(false);
-          skipNextExternalUpdate.current = true;
-        }
-      }, 1000);
+      scheduleSave(1000);
     },
-    [note, onSave],
+    [scheduleSave],
   );
 
   const undo = useCallback(() => {
@@ -132,18 +141,12 @@ export function useEditor(
     redoStack.current.push(bodyRef.current);
     lastBodySnapshot.current = prev;
     setBody(prev);
+    bodyRef.current = prev;
     setDirty(true);
     setCanUndo(undoStack.current.length > 0);
     setCanRedo(true);
-    if (note) {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        onSave(note.id, { body: prev });
-        setDirty(false);
-        skipNextExternalUpdate.current = true;
-      }, 500);
-    }
-  }, [note, onSave]);
+    scheduleSave(500);
+  }, [scheduleSave]);
 
   const redo = useCallback(() => {
     if (redoStack.current.length === 0) return;
@@ -151,50 +154,43 @@ export function useEditor(
     undoStack.current.push(bodyRef.current);
     lastBodySnapshot.current = next;
     setBody(next);
+    bodyRef.current = next;
     setDirty(true);
     setCanUndo(true);
     setCanRedo(redoStack.current.length > 0);
-    if (note) {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        onSave(note.id, { body: next });
-        setDirty(false);
-        skipNextExternalUpdate.current = true;
-      }, 500);
-    }
-  }, [note, onSave]);
+    scheduleSave(500);
+  }, [scheduleSave]);
 
   const updateTitle = useCallback(
     (next: string) => {
       setTitle(next);
+      titleRef.current = next;
       setDirty(true);
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        if (note) {
-          onSave(note.id, { title: next });
-          setDirty(false);
-          skipNextExternalUpdate.current = true;
-        }
-      }, 1000);
+      scheduleSave(1000);
     },
-    [note, onSave],
+    [scheduleSave],
   );
 
   const updateSubtitle = useCallback(
     (next: string) => {
       setSubtitle(next);
+      subtitleRef.current = next;
       setDirty(true);
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        if (note) {
-          onSave(note.id, { subtitle: next });
-          setDirty(false);
-          skipNextExternalUpdate.current = true;
-        }
-      }, 1000);
+      scheduleSave(1000);
     },
-    [note, onSave],
+    [scheduleSave],
   );
+
+  // Flush pending edits when the tab is hidden or closing
+  useEffect(() => {
+    const flush = () => flushSave();
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', flush);
+    };
+  }, [flushSave]);
 
   // Cleanup on unmount
   useEffect(() => {

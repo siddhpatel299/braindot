@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useConvexAuth } from 'convex/react';
 import {
   KanbanCardItem, TodoItem, CanvasBoard, LibraryItem, Highlight,
 } from '@/types';
+import { useCollectionSync } from '@/hooks/useCollectionSync';
 
 // ============================================================
 // Generic localStorage hook factory
@@ -13,8 +15,10 @@ function useLocalStorage<T>(key: string, initialValue: T) {
   const [hydrated, setHydrated] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load on mount
+  // Load on mount — localStorage hydration is intentionally a synchronous
+  // setState in an effect
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     try {
       const raw = localStorage.getItem(key);
       if (raw) {
@@ -22,6 +26,7 @@ function useLocalStorage<T>(key: string, initialValue: T) {
       }
     } catch {}
     setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [key]);
 
   // Debounced save
@@ -29,13 +34,29 @@ function useLocalStorage<T>(key: string, initialValue: T) {
     if (!hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      // Skip writes while signing out — the vault keys were just cleared
+      if ((window as unknown as { __sbSignout?: boolean }).__sbSignout) return;
       try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [value, key, hydrated]);
 
-  return [value, setValue] as const;
+  return [value, setValue, hydrated] as const;
 }
+
+// Cloud sync is on for signed-in (non-demo) users once local state loaded
+function useSyncEnabled(hydrated: boolean): boolean {
+  const { isAuthenticated } = useConvexAuth();
+  const [isDemo, setIsDemo] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsDemo(localStorage.getItem('second-brain-demo') === 'true');
+  }, []);
+  return hydrated && isAuthenticated && !isDemo;
+}
+
+// Convex documents cap at ~1MB — leave headroom for other fields
+const MAX_SYNCED_CONTENT = 900_000;
 
 // ============================================================
 // Kanban + Todos
@@ -48,12 +69,55 @@ function genId(prefix: string) {
 }
 
 export function useKanbanTodos() {
-  const [kanbanCards, setKanbanCards] = useLocalStorage<KanbanCardItem[]>(KANBAN_KEY, []);
-  const [todos, setTodos] = useLocalStorage<TodoItem[]>(TODOS_KEY, []);
+  const [kanbanCards, setKanbanCards, kanbanHydrated] = useLocalStorage<KanbanCardItem[]>(KANBAN_KEY, []);
+  const [todos, setTodos, todosHydrated] = useLocalStorage<TodoItem[]>(TODOS_KEY, []);
+  const syncEnabled = useSyncEnabled(kanbanHydrated && todosHydrated);
 
-  const addKanbanCard = useCallback((card: Omit<KanbanCardItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+  useCollectionSync<KanbanCardItem>({
+    table: 'kanbanCards',
+    enabled: syncEnabled,
+    items: kanbanCards,
+    hydrate: useCallback((items: KanbanCardItem[]) => setKanbanCards(items), [setKanbanCards]),
+    toDoc: useCallback((c: KanbanCardItem) => ({
+      localId: c.id, title: c.title, description: c.description, status: c.status,
+      tags: c.tags, linkedNoteId: c.linkedNoteId, order: c.order,
+      createdAt: c.createdAt, updatedAt: c.updatedAt,
+    }), []),
+    fromDoc: useCallback((d: Record<string, unknown>): KanbanCardItem => ({
+      id: String(d.localId), title: String(d.title), description: String(d.description ?? ''),
+      status: d.status as KanbanCardItem['status'], tags: (d.tags as string[]) ?? [],
+      linkedNoteId: (d.linkedNoteId as string | null) ?? null, order: Number(d.order ?? 0),
+      createdAt: String(d.createdAt), updatedAt: String(d.updatedAt),
+    }), []),
+  });
+
+  useCollectionSync<TodoItem>({
+    table: 'todos',
+    enabled: syncEnabled,
+    items: todos,
+    hydrate: useCallback((items: TodoItem[]) => setTodos(items), [setTodos]),
+    toDoc: useCallback((t: TodoItem) => ({
+      localId: t.id, text: t.text, done: t.done, priority: t.priority,
+      dueGroup: t.dueGroup, dueDate: t.dueDate, linkedNoteId: t.linkedNoteId,
+      order: t.order, createdAt: t.createdAt,
+    }), []),
+    fromDoc: useCallback((d: Record<string, unknown>): TodoItem => ({
+      id: String(d.localId), text: String(d.text), done: Boolean(d.done),
+      priority: d.priority as TodoItem['priority'],
+      dueGroup: (d.dueGroup as TodoItem['dueGroup']) ?? null,
+      dueDate: (d.dueDate as string | null) ?? null,
+      linkedNoteId: (d.linkedNoteId as string | null) ?? null,
+      order: Number(d.order ?? 0), createdAt: String(d.createdAt),
+    }), []),
+  });
+
+  const addKanbanCard = useCallback((card: Partial<KanbanCardItem> & Pick<KanbanCardItem, 'title' | 'status'>) => {
     const now = new Date().toISOString();
-    const newCard: KanbanCardItem = { ...card, id: genId('kc'), createdAt: now, updatedAt: now };
+    // Fill defaults so every card is complete regardless of call site
+    const newCard: KanbanCardItem = {
+      description: '', tags: [], linkedNoteId: null, order: 0,
+      ...card, id: genId('kc'), createdAt: now, updatedAt: now,
+    };
     setKanbanCards(prev => [...prev, newCard]);
     return newCard;
   }, [setKanbanCards]);
@@ -70,8 +134,12 @@ export function useKanbanTodos() {
     setKanbanCards(prev => prev.filter(c => c.id !== cardId));
   }, [setKanbanCards]);
 
-  const addTodo = useCallback((todo: Omit<TodoItem, 'id' | 'createdAt'>) => {
-    const newTodo: TodoItem = { ...todo, id: genId('td'), createdAt: new Date().toISOString() };
+  const addTodo = useCallback((todo: Partial<TodoItem> & Pick<TodoItem, 'text'>) => {
+    const newTodo: TodoItem = {
+      done: false, priority: 'medium', dueGroup: null, dueDate: null,
+      linkedNoteId: null, order: 0,
+      ...todo, id: genId('td'), createdAt: new Date().toISOString(),
+    };
     setTodos(prev => [...prev, newTodo]);
     return newTodo;
   }, [setTodos]);
@@ -101,12 +169,43 @@ export function useKanbanTodos() {
 const CANVAS_KEY = 'sb-canvas-boards';
 
 export function useCanvas() {
-  const [boards, setBoards] = useLocalStorage<CanvasBoard[]>(CANVAS_KEY, []);
+  const [rawBoards, setBoards, boardsHydrated] = useLocalStorage<CanvasBoard[]>(CANVAS_KEY, []);
   const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
+  const syncEnabled = useSyncEnabled(boardsHydrated);
+
+  // Older saves predate zoom/pan on the board — default them or every
+  // coordinate in CanvasView becomes NaN.
+  const boards = rawBoards.map((b) => ({ zoom: 1, panX: 0, panY: 0, ...b }));
+
+  useCollectionSync<CanvasBoard>({
+    table: 'canvasBoards',
+    enabled: syncEnabled,
+    items: boards,
+    hydrate: useCallback((items: CanvasBoard[]) => setBoards(items), [setBoards]),
+    toDoc: useCallback((b: CanvasBoard) => ({
+      localId: b.id, name: b.name,
+      data: JSON.stringify({
+        cards: b.cards, groups: b.groups, connectors: b.connectors,
+        zoom: b.zoom ?? 1, panX: b.panX ?? 0, panY: b.panY ?? 0,
+      }),
+      createdAt: b.createdAt, updatedAt: b.updatedAt,
+    }), []),
+    fromDoc: useCallback((d: Record<string, unknown>): CanvasBoard => {
+      let parsed: Partial<CanvasBoard> = {};
+      try { parsed = JSON.parse(String(d.data || '{}')); } catch {}
+      return {
+        id: String(d.localId), name: String(d.name),
+        cards: parsed.cards ?? [], groups: parsed.groups ?? [], connectors: parsed.connectors ?? [],
+        zoom: parsed.zoom ?? 1, panX: parsed.panX ?? 0, panY: parsed.panY ?? 0,
+        createdAt: String(d.createdAt), updatedAt: String(d.updatedAt),
+      };
+    }, []),
+  });
 
   // Set first board as active on load
   useEffect(() => {
     if (!activeBoardId && boards.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveBoardId(boards[0].id);
     }
   }, [boards, activeBoardId]);
@@ -117,6 +216,7 @@ export function useCanvas() {
     const now = new Date().toISOString();
     const board: CanvasBoard = {
       id: genId('cb'), name, cards: [], groups: [], connectors: [],
+      zoom: 1, panX: 0, panY: 0,
       createdAt: now, updatedAt: now,
     };
     setBoards(prev => [...prev, board]);
@@ -208,8 +308,50 @@ const LIBRARY_KEY = 'sb-library-items';
 const HIGHLIGHTS_KEY = 'sb-highlights';
 
 export function useReading() {
-  const [libraryItems, setLibraryItems] = useLocalStorage<LibraryItem[]>(LIBRARY_KEY, []);
-  const [highlights, setHighlights] = useLocalStorage<Highlight[]>(HIGHLIGHTS_KEY, []);
+  const [libraryItems, setLibraryItems, libraryHydrated] = useLocalStorage<LibraryItem[]>(LIBRARY_KEY, []);
+  const [highlights, setHighlights, highlightsHydrated] = useLocalStorage<Highlight[]>(HIGHLIGHTS_KEY, []);
+  const syncEnabled = useSyncEnabled(libraryHydrated && highlightsHydrated);
+
+  useCollectionSync<LibraryItem>({
+    table: 'libraryItems',
+    enabled: syncEnabled,
+    items: libraryItems,
+    hydrate: useCallback((items: LibraryItem[]) => setLibraryItems(items), [setLibraryItems]),
+    toDoc: useCallback((i: LibraryItem) => ({
+      localId: i.id, title: i.title, author: i.author, type: i.type, source: i.source,
+      content: i.content.length > MAX_SYNCED_CONTENT ? i.content.slice(0, MAX_SYNCED_CONTENT) : i.content,
+      excerpt: i.excerpt ?? '', status: i.status, progress: i.progress,
+      coverUrl: i.coverUrl, highlights: i.highlights ?? [],
+      createdAt: i.addedAt, updatedAt: i.updatedAt,
+    }), []),
+    fromDoc: useCallback((d: Record<string, unknown>): LibraryItem => ({
+      id: String(d.localId), title: String(d.title),
+      author: (d.author as string | null) ?? null,
+      type: d.type as LibraryItem['type'], source: String(d.source ?? ''),
+      content: String(d.content ?? ''), excerpt: String(d.excerpt ?? ''),
+      status: d.status as LibraryItem['status'], progress: Number(d.progress ?? 0),
+      coverUrl: (d.coverUrl as string | null) ?? null,
+      highlights: (d.highlights as string[]) ?? [],
+      addedAt: String(d.createdAt), updatedAt: String(d.updatedAt),
+    }), []),
+  });
+
+  useCollectionSync<Highlight>({
+    table: 'highlights',
+    enabled: syncEnabled,
+    items: highlights,
+    hydrate: useCallback((items: Highlight[]) => setHighlights(items), [setHighlights]),
+    toDoc: useCallback((h: Highlight) => ({
+      localId: h.id, libraryItemId: h.libraryItemId, noteId: h.noteId,
+      text: h.text, color: h.color, page: h.page, createdAt: h.createdAt,
+    }), []),
+    fromDoc: useCallback((d: Record<string, unknown>): Highlight => ({
+      id: String(d.localId), libraryItemId: String(d.libraryItemId),
+      noteId: (d.noteId as string | null) ?? null, text: String(d.text ?? ''),
+      color: d.color as Highlight['color'], page: (d.page as number | null) ?? null,
+      createdAt: String(d.createdAt),
+    }), []),
+  });
 
   const addLibraryItem = useCallback((item: Omit<LibraryItem, 'id' | 'addedAt' | 'updatedAt' | 'highlights'>) => {
     const now = new Date().toISOString();

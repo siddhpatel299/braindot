@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Plus, Flame, Sun, Moon } from 'lucide-react';
+import { Search, Plus, Flame, Sun, Moon, LogOut, Cloud, CloudOff } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 
 interface CommandBarProps {
@@ -9,9 +9,12 @@ interface CommandBarProps {
   onOpenPalette: () => void;
   onCreate: () => void;
   streak: number;
+  /** 'synced' | 'syncing' | 'local' — omit to hide the chip */
+  syncState?: 'synced' | 'syncing' | 'local';
+  onSignOut?: () => void;
 }
 
-export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, streak }: CommandBarProps) {
+export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, streak, syncState, onSignOut }: CommandBarProps) {
   const { theme, toggle } = useTheme();
 
   return (
@@ -91,6 +94,35 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
 
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Cloud sync status */}
+        {syncState && (
+          <div
+            title={
+              syncState === 'syncing' ? 'Saving to cloud…'
+              : syncState === 'synced' ? 'All changes synced to cloud'
+              : 'Local only — sign in to sync'
+            }
+            style={{
+              height: 28,
+              padding: '0 10px',
+              background: 'var(--bg2)',
+              border: '1px solid var(--bd2)',
+              borderRadius: 4,
+              color: syncState === 'local' ? 'var(--t3)' : 'var(--grn)',
+              fontSize: 11,
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            {syncState === 'local'
+              ? <CloudOff size={12} strokeWidth={2} />
+              : <Cloud size={12} strokeWidth={2} />}
+            {syncState === 'syncing' ? 'syncing…' : syncState === 'synced' ? 'synced' : 'local'}
+          </div>
+        )}
+
         {/* Streak */}
         <div
           title="Writing streak"
@@ -173,6 +205,38 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
           <Plus size={14} strokeWidth={2.5} />
           new note
         </button>
+
+        {/* Sign out */}
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            aria-label="Sign out"
+            title="Sign out"
+            style={{
+              height: 32,
+              width: 32,
+              background: 'var(--bg2)',
+              border: '1px solid var(--bd2)',
+              borderRadius: 4,
+              color: 'var(--t3)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.12s, color 0.12s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--bg3)';
+              e.currentTarget.style.color = 'var(--red)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--bg2)';
+              e.currentTarget.style.color = 'var(--t3)';
+            }}
+          >
+            <LogOut size={14} strokeWidth={2} />
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useConvexAuth } from 'convex/react';
 import { Note, Folder, ParaType } from '@/types';
 import { SEED_NOTES, SEED_FOLDERS, SEED_FOLDER_IDS, generateNoteId, generateFolderId } from '@/utils/seedData';
 import { computeBacklinks, countWords, todayKey } from '@/utils/markdown';
+import { useCollectionSync } from '@/hooks/useCollectionSync';
 
 const STORAGE_KEY = 'second-brain-state-v2';
 const LEGACY_KEY = 'second-brain-state-v1';
@@ -160,6 +162,8 @@ Use [[wiki-links]] to connect this note to other notes. For example, link to [[w
 }
 
 function saveLocalState(state: PersistedState) {
+  // Skip writes while signing out — the vault keys were just cleared
+  if ((window as unknown as { __sbSignout?: boolean }).__sbSignout) return;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 
@@ -180,15 +184,64 @@ function saveUIState(ui: UIState) {
 }
 
 // ============================================================
-// Main hook — pure localStorage, no Convex
+// Convex doc mapping (cloud sync)
+// ============================================================
+function noteToDoc(n: Note) {
+  return {
+    localId: n.id, filename: n.filename, title: n.title, subtitle: n.subtitle,
+    tags: n.tags, body: n.body, backlinks: n.backlinks,
+    createdAt: n.createdAt, updatedAt: n.updatedAt, wordCount: n.wordCount,
+    status: n.status, folderId: n.folderId, pinned: n.pinned,
+  };
+}
+
+function noteFromDoc(d: Record<string, unknown>): Note {
+  const doc = d as unknown as ReturnType<typeof noteToDoc>;
+  return {
+    id: doc.localId, filename: doc.filename, title: doc.title, subtitle: doc.subtitle,
+    tags: doc.tags ?? [], body: doc.body ?? '', backlinks: doc.backlinks ?? [],
+    createdAt: doc.createdAt, updatedAt: doc.updatedAt, wordCount: doc.wordCount ?? 0,
+    status: (doc.status as Note['status']) || 'draft', folderId: doc.folderId, pinned: doc.pinned ?? false,
+  };
+}
+
+function folderToDoc(f: Folder) {
+  return {
+    localId: f.id, name: f.name, parentId: f.parentId,
+    paraType: f.paraType ?? null, createdAt: f.createdAt, expanded: f.expanded ?? true,
+  };
+}
+
+function folderFromDoc(d: Record<string, unknown>): Folder {
+  const doc = d as unknown as ReturnType<typeof folderToDoc>;
+  return {
+    id: doc.localId, name: doc.name, parentId: doc.parentId,
+    paraType: (doc.paraType as ParaType | null) ?? undefined,
+    createdAt: doc.createdAt, expanded: doc.expanded ?? true,
+  };
+}
+
+interface ProfileItem {
+  id: string;
+  streak: number;
+  totalConnections: number;
+  lastEditDay: string;
+}
+
+// ============================================================
+// Main hook — local-first state, mirrored to Convex when signed in
 // ============================================================
 export function useNotes() {
   const [hydrated, setHydrated] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
   const [localState, setLocalState] = useState<PersistedState>(() => seedState());
   const [uiState, setUiState] = useState<UIState>(() => ({ openTabs: [], activeTab: '' }));
+  const { isAuthenticated } = useConvexAuth();
 
-  // Hydrate from localStorage on mount
+  // Hydrate from localStorage on mount — intentional hydration setState
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setIsDemo(localStorage.getItem('second-brain-demo') === 'true');
     const loaded = loadLocalState();
     setLocalState(loaded);
     const ui = loadUIState();
@@ -197,7 +250,87 @@ export function useNotes() {
       activeTab: ui.activeTab || loaded.activeTab,
     });
     setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
+
+  // ---- Cloud sync (signed-in, non-demo) ----
+  const syncEnabled = hydrated && isAuthenticated && !isDemo;
+
+  const notesSync = useCollectionSync<Note>({
+    table: 'notes',
+    enabled: syncEnabled,
+    items: localState.notes,
+    hydrate: useCallback((notes: Note[]) => {
+      setLocalState((prev) => {
+        const backlinks = computeBacklinks(notes);
+        const withBacklinks = notes.map((n) => ({ ...n, backlinks: backlinks[n.id] || [] }));
+        return { ...prev, notes: withBacklinks };
+      });
+      // Drop tabs that reference notes that don't exist in the cloud vault
+      setUiState((prev) => {
+        const ids = new Set(notes.map((n) => n.id));
+        const openTabs = prev.openTabs.filter((t) => ids.has(t));
+        const activeTab = ids.has(prev.activeTab)
+          ? prev.activeTab
+          : openTabs[0] || notes[0]?.id || '';
+        return {
+          openTabs: openTabs.length ? openTabs : notes[0] ? [notes[0].id] : [],
+          activeTab,
+        };
+      });
+    }, []),
+    toDoc: noteToDoc,
+    fromDoc: noteFromDoc,
+  });
+
+  useCollectionSync<Folder>({
+    table: 'folders',
+    enabled: syncEnabled,
+    items: localState.folders,
+    hydrate: useCallback((folders: Folder[]) => {
+      setLocalState((prev) => ({ ...prev, folders }));
+    }, []),
+    toDoc: folderToDoc,
+    fromDoc: folderFromDoc,
+  });
+
+  const profileItems = useMemo<ProfileItem[]>(() => [{
+    id: 'profile',
+    streak: localState.streak,
+    totalConnections: localState.totalConnections,
+    lastEditDay: localState.lastEditDay,
+  }], [localState.streak, localState.totalConnections, localState.lastEditDay]);
+
+  useCollectionSync<ProfileItem>({
+    table: 'appState',
+    enabled: syncEnabled,
+    items: profileItems,
+    hydrate: useCallback((items: ProfileItem[]) => {
+      const p = items.find((i) => i.id === 'profile');
+      if (!p) return;
+      setLocalState((prev) => ({
+        ...prev,
+        streak: p.streak ?? prev.streak,
+        totalConnections: p.totalConnections ?? prev.totalConnections,
+        lastEditDay: p.lastEditDay || prev.lastEditDay,
+      }));
+    }, []),
+    toDoc: useCallback((p: ProfileItem) => ({
+      localId: p.id,
+      key: 'profile',
+      value: JSON.stringify({ streak: p.streak, totalConnections: p.totalConnections, lastEditDay: p.lastEditDay }),
+    }), []),
+    fromDoc: useCallback((d: Record<string, unknown>): ProfileItem => {
+      let parsed: Partial<ProfileItem> = {};
+      try { parsed = JSON.parse(String(d.value || '{}')); } catch {}
+      return {
+        id: String(d.localId),
+        streak: parsed.streak ?? 0,
+        totalConnections: parsed.totalConnections ?? 0,
+        lastEditDay: parsed.lastEditDay || todayKey(),
+      };
+    }, []),
+  });
 
   const state: PersistedState = useMemo(() => ({
     ...localState,
@@ -219,6 +352,21 @@ export function useNotes() {
     saveTimer.current = setTimeout(() => saveLocalState(state), 600);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [state, hydrated]);
+
+  // Flush to localStorage when the tab hides/closes so the debounce window
+  // can't swallow the last edit
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => {
+    if (!hydrated) return;
+    const flush = () => saveLocalState(stateRef.current);
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', flush);
+    };
+  }, [hydrated]);
 
   const recomputeBacklinks = useCallback((notes: Note[]): Note[] => {
     const backlinks = computeBacklinks(notes);
@@ -395,6 +543,11 @@ export function useNotes() {
   return {
     state,
     hydrated,
+    cloudSync: {
+      enabled: syncEnabled,
+      ready: notesSync.cloudReady,
+      syncing: notesSync.syncing,
+    },
     updateNote,
     createNote,
     deleteNote,

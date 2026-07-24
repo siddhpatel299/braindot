@@ -160,7 +160,7 @@ export function useSemanticSearch(notes: Note[]): UseSemanticSearchReturn {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [modelState, notes]);
 
   // Ensure model is loaded (call when user opens search view)

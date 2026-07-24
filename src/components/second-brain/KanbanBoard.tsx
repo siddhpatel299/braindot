@@ -7,7 +7,7 @@ import { Plus, Link as LinkIcon, X, Pencil } from 'lucide-react';
 interface KanbanBoardProps {
   cards: KanbanCardItem[];
   notes?: Note[];
-  onAddCard?: (status: KanbanCardItem['status']) => void;
+  onAddCard?: (status: KanbanCardItem['status'], title: string) => void;
   onMoveCard?: (cardId: string, newStatus: KanbanCardItem['status']) => void;
   onUpdateCard?: (cardId: string, patch: Partial<KanbanCardItem>) => void;
   onDeleteCard?: (cardId: string) => void;
@@ -51,7 +51,7 @@ export function KanbanBoard({ cards, notes, onAddCard, onMoveCard, onUpdateCard,
 
   const handleAdd = (status: KanbanCardItem['status']) => {
     if (newCardText.trim()) {
-      onAddCard?.(status);
+      onAddCard?.(status, newCardText.trim());
       setNewCardText('');
       setAddingIn(null);
     }

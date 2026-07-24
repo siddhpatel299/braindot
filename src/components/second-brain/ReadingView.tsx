@@ -328,7 +328,7 @@ export function ReadingView({
     setFeedLoading(true);
     setFeedError(null);
     try {
-      const res = await fetch(`/api/reading/news?category=${cat}&XTransformPort=3000`);
+      const res = await fetch(`/api/reading/news?category=${cat}`);
       if (!res.ok) throw new Error('Failed to fetch news');
       const data = await res.json();
       setFetchedItems(data.items || []);
@@ -345,7 +345,7 @@ export function ReadingView({
     setFeedLoading(true);
     setFeedError(null);
     try {
-      const res = await fetch(`/api/reading/papers?category=${cat}&XTransformPort=3000`);
+      const res = await fetch(`/api/reading/papers?category=${cat}`);
       if (!res.ok) throw new Error('Failed to fetch papers');
       const data = await res.json();
       setFetchedItems(data.items || []);
@@ -396,7 +396,7 @@ export function ReadingView({
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/reading/extract?XTransformPort=3000', {
+      const res = await fetch('/api/reading/extract', {
         method: 'POST',
         body: formData,
       });

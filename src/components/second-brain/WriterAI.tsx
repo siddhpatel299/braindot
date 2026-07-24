@@ -5,6 +5,7 @@ import {
   Sparkles, X, Loader2, Wand2, ListChecks, Maximize2, List,
   Send, Check, Copy, RefreshCw, AlertCircle,
 } from 'lucide-react';
+import { streamAsk } from '@/lib/aiClient';
 
 interface WriterAIProps {
   // Ref to the main editor textarea (may be null when note has embeds —
@@ -164,7 +165,8 @@ export function WriterAI({ textareaRef, body, onBodyChange, noteTitle, noteTags 
     return () => document.removeEventListener('keydown', handle);
   }, [open, handleClose]);
 
-  // Core: send prompt to /api/ai/ask with the note body + selection as context.
+  // Core: stream the prompt through /api/ai/ask with the note body +
+  // selection as context. Tokens render into the response box as they arrive.
   const generate = useCallback(async (promptText: string) => {
     if (!promptText.trim() || loading) return;
     setLoading(true);
@@ -176,22 +178,20 @@ export function WriterAI({ textareaRef, body, onBodyChange, noteTitle, noteTags 
         ? `${promptText}\n\n--- TEXT TO PROCESS ---\n${selText}\n--- END TEXT ---`
         : `${promptText}\n\n--- FULL NOTE (for context) ---\n${body || '(empty note)'}\n--- END ---`;
 
-      const res = await fetch('/api/ai/ask?XTransformPort=3000', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const full = await streamAsk(
+        {
           noteTitle,
           noteBody: body,
           noteTags,
           question: fullPrompt,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      setResponse(data.response || '(no response)');
+          scope: 'note',
+        },
+        (text) => {
+          setLoading(false);
+          setResponse(text);
+        },
+      );
+      if (!full) setResponse('(no response)');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {

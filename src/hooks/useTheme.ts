@@ -12,8 +12,9 @@ export function useTheme() {
   const [theme, setTheme] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
-  // Initialize theme on mount
+  // Initialize theme on mount — intentional hydration setState
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     const saved = localStorage.getItem('sb-theme') as Theme | null;
     if (saved === 'dark' || saved === 'light') {
       setTheme(saved);
@@ -26,6 +27,7 @@ export function useTheme() {
       document.documentElement.setAttribute('data-theme', initial);
     }
     setMounted(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   // Apply theme whenever it changes

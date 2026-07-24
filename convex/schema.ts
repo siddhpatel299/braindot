@@ -2,17 +2,22 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 
-// Second Brain — Convex schema with Convex Auth
-// Uses tokenIdentifier (server-verified) instead of client-supplied userId
-// Includes auth tables + app tables: notes, folders, kanbanCards, todos,
-// canvasBoards, libraryItems, highlights, appState
+// Second Brain — Convex schema
+//
+// The app is local-first: every collection lives in client state for instant
+// interaction, and a sync engine mirrors it here. Documents are keyed by
+// `localId` (the client-generated id) so the client never has to wait for a
+// server id. `tokenIdentifier` is the server-verified identity from
+// ctx.auth.getUserIdentity() — a user can never read or write another user's
+// rows.
+
+const byUser = { tokenIdentifier: v.string(), localId: v.string() };
 
 export default defineSchema({
   ...authTables,
 
-  // ===== Notes =====
   notes: defineTable({
-    tokenIdentifier: v.string(), // server-verified identity from ctx.auth.getUserIdentity()
+    ...byUser,
     filename: v.string(),
     title: v.string(),
     subtitle: v.string(),
@@ -27,12 +32,10 @@ export default defineSchema({
     pinned: v.boolean(),
   })
     .index("byToken", ["tokenIdentifier"])
-    .index("byTokenAndFolder", ["tokenIdentifier", "folderId"])
-    .index("byTokenAndPinned", ["tokenIdentifier", "pinned"]),
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
-  // ===== Folders (PARA structure) =====
   folders: defineTable({
-    tokenIdentifier: v.string(),
+    ...byUser,
     name: v.string(),
     parentId: v.union(v.string(), v.null()),
     paraType: v.union(v.string(), v.null()),
@@ -40,93 +43,84 @@ export default defineSchema({
     expanded: v.boolean(),
   })
     .index("byToken", ["tokenIdentifier"])
-    .index("byTokenAndParent", ["tokenIdentifier", "parentId"]),
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
-  // ===== Kanban Cards =====
   kanbanCards: defineTable({
-    tokenIdentifier: v.string(),
+    ...byUser,
     title: v.string(),
     description: v.string(),
     status: v.string(),
     tags: v.array(v.string()),
-    linkedNoteId: v.union(v.id("notes"), v.null()),
+    linkedNoteId: v.union(v.string(), v.null()),
     order: v.number(),
     createdAt: v.string(),
     updatedAt: v.string(),
   })
     .index("byToken", ["tokenIdentifier"])
-    .index("byTokenAndStatus", ["tokenIdentifier", "status"]),
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
-  // ===== Todos =====
   todos: defineTable({
-    tokenIdentifier: v.string(),
+    ...byUser,
     text: v.string(),
-    completed: v.boolean(),
+    done: v.boolean(),
     priority: v.string(),
+    dueGroup: v.union(v.string(), v.null()),
     dueDate: v.union(v.string(), v.null()),
-    linkedNoteId: v.union(v.id("notes"), v.null()),
+    linkedNoteId: v.union(v.string(), v.null()),
     order: v.number(),
     createdAt: v.string(),
   })
     .index("byToken", ["tokenIdentifier"])
-    .index("byTokenAndCompleted", ["tokenIdentifier", "completed"]),
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
-  // ===== Canvas Boards =====
+  // cards/groups/connectors serialized as one JSON blob in `data` —
+  // the canvas is always loaded and saved as a whole board.
   canvasBoards: defineTable({
-    tokenIdentifier: v.string(),
+    ...byUser,
     name: v.string(),
-    nodes: v.string(),
-    edges: v.string(),
+    data: v.string(),
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index("byToken", ["tokenIdentifier"]),
+  })
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
-  // ===== Library Items (reading) =====
   libraryItems: defineTable({
-    tokenIdentifier: v.string(),
+    ...byUser,
     title: v.string(),
     author: v.union(v.string(), v.null()),
     type: v.string(),
     source: v.string(),
-    content: v.string(),
+    content: v.string(), // truncated client-side to fit the 1MB doc limit
+    excerpt: v.string(),
     status: v.string(),
     progress: v.number(),
     coverUrl: v.union(v.string(), v.null()),
+    highlights: v.array(v.string()),
     createdAt: v.string(),
     updatedAt: v.string(),
   })
     .index("byToken", ["tokenIdentifier"])
-    .index("byTokenAndType", ["tokenIdentifier", "type"]),
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
-  // ===== Highlights =====
   highlights: defineTable({
-    tokenIdentifier: v.string(),
-    libraryItemId: v.id("libraryItems"),
-    noteId: v.union(v.id("notes"), v.null()),
+    ...byUser,
+    libraryItemId: v.string(),
+    noteId: v.union(v.string(), v.null()),
     text: v.string(),
     color: v.string(),
     page: v.union(v.number(), v.null()),
     createdAt: v.string(),
   })
     .index("byToken", ["tokenIdentifier"])
-    .index("byTokenAndLibraryItem", ["tokenIdentifier", "libraryItemId"]),
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
-  // ===== App State (misc per-user state) =====
+  // Misc per-user state (profile/streak, UI prefs) as JSON values
   appState: defineTable({
-    tokenIdentifier: v.string(),
+    ...byUser,
     key: v.string(),
     value: v.string(),
   })
     .index("byToken", ["tokenIdentifier"])
-    .index("byTokenAndKey", ["tokenIdentifier", "key"]),
-
-  // ===== User Profile (streak, totalConnections — keyed by tokenIdentifier) =====
-  userProfiles: defineTable({
-    tokenIdentifier: v.string(),
-    name: v.string(),
-    email: v.string(),
-    streak: v.number(),
-    lastEditDay: v.string(),
-    totalConnections: v.number(),
-  }).index("byToken", ["tokenIdentifier"]),
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 });
