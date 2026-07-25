@@ -145,11 +145,37 @@ html, body {
   height: 100vh;
 }
 
-/* Force monospace on EVERYTHING */
+/* Force monospace on EVERYTHING (the chrome/UI identity) */
 button, input, textarea, select, div, span, p, h1, h2, h3, h4, h5, h6,
 li, a, label, code, pre, th, td, small, strong, em, b, i {
   font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
 }
+
+/* ===== Editor prose font — user-selectable (Settings › reading font) =====
+   Only the writing surface changes; all chrome above stays monospace.
+   Class selectors + !important out-specify the blanket rule above. */
+:root {
+  --font-reading-mono:  'JetBrains Mono', 'Fira Mono', monospace;
+  --font-reading-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, 'Times New Roman', serif;
+  --font-reading-sans:  system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --editor-font: var(--font-reading-mono);
+}
+:root[data-editor-font="serif"] { --editor-font: var(--font-reading-serif); }
+:root[data-editor-font="sans"]  { --editor-font: var(--font-reading-sans); }
+
+/* Edit-mode overlay: textarea + styled <pre> must share the exact same
+   family/metrics or the caret drifts — both read --editor-font. */
+.sb-editor-textarea,
+.sb-editor-pre { font-family: var(--editor-font) !important; }
+
+/* Title + subtitle inputs (prose) */
+.sb-prose-input { font-family: var(--editor-font) !important; }
+
+/* Preview-mode rendered markdown — prose in the reading font, code stays mono */
+.sb-preview-prose,
+.sb-preview-prose * { font-family: var(--editor-font) !important; }
+.sb-preview-prose code,
+.sb-preview-prose pre { font-family: var(--font-reading-mono) !important; }
 
 /* Animations */
 @keyframes sb-pulse {

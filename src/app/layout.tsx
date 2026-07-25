@@ -13,7 +13,8 @@ export const metadata: Metadata = {
   },
 };
 
-// Inline script to set theme BEFORE React hydrates — prevents flash of wrong theme
+// Inline script to set theme + editor font BEFORE React hydrates — prevents
+// a flash of the wrong theme or reading font.
 const themeScript = `
 (function() {
   try {
@@ -21,6 +22,10 @@ const themeScript = `
     var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     var theme = (saved === 'dark' || saved === 'light') ? saved : system;
     document.documentElement.setAttribute('data-theme', theme);
+    var ef = localStorage.getItem('sb-editor-font');
+    if (ef === 'serif' || ef === 'sans') {
+      document.documentElement.setAttribute('data-editor-font', ef);
+    }
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'dark');
   }

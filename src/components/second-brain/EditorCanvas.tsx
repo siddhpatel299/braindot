@@ -6,10 +6,11 @@ import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown'
 import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
-import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2, Type, Check } from 'lucide-react';
 import { FormattingToolbar } from './FormattingToolbar';
 import { WriterAI } from './WriterAI';
 import { SlashMenu, SlashCommand } from './SlashMenu';
+import { useEditorFont, EDITOR_FONT_OPTIONS } from '@/hooks/useEditorFont';
 
 type ViewMode = 'edit' | 'preview' | 'diff';
 
@@ -163,6 +164,8 @@ export function EditorCanvas({
 }: EditorCanvasProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  const { font: editorFont, setFont: setEditorFont } = useEditorFont();
+  const [fontMenuOpen, setFontMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState<{ x: number; y: number } | null>(null);
@@ -203,7 +206,10 @@ export function EditorCanvas({
 
   useEffect(() => {
     autoResize();
-  }, [editor.body, note?.id, autoResize]);
+    // A proportional font reflows the text to a different height, so the
+    // textarea box must be re-measured or it keeps the old (taller) height
+    // and leaves a dead click-zone below the prose.
+  }, [editor.body, note?.id, autoResize, editorFont, viewMode]);
 
   // Re-measure on window resize
   useEffect(() => {
@@ -600,8 +606,84 @@ export function EditorCanvas({
         )}
         {viewMode !== 'edit' && <div style={{ flex: 1 }} />}
 
-        {/* Undo/redo + Writer AI buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 4px', flexShrink: 0 }}>
+        {/* Reading-font picker + undo/redo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 4px', flexShrink: 0, position: 'relative' }}>
+          <button
+            onClick={() => setFontMenuOpen((o) => !o)}
+            title="Reading font"
+            aria-label="Reading font"
+            style={{
+              width: 28, height: 28, borderRadius: 3,
+              background: fontMenuOpen ? 'var(--bg3)' : 'transparent',
+              border: '1px solid transparent',
+              color: editorFont === 'mono' ? 'var(--t2)' : 'var(--acc2)',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; }}
+            onMouseLeave={(e) => { if (!fontMenuOpen) e.currentTarget.style.background = 'transparent'; }}
+          >
+            <Type size={14} strokeWidth={2} />
+          </button>
+          {fontMenuOpen && (
+            <>
+              <div
+                onClick={() => setFontMenuOpen(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+              />
+              <div
+                style={{
+                  position: 'absolute', top: 34, right: 0, zIndex: 50,
+                  width: 220, background: 'var(--bg2)', border: '1px solid var(--bd2)',
+                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', padding: 4,
+                }}
+              >
+                <div style={{
+                  fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: 'var(--t3)', fontWeight: 600, padding: '5px 8px 6px',
+                }}>
+                  reading font
+                </div>
+                {EDITOR_FONT_OPTIONS.map((opt) => {
+                  const active = editorFont === opt.id;
+                  // <samp> escapes the global monospace-!important rule, so the
+                  // inline font stack actually renders — each label previews
+                  // its own face.
+                  const stack =
+                    opt.id === 'serif'
+                      ? "'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif"
+                      : opt.id === 'sans'
+                        ? "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif"
+                        : "'JetBrains Mono','Fira Mono',monospace";
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => { setEditorFont(opt.id); setFontMenuOpen(false); }}
+                      style={{
+                        width: '100%', textAlign: 'left', padding: '7px 8px', borderRadius: 4,
+                        background: active ? 'var(--acc-bg)' : 'transparent',
+                        border: active ? '1px solid #3d378a' : '1px solid transparent',
+                        color: 'var(--t1)', cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', gap: 8,
+                      }}
+                      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--bg3)'; }}
+                      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <span style={{ width: 14, flexShrink: 0, color: 'var(--acc2)' }}>
+                        {active && <Check size={13} />}
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <samp style={{ fontFamily: stack, fontSize: 14, color: active ? 'var(--t1)' : 'var(--t2)', display: 'block' }}>
+                          {opt.label} — Aa
+                        </samp>
+                        <span style={{ fontSize: 10, color: 'var(--t3)' }}>{opt.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
           <button
             onClick={editor.undo}
             disabled={!editor.canUndo}
@@ -753,6 +835,7 @@ export function EditorCanvas({
 
         {/* Title */}
         <input
+          className="sb-prose-input"
           value={editor.title}
           onChange={(e) => editor.updateTitle(e.target.value)}
           placeholder="Untitled note"
@@ -774,6 +857,7 @@ export function EditorCanvas({
 
         {/* Subtitle */}
         <input
+          className="sb-prose-input"
           value={editor.subtitle}
           onChange={(e) => editor.updateSubtitle(e.target.value)}
           placeholder="A short tagline…"
@@ -867,6 +951,7 @@ export function EditorCanvas({
 
         {viewMode === 'preview' && (
           <div
+            className="sb-preview-prose"
             dangerouslySetInnerHTML={{ __html: previewHtml }}
             onClick={(e) => {
               if (!e.metaKey && !e.ctrlKey) return;
