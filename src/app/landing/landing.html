@@ -36,8 +36,11 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 
 /* HERO */
 .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:130px 48px 80px;position:relative;overflow:hidden;text-align:center}
-.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:48px 48px;opacity:.3;pointer-events:none}
-.hero-glow{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(124,110,247,.14) 0%,transparent 68%);pointer-events:none}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:48px 48px;opacity:.3;pointer-events:none;z-index:0}
+.hero-glow{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(124,110,247,.14) 0%,transparent 68%);pointer-events:none;z-index:0}
+/* Lift all hero content above the absolute grid/glow layers so they sit
+   behind, not on top (positioned siblings otherwise paint over static flow). */
+.hero>*:not(.hero-grid):not(.hero-glow){position:relative;z-index:1}
 .hero-eyebrow{font-size:11px;color:var(--acc2);text-transform:uppercase;letter-spacing:.14em;margin-bottom:22px;display:flex;align-items:center;justify-content:center;gap:8px}
 .eyebrow-pulse{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
