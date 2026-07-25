@@ -81,8 +81,11 @@
   --canvas-dot: #d8d7d4;
 }
 
-/* Default to dark if no attribute set yet (prevents flash before JS runs) */
-:root {
+/* Default to dark ONLY before JS sets data-theme (prevents flash).
+   Must be :root:not([data-theme]) — a plain :root has the same specificity
+   as [data-theme="light"] and, coming later in the file, would override it,
+   permanently defeating light mode. */
+:root:not([data-theme]) {
   --bg:       #0c0c0e;
   --bg1:      #111113;
   --bg2:      #171719;
