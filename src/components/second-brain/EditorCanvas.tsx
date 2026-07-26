@@ -143,14 +143,20 @@ function renderMarkdownHtml(body: string): string {
   return `<div style="font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.8;color:var(--t2)">${blocks.join('\n')}</div>`;
 }
 
+// Preview inline rendering — unlike the edit overlay, this STRIPS the markdown
+// markers (** * ~~ ` [[ ]]) and shows only the formatted result.
 function renderInline(s: string): string {
   let out = escapeHtml(s);
-  out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1) => `<a style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px;cursor:pointer">[[${escapeHtml(p1)}]]</a>`);
+  // wiki-links: show the title only, clickable (title kept in data-wiki)
+  out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1) => `<a data-wiki="${escapeHtml(p1)}" style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px;cursor:pointer">${escapeHtml(p1)}</a>`);
+  // inline code
   out = out.replace(/`([^`\n]+)`/g, '<code style="background:var(--bg3);color:var(--grn);padding:1px 6px;border-radius:3px;font-size:0.9em;border:1px solid var(--bd)">$1</code>');
-  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--t1);font-weight:700">**$1**</strong>');
-  out = out.replace(/~~([^~\n]+)~~/g, '<del style="color:var(--t3)">~~$1~~</del>');
-  out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<em style="color:var(--acc2);font-style:italic">*$2*</em>');
-  out = out.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<em style="color:var(--acc2);font-style:italic">_$2_</em>');
+  // bold, then strikethrough, then underline, then italic — markers removed
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--t1);font-weight:700">$1</strong>');
+  out = out.replace(/~~([^~\n]+)~~/g, '<del style="color:var(--t3)">$1</del>');
+  out = out.replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g, '<u>$1</u>');
+  out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<em style="color:var(--acc2);font-style:italic">$2</em>');
+  out = out.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<em style="color:var(--acc2);font-style:italic">$2</em>');
   return out;
 }
 
@@ -1004,15 +1010,11 @@ export function EditorCanvas({
                   className="sb-preview-prose"
                   dangerouslySetInnerHTML={{ __html: renderMarkdownHtml(seg.content) }}
                   onClick={(e) => {
-                    if (!e.metaKey && !e.ctrlKey) return;
                     const target = e.target as HTMLElement;
-                    const wikiEl = target.closest('a') as HTMLElement | null;
-                    if (wikiEl && wikiEl.textContent?.includes('[[')) {
-                      const match = wikiEl.textContent.match(/\[\[([^\]]+)\]\]/);
-                      if (match) {
-                        e.preventDefault();
-                        onOpenNoteByTitle(match[1]);
-                      }
+                    const wikiEl = target.closest('[data-wiki]') as HTMLElement | null;
+                    if (wikiEl) {
+                      e.preventDefault();
+                      onOpenNoteByTitle(wikiEl.getAttribute('data-wiki') || '');
                     }
                   }}
                   style={{ cursor: 'default' }}

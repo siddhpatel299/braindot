@@ -99,7 +99,7 @@ export default function Home() {
   const canvas = useCanvas();
   const reading = useReading();
 
-  const [iconView, setIconView] = useState<IconRailView>('notes');
+  const [iconView, setIconView] = useState<IconRailView>('dashboard');
   const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search' | 'graph' | 'kanban' | 'canvas' | 'reading'>('dashboard');
   const [search, setSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -539,7 +539,8 @@ export default function Home() {
       setContextTab('ai');
       setAskAIOpen(true);
     } else if (v === 'study') {
-      setAppView('notes');
+      // Open the tutor panel over whatever the user is looking at — don't yank
+      // them into a default note. It anchors to the open note if there is one.
       setStudyOpen(true);
     } else if (v === 'journal') {
       handleCreateJournal();
