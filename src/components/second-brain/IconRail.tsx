@@ -13,9 +13,10 @@ import {
   KanbanSquare,
   PenTool,
   BookOpen,
+  GraduationCap,
 } from 'lucide-react';
 
-export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'journal' | 'ai' | 'tags' | 'search' | 'kanban' | 'canvas' | 'reading';
+export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'journal' | 'ai' | 'study' | 'tags' | 'search' | 'kanban' | 'canvas' | 'reading';
 
 interface IconRailProps {
   active: IconRailView;
@@ -121,6 +122,7 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
       <RailButton icon={PenTool} label="Canvas" active={active === 'canvas'} onClick={() => onSelect('canvas')} />
       <RailButton icon={BookOpen} label="Reading" active={active === 'reading'} onClick={() => onSelect('reading')} />
       <RailButton icon={CalendarDays} label="Daily journal" active={active === 'journal'} onClick={() => onSelect('journal')} />
+      <RailButton icon={GraduationCap} label="Study mode" active={active === 'study'} onClick={() => onSelect('study')} />
       <RailButton icon={Sparkles} label="AI synthesis" active={active === 'ai'} onClick={() => onSelect('ai')} />
 
       {/* Divider */}

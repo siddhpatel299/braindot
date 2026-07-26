@@ -18,6 +18,7 @@ import { ContextPanel } from '@/components/second-brain/ContextPanel';
 import { StatusBar } from '@/components/second-brain/StatusBar';
 import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
+import { StudyMode } from '@/components/second-brain/StudyMode';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
 import { GraphView } from '@/components/second-brain/GraphView';
@@ -105,6 +106,7 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [fileTreeView, setFileTreeView] = useState<'folders' | 'tags'>('folders');
   const [askAIOpen, setAskAIOpen] = useState(false);
+  const [studyOpen, setStudyOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const activeNote = useMemo(
@@ -372,6 +374,22 @@ export default function Home() {
     showToast(`created note to answer the question`);
   }, [activeNote, createNote, updateNote, pushHistory, showToast]);
 
+  // ---------- Save tutor output into the active note ----------
+  const handleSaveToNote = useCallback((markdown: string) => {
+    const block = markdown.trim();
+    if (!block) return;
+    if (activeNote) {
+      const base = editor.body;
+      const sep = base ? (base.endsWith('\n\n') ? '' : base.endsWith('\n') ? '\n' : '\n\n') : '';
+      editor.updateBody(base + sep + block + '\n');
+      showToast('saved to note');
+    } else {
+      const n = handleCreateNote();
+      updateNote(n.id, { body: block + '\n' });
+      showToast('saved to new note');
+    }
+  }, [activeNote, editor, handleCreateNote, updateNote, showToast]);
+
   // ---------- Schedule review ----------
   const handleScheduleReview = useCallback(() => {
     if (!activeNote) return;
@@ -487,6 +505,9 @@ export default function Home() {
     } else if (v === 'ai') {
       setContextTab('ai');
       setAskAIOpen(true);
+    } else if (v === 'study') {
+      setAppView('notes');
+      setStudyOpen(true);
     } else if (v === 'journal') {
       handleCreateJournal();
     } else if (v === 'tags') {
@@ -854,6 +875,13 @@ export default function Home() {
         note={activeNote}
         allNotes={state.notes}
         onOpenNoteByTitle={handleOpenNoteByTitle}
+      />
+
+      <StudyMode
+        open={studyOpen}
+        onClose={() => setStudyOpen(false)}
+        note={activeNote}
+        onSaveToNote={handleSaveToNote}
       />
 
       {/* Toast */}

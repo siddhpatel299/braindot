@@ -11,7 +11,25 @@ import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2, Ty
 import { FormattingToolbar } from './FormattingToolbar';
 import { WriterAI } from './WriterAI';
 import { SlashMenu, SlashCommand } from './SlashMenu';
+import { Mermaid } from './Mermaid';
 import { useEditorFont, EDITOR_FONT_OPTIONS } from '@/hooks/useEditorFont';
+
+// Split a markdown body into prose vs. ```mermaid diagram segments so the
+// preview can render diagrams as SVG while keeping the existing HTML renderer
+// for everything else.
+function splitMermaidBlocks(body: string): { type: 'text' | 'mermaid'; content: string }[] {
+  const re = /```mermaid\s*\n([\s\S]*?)```/g;
+  const out: { type: 'text' | 'mermaid'; content: string }[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    if (m.index > last) out.push({ type: 'text', content: body.slice(last, m.index) });
+    out.push({ type: 'mermaid', content: m[1].trim() });
+    last = m.index + m[0].length;
+  }
+  if (last < body.length) out.push({ type: 'text', content: body.slice(last) });
+  return out.length ? out : [{ type: 'text', content: body }];
+}
 
 type ViewMode = 'edit' | 'preview' | 'diff';
 
@@ -176,8 +194,8 @@ export function EditorCanvas({
   const [linkPos, setLinkPos] = useState<{ x: number; y: number } | null>(null);
   const [linkSel, setLinkSel] = useState(0);
 
-  // Preview HTML
-  const previewHtml = useMemo(() => renderMarkdownHtml(editor.body), [editor.body]);
+  // Preview: split into prose + mermaid-diagram segments
+  const previewSegments = useMemo(() => splitMermaidBlocks(editor.body), [editor.body]);
 
   // Diff: compare saved body (note.body) with working body (editor.body)
   const diffLines = useMemo(() => computeLineDiff(note.body, editor.body), [note.body, editor.body]);
@@ -980,23 +998,32 @@ export function EditorCanvas({
         )}
 
         {viewMode === 'preview' && (
-          <div
-            className="sb-preview-prose"
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-            onClick={(e) => {
-              if (!e.metaKey && !e.ctrlKey) return;
-              const target = e.target as HTMLElement;
-              const wikiEl = target.closest('a') as HTMLElement | null;
-              if (wikiEl && wikiEl.textContent?.includes('[[')) {
-                const match = wikiEl.textContent.match(/\[\[([^\]]+)\]\]/);
-                if (match) {
-                  e.preventDefault();
-                  onOpenNoteByTitle(match[1]);
-                }
-              }
-            }}
-            style={{ minHeight: 200, cursor: 'default' }}
-          />
+          <div style={{ minHeight: 200 }}>
+            {previewSegments.map((seg, i) =>
+              seg.type === 'mermaid' ? (
+                <Mermaid key={i} chart={seg.content} />
+              ) : (
+                <div
+                  key={i}
+                  className="sb-preview-prose"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdownHtml(seg.content) }}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey) return;
+                    const target = e.target as HTMLElement;
+                    const wikiEl = target.closest('a') as HTMLElement | null;
+                    if (wikiEl && wikiEl.textContent?.includes('[[')) {
+                      const match = wikiEl.textContent.match(/\[\[([^\]]+)\]\]/);
+                      if (match) {
+                        e.preventDefault();
+                        onOpenNoteByTitle(match[1]);
+                      }
+                    }
+                  }}
+                  style={{ cursor: 'default' }}
+                />
+              ),
+            )}
+          </div>
         )}
 
         {viewMode === 'diff' && (

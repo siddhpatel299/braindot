@@ -8,8 +8,9 @@ export interface AskPayload {
   noteTags?: string[];
   question: string;
   history?: { role: 'user' | 'assistant'; content: string }[];
-  scope?: 'note' | 'vault';
+  scope?: 'note' | 'vault' | 'study';
   contextNotes?: { title: string; subtitle?: string; tags?: string[]; body: string }[];
+  topic?: string;
 }
 
 export async function streamAsk(
