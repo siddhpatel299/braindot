@@ -19,6 +19,7 @@ import { StatusBar } from '@/components/second-brain/StatusBar';
 import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
 import { StudyMode } from '@/components/second-brain/StudyMode';
+import { AppDialog, DialogState } from '@/components/second-brain/AppDialog';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
 import { GraphView } from '@/components/second-brain/GraphView';
@@ -107,6 +108,7 @@ export default function Home() {
   const [fileTreeView, setFileTreeView] = useState<'folders' | 'tags'>('folders');
   const [askAIOpen, setAskAIOpen] = useState(false);
   const [studyOpen, setStudyOpen] = useState(false);
+  const [dialog, setDialog] = useState<DialogState>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const activeNote = useMemo(
@@ -481,11 +483,42 @@ export default function Home() {
 
   // ---------- Folder actions ----------
   const handleCreateFolder = useCallback((parentId: string | null) => {
-    const name = prompt('Folder name:', parentId === null ? 'New folder' : 'Subfolder');
-    if (name === null) return;
-    const f = createFolder(parentId, name.trim() || 'Untitled folder');
-    showToast(`created folder "${f.name}"`);
+    setDialog({
+      type: 'prompt',
+      title: parentId === null ? 'New folder' : 'New subfolder',
+      label: 'Folder name',
+      placeholder: 'e.g. Azure',
+      confirmLabel: 'Create',
+      onConfirm: (name) => {
+        const f = createFolder(parentId, name || 'Untitled folder');
+        showToast(`created folder "${f.name}"`);
+      },
+    });
   }, [createFolder, showToast]);
+
+  const handleDeleteFolder = useCallback((id: string) => {
+    const folder = state.folders.find((f) => f.id === id);
+    setDialog({
+      type: 'confirm',
+      title: 'Delete folder',
+      message: `Delete "${folder?.name || 'this folder'}"? Notes inside will be moved to Resources.`,
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: () => { deleteFolder(id); showToast('folder deleted'); },
+    });
+  }, [state.folders, deleteFolder, showToast]);
+
+  const handleDeleteNote = useCallback((id: string) => {
+    const note = state.notes.find((n) => n.id === id);
+    setDialog({
+      type: 'confirm',
+      title: 'Delete note',
+      message: `Delete "${note?.title || 'this note'}"? This can't be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: () => { deleteNote(id); showToast('note deleted'); },
+    });
+  }, [state.notes, deleteNote, showToast]);
 
   // ---------- Icon rail actions ----------
   const handleIconSelect = useCallback((v: IconRailView) => {
@@ -792,10 +825,11 @@ export default function Home() {
               onCreateNote={(folderId) => handleCreateNote(folderId)}
               onCreateFolder={handleCreateFolder}
               onRenameFolder={renameFolder}
-              onDeleteFolder={deleteFolder}
+              onDeleteFolder={handleDeleteFolder}
               onToggleFolder={toggleFolderExpanded}
               onMoveNote={moveNote}
               onTogglePinned={togglePinned}
+              onDeleteNote={handleDeleteNote}
             />
 
             {/* Editor area: tabs + canvas */}
@@ -820,10 +854,7 @@ export default function Home() {
                   onOpenNote={handleOpenNote}
                   onOpenNoteByTitle={handleOpenNoteByTitle}
                   onToggleEvergreen={handleToggleEvergreen}
-                  onDeleteNote={(id) => {
-                    deleteNote(id);
-                    showToast('note deleted');
-                  }}
+                  onDeleteNote={handleDeleteNote}
                 />
               )}
             </div>
@@ -883,6 +914,8 @@ export default function Home() {
         note={activeNote}
         onSaveToNote={handleSaveToNote}
       />
+
+      <AppDialog dialog={dialog} onClose={() => setDialog(null)} />
 
       {/* Toast */}
       {toast && (

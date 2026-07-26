@@ -350,6 +350,13 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   user-select: none;
 }
 
+/* Note row: delete button hidden until the row is hovered; then it takes
+   the badge's place. */
+.sb-note-del { opacity: 0; transition: opacity 0.12s; }
+.sb-note-row:hover .sb-note-del { opacity: 0.6; }
+.sb-note-row:hover .sb-note-badge { display: none; }
+.sb-note-del:hover { opacity: 1 !important; }
+
 /* Reset focus rings on the app (we want minimal chrome) */
 button:focus, input:focus, textarea:focus {
   outline: none;

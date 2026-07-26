@@ -847,11 +847,7 @@ export function EditorCanvas({
           </button>
           {onDeleteNote && (
             <button
-              onClick={() => {
-                if (window.confirm(`Delete "${note.title}"? This cannot be undone.`)) {
-                  onDeleteNote(note.id);
-                }
-              }}
+              onClick={() => onDeleteNote(note.id)}
               title="Delete note"
               style={{
                 fontSize: 11,

@@ -19,6 +19,7 @@ interface FileTreeProps {
   onToggleFolder: (id: string) => void;
   onMoveNote: (noteId: string, folderId: string) => void;
   onTogglePinned: (noteId: string) => void;
+  onDeleteNote: (noteId: string) => void;
 }
 
 export function FileTree({
@@ -36,6 +37,7 @@ export function FileTree({
   onToggleFolder,
   onMoveNote,
   onTogglePinned,
+  onDeleteNote,
 }: FileTreeProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -191,7 +193,9 @@ export function FileTree({
         >
           {n.title}
         </span>
+        {/* Backlink count — hidden on row hover to make room for delete */}
         <span
+          className="sb-note-badge"
           style={{
             fontSize: 10,
             background: 'var(--bg3)',
@@ -204,6 +208,20 @@ export function FileTree({
         >
           {n.backlinks.length}
         </span>
+        <button
+          className="sb-note-del"
+          title="Delete note"
+          onClick={(e) => { e.stopPropagation(); onDeleteNote(n.id); }}
+          style={{
+            flexShrink: 0, width: 18, height: 18, borderRadius: 3,
+            background: 'transparent', border: 'none', color: 'var(--t3)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; }}
+        >
+          <X size={13} />
+        </button>
       </div>
     );
   };
@@ -364,9 +382,7 @@ export function FileTree({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm(`Delete folder "${folder.name}"? Notes inside will be moved to Resources.`)) {
-                    onDeleteFolder(folder.id);
-                  }
+                  onDeleteFolder(folder.id);
                 }}
                 title="Delete folder"
                 style={{
