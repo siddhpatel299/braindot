@@ -4,6 +4,7 @@ import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown';
 import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
+import { htmlToMarkdown, looksLikeRichHtml } from '@/utils/htmlToMarkdown';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
 import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2, Type, Check } from 'lucide-react';
@@ -411,6 +412,34 @@ export function EditorCanvas({
     }, 0);
     closeLinkAuto();
   }, [editor, linkAuto, closeLinkAuto]);
+
+  // Paste rich web content as Markdown. When the clipboard carries HTML with
+  // real structure, convert it; otherwise let the browser paste plain text.
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const html = e.clipboardData.getData('text/html');
+      if (!html || !looksLikeRichHtml(html)) return; // plain text / copied markdown → default
+      const md = htmlToMarkdown(html);
+      if (!md) return;
+      e.preventDefault();
+      const ta = e.currentTarget;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const before = editor.body.slice(0, start);
+      const after = editor.body.slice(end);
+      // Pad so the pasted block doesn't fuse with surrounding text
+      const lead = before && !before.endsWith('\n\n') ? (before.endsWith('\n') ? '\n' : '\n\n') : '';
+      const trail = after && !after.startsWith('\n') ? '\n' : '';
+      const next = before + lead + md + trail + after;
+      editor.updateBody(next);
+      const pos = start + lead.length + md.length;
+      setTimeout(() => {
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = pos;
+      }, 0);
+    },
+    [editor],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -895,6 +924,7 @@ export function EditorCanvas({
               value={editor.body}
               onChange={handleBodyChange}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               onBlur={() => setTimeout(closeLinkAuto, 150)}
               placeholder="# Start writing your note…"
               spellCheck={false}
