@@ -12,19 +12,23 @@ import { FormattingToolbar } from './FormattingToolbar';
 import { WriterAI } from './WriterAI';
 import { SlashMenu, SlashCommand } from './SlashMenu';
 import { Mermaid } from './Mermaid';
+import { isMermaidLang, normalizeMermaidSource } from '@/utils/mermaid';
 import { useEditorFont, EDITOR_FONT_OPTIONS } from '@/hooks/useEditorFont';
 
-// Split a markdown body into prose vs. ```mermaid diagram segments so the
-// preview can render diagrams as SVG while keeping the existing HTML renderer
-// for everything else.
+// Split a markdown body into prose vs. diagram segments so the preview can
+// render diagrams as SVG while keeping the existing HTML renderer for
+// everything else. Accepts ```mermaid as well as type-named fences the AI
+// commonly emits (```gantt, ```timeline, ```flowchart…).
 function splitMermaidBlocks(body: string): { type: 'text' | 'mermaid'; content: string }[] {
-  const re = /```mermaid\s*\n([\s\S]*?)```/g;
+  const re = /```([\w-]*)\s*\n([\s\S]*?)```/g;
   const out: { type: 'text' | 'mermaid'; content: string }[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
+    const lang = m[1];
+    if (!isMermaidLang(lang)) continue; // ordinary code block → leave to the HTML renderer
     if (m.index > last) out.push({ type: 'text', content: body.slice(last, m.index) });
-    out.push({ type: 'mermaid', content: m[1].trim() });
+    out.push({ type: 'mermaid', content: normalizeMermaidSource(lang, m[2]) });
     last = m.index + m[0].length;
   }
   if (last < body.length) out.push({ type: 'text', content: body.slice(last) });

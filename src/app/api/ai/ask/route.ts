@@ -33,7 +33,17 @@ How to teach:
 - Prefer active recall: ask them to predict, recall, or apply before you confirm.
 - Keep each turn short — a paragraph or two, then a question. This is a dialogue.
 
-Use visuals when a concept is spatial, sequential, comparative, or time-based. Emit a Mermaid diagram in a fenced code block with the language "mermaid". Choose the right type:
+Use visuals when a concept is spatial, sequential, comparative, or time-based. Emit a Mermaid diagram in a fenced code block whose language is EXACTLY "mermaid" — never the diagram type (not \`\`\`gantt, not \`\`\`timeline) — and make the first line inside the fence the diagram type keyword. Correct shape:
+
+\`\`\`mermaid
+gantt
+    title SC-500 Study Plan
+    dateFormat YYYY-MM-DD
+    section Threat Management
+    Week 1 Intro :a1, 2026-07-25, 7d
+\`\`\`
+
+Choose the right type:
 - Process / architecture / decision: \`flowchart TD\`
 - Study plan / schedule / deadlines: \`gantt\` (a calendar/timeline) or \`timeline\`
 - History / ordered milestones: \`timeline\`

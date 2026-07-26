@@ -3,6 +3,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Mermaid } from './Mermaid';
+import { isMermaidLang, normalizeMermaidSource } from '@/utils/mermaid';
 
 // Renders a tutor message: Markdown for prose, live Mermaid diagrams for
 // ```mermaid fences. Wiki-links [[Title]] are left as plain text (they become
@@ -16,9 +17,11 @@ export function StudyMarkdown({ content }: { content: string }) {
         components={{
           code({ className, children, ...props }) {
             const text = String(children ?? '');
-            const lang = /language-(\w+)/.exec(className || '')?.[1];
-            if (lang === 'mermaid') {
-              return <Mermaid chart={text.replace(/\n$/, '')} />;
+            const lang = /language-([\w-]+)/.exec(className || '')?.[1];
+            // Models often fence a diagram as ```gantt / ```timeline instead
+            // of ```mermaid — treat any known diagram type as a diagram.
+            if (isMermaidLang(lang)) {
+              return <Mermaid chart={normalizeMermaidSource(lang, text)} />;
             }
             const isBlock = (className || '').includes('language-') || text.includes('\n');
             if (isBlock) {
