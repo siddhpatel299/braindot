@@ -37,7 +37,10 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 .nav-cta:hover{background:var(--acc2);color:#111}
 
 /* HERO */
-.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:130px 48px 80px;position:relative;overflow:hidden;text-align:center}
+/* justify-content:flex-start, not center — the hero content is now taller
+   than the viewport on short screens, and centering pushed the headline up
+   behind the fixed nav. */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:118px 48px 80px;position:relative;overflow:hidden;text-align:center}
 .hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:48px 48px;opacity:.3;pointer-events:none;z-index:0}
 .hero-glow{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(124,110,247,.14) 0%,transparent 68%);pointer-events:none;z-index:0}
 /* Lift all hero content above the absolute grid/glow layers so they sit
@@ -61,6 +64,40 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 
 /* PREVIEW */
 .hero-preview{width:100%;max-width:880px;background:var(--bg1);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;box-shadow:0 48px 96px rgba(0,0,0,.7),0 0 0 1px var(--bd)}
+
+/* ===== Live study-mode demo in the hero ===== */
+.sm-demo{width:100%;max-width:620px;margin:44px auto 8px;text-align:left;background:var(--bg1);border:1px solid var(--bd2);border-radius:12px;overflow:hidden;box-shadow:0 32px 70px -28px rgba(0,0,0,.85)}
+.sm-head{display:flex;align-items:center;gap:9px;padding:11px 15px;background:var(--bg2);border-bottom:1px solid var(--bd)}
+.sm-dot{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px rgba(124,110,247,.2)}
+.sm-head-t{font-size:12px;font-weight:700;color:var(--t1)}
+.sm-head-s{font-size:11px;color:var(--t3);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-body{padding:16px 15px;display:flex;flex-direction:column;gap:12px;min-height:232px}
+.sm-row{display:flex}
+.sm-you{justify-content:flex-end}
+.sm-ai{justify-content:flex-start;opacity:0;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease}
+.sm-ai.on{opacity:1;transform:none}
+.sm-bubble{max-width:92%;border-radius:8px;padding:10px 13px;font-size:12.5px;line-height:1.6}
+.sm-q{background:var(--acc-bg);border:1px solid #3d378a;color:var(--t1)}
+.sm-a{background:var(--bg2);border:1px solid var(--bd);color:var(--t2);width:100%}
+.sm-a p{margin:0 0 9px}
+.sm-caret{display:inline-block;width:.5em;height:.95em;background:var(--acc2);vertical-align:-.13em;margin-left:.1em;border-radius:1px}
+.sm-followup{color:var(--t1);margin:10px 0 0 !important;opacity:0;transition:opacity .4s ease .1s}
+.sm-followup.on{opacity:1}
+.sm-chart{width:100%;height:auto;display:block;margin:4px 0 2px}
+.sm-ax{stroke:var(--bd2);stroke-width:1}
+.sm-bar{fill:var(--acc);transform-origin:left center;transform:scaleX(0);transition:transform .55s cubic-bezier(.22,1,.36,1)}
+.sm-bars.on .sm-bar{transform:scaleX(1)}
+.sm-bars.on .sm-bar:nth-child(2){transition-delay:.1s}
+.sm-bars.on .sm-bar:nth-child(3){transition-delay:.2s}
+.sm-bars.on .sm-bar:nth-child(4){transition-delay:.3s}
+.sm-lab text{fill:var(--t3);font-size:8.5px;font-family:inherit}
+.sm-foot{display:flex;align-items:center;gap:7px;padding:10px 15px;border-top:1px solid var(--bd);background:var(--bg2);font-size:11px;color:var(--t3)}
+@media (prefers-reduced-motion:reduce){
+  .sm-ai,.sm-followup{opacity:1;transform:none}
+  .sm-bar{transform:scaleX(1)}
+  .sm-caret{display:none}
+}
+@media (max-width:640px){ .sm-head-s{display:none} }
 .ptitlebar{height:36px;background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:6px}
 .ptb-dot{width:10px;height:10px;border-radius:50%}
 .ptb-title{font-size:11px;color:var(--t3);margin:0 auto}
@@ -247,13 +284,47 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 <div class="hero">
   <div class="hero-grid"></div>
   <div class="hero-glow"></div>
-  <div class="hero-eyebrow"><span class="eyebrow-pulse"></span>now in private beta</div>
-  <h1 class="hero-h1"><span class="dim">your knowledge,</span></h1>
-  <div class="hero-typewriter"><span id="tw"></span><span class="tw-cursor"></span></div>
-  <p class="hero-sub">Braindot is a PKM workspace where notes, reading, tasks, and ideas <em>connect</em> — and stay alive. Not a filing system. A thinking environment.</p>
+  <h1 class="hero-h1">Notes that connect themselves.<br><span class="dim">And a tutor that teaches from them.</span></h1>
+  <p class="hero-sub">Write in markdown, link anything to anything, and watch the graph of your
+    thinking take shape. Then ask an AI that has read <em>your whole vault</em> — not one note at a time.</p>
   <div class="hero-actions">
     <a class="btn-acc" href="/demo"><i class="ti ti-player-play" aria-hidden="true"></i> try demo — no signup</a>
     <a class="btn-ghost" href="/auth?mode=signup">sign up free</a>
+  </div>
+
+  <!-- Live study-mode demo: the thing no other notes app does -->
+  <div class="sm-demo" id="smDemo">
+    <div class="sm-head">
+      <span class="sm-dot"></span>
+      <span class="sm-head-t">study mode</span>
+      <span class="sm-head-s">studying: AZ-900 certification</span>
+    </div>
+    <div class="sm-body">
+      <div class="sm-row sm-you"><div class="sm-bubble sm-q"><span id="smQ"></span><span class="sm-caret"></span></div></div>
+      <div class="sm-row sm-ai" id="smAnswerRow">
+        <div class="sm-bubble sm-a">
+          <p id="smA"></p>
+          <svg class="sm-chart" id="smChart" viewBox="0 0 340 96" aria-label="Eight week study plan">
+            <line class="sm-ax" x1="8" y1="82" x2="332" y2="82"/>
+            <g class="sm-bars">
+              <rect class="sm-bar" x="14"  y="20" width="72" height="15" rx="3"/>
+              <rect class="sm-bar" x="92"  y="42" width="88" height="15" rx="3"/>
+              <rect class="sm-bar" x="186" y="64" width="64" height="15" rx="3"/>
+              <rect class="sm-bar" x="256" y="20" width="76" height="15" rx="3"/>
+            </g>
+            <g class="sm-lab">
+              <text x="14"  y="16">wk 1–2 · cloud concepts</text>
+              <text x="92"  y="38">wk 3–4 · core services</text>
+              <text x="186" y="60">wk 5–6 · security</text>
+              <text x="256" y="16">wk 7–8 · practice</text>
+            </g>
+          </svg>
+          <p class="sm-followup" id="smF">Before we go on — in your own words, what is the
+            difference between IaaS and SaaS?</p>
+        </div>
+      </div>
+    </div>
+    <div class="sm-foot"><i class="ti ti-bookmark" aria-hidden="true"></i> every answer and diagram saves straight into your note</div>
   </div>
 
   <div class="hero-preview">
@@ -603,16 +674,58 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 </footer>
 
 <script>
-const phrases=['alive.','connected.','yours.','growing.','thinking.']
-let pi=0,ci=0,del=false
-const el=document.getElementById('tw')
-function tick(){
-  const w=phrases[pi]
-  if(!del){el.textContent=w.slice(0,++ci);if(ci===w.length){setTimeout(()=>{del=true;tick()},1900);return}}
-  else{el.textContent=w.slice(0,--ci);if(ci===0){del=false;pi=(pi+1)%phrases.length}}
-  setTimeout(tick,del?55:88)
-}
-tick()
+/* Hero study-mode demo: types a real question, then the tutor answers and
+   draws the plan. Loops. Skipped entirely for reduced-motion users, who just
+   see the finished state. */
+(function () {
+  const q = document.getElementById('smQ');
+  const a = document.getElementById('smA');
+  const row = document.getElementById('smAnswerRow');
+  const bars = document.querySelector('.sm-bars');
+  const follow = document.getElementById('smF');
+  if (!q || !a || !row || !bars || !follow) return;
+
+  const QUESTION = 'I have 8 weeks. How should I prepare for AZ-900?';
+  const ANSWER = "Eight weeks is comfortable if you keep it steady. Here's a plan that front-loads concepts and leaves room to practise:";
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    q.textContent = QUESTION;
+    a.textContent = ANSWER;
+    row.classList.add('on');
+    bars.classList.add('on');
+    follow.classList.add('on');
+    return;
+  }
+
+  const type = (el, text, speed) => new Promise((done) => {
+    let i = 0;
+    const t = setInterval(() => {
+      el.textContent = text.slice(0, ++i);
+      if (i >= text.length) { clearInterval(t); done(); }
+    }, speed);
+  });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function run() {
+    for (;;) {
+      // reset
+      q.textContent = ''; a.textContent = '';
+      row.classList.remove('on'); bars.classList.remove('on'); follow.classList.remove('on');
+      await wait(700);
+
+      await type(q, QUESTION, 42);
+      await wait(520);
+      row.classList.add('on');
+      await type(a, ANSWER, 20);
+      await wait(220);
+      bars.classList.add('on');
+      await wait(900);
+      follow.classList.add('on');
+      await wait(5200);
+    }
+  }
+  run();
+})();
 </script>
 </body>
 </html>
