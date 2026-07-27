@@ -53,14 +53,44 @@ export function Mermaid({ chart }: { chart: string }) {
     (async () => {
       try {
         const mermaid = await getMermaid();
+        // Timeline and mindmap diagrams colour their sections from a cScale
+        // palette, which by default is a clashing rainbow. Override the whole
+        // ramp with brand purple tints so every diagram type looks like the app.
+        const dark = theme !== 'light';
+        const scale = dark
+          ? ['#221f3d', '#2b2750', '#332e63', '#3b3676', '#443e89', '#4d469c']
+          : ['#eeecfd', '#e2defb', '#d6d0f9', '#cac2f7', '#beb4f5', '#b2a6f3'];
+        const scaleText = dark ? '#e6e4f5' : '#241f4d';
+        const ramp: Record<string, string> = {};
+        scale.forEach((c, i) => {
+          ramp[`cScale${i}`] = c;
+          ramp[`cScaleLabel${i}`] = scaleText;
+          ramp[`cScalePeer${i}`] = dark ? '#7c6ef7' : '#5b4fe8';
+        });
+
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: 'strict',
-          theme: theme === 'light' ? 'neutral' : 'dark',
+          theme: 'base',
           fontFamily: "'JetBrains Mono', monospace",
-          themeVariables: theme === 'light'
-            ? { primaryColor: '#eeecfd', primaryBorderColor: '#5b4fe8', lineColor: '#5b4fe8', primaryTextColor: '#1a1a18' }
-            : { primaryColor: '#1a1830', primaryBorderColor: '#7c6ef7', lineColor: '#7c6ef7', primaryTextColor: '#f0f0f2' },
+          themeVariables: {
+            darkMode: dark,
+            background: dark ? '#111113' : '#ffffff',
+            primaryColor: dark ? '#221f3d' : '#eeecfd',
+            primaryBorderColor: dark ? '#7c6ef7' : '#5b4fe8',
+            primaryTextColor: dark ? '#f0f0f2' : '#1a1a18',
+            secondaryColor: dark ? '#1b1b21' : '#f0efec',
+            tertiaryColor: dark ? '#17171a' : '#f7f7f5',
+            lineColor: dark ? '#7c6ef7' : '#5b4fe8',
+            textColor: dark ? '#c9c9d4' : '#2a2a30',
+            mainBkg: dark ? '#221f3d' : '#eeecfd',
+            nodeBorder: dark ? '#7c6ef7' : '#5b4fe8',
+            clusterBkg: dark ? '#141419' : '#f4f4f1',
+            clusterBorder: dark ? '#2a2a32' : '#dedcd7',
+            titleColor: dark ? '#f0f0f2' : '#17171a',
+            fontSize: '13px',
+            ...ramp,
+          },
         });
         // Validate first so a mid-stream partial diagram doesn't throw noisily
         await mermaid.parse(source);
