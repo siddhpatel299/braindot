@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
-import { Brain, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 function friendlyAuthError(raw: string, mode: 'signin' | 'signup'): string {
   const msg = raw.toLowerCase();
@@ -106,15 +106,13 @@ function AuthContent() {
         background: '#111113', border: '1px solid #333338', borderRadius: 10,
         padding: 36, position: 'relative', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 28, textDecoration: 'none' }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 7, background: '#7c6ef7',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 0 1px rgba(124,110,247,0.4), 0 0 16px rgba(124,110,247,0.18)',
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 28 }}>
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 19,
+            letterSpacing: '-0.02em', color: '#f0f0f2', display: 'inline-flex', alignItems: 'baseline',
           }}>
-            <Brain size={16} color="#0c0c0e" strokeWidth={2.25} />
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f2' }}>Second Brain</span>
+            braindot<span className="sb-caret sb-caret-blink" />
+          </span>
         </div>
 
         <div style={{ display: 'flex', gap: 2, background: '#1e1e21', borderRadius: 6, padding: 3, marginBottom: 24 }}>

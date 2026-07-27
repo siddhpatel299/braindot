@@ -9,7 +9,7 @@
   --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
 }
 
-/* ===== Second Brain Design System — Theme Variables ===== */
+/* ===== Braindot Design System — Theme Variables ===== */
 
 /* Dark mode (default) */
 [data-theme="dark"] {
@@ -342,6 +342,25 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 .sb-tok-meta {
   color: var(--t3);
+}
+
+/* Braindot wordmark caret — the block cursor that IS the logo */
+.sb-caret {
+  display: inline-block;
+  width: 0.52em;
+  height: 0.94em;
+  background: var(--acc);
+  vertical-align: -0.11em;
+  margin-left: 0.12em;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sb-caret-blink { animation: sb-caret-blink 1.15s steps(1, end) infinite; }
+}
+@keyframes sb-caret-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0.16; }
 }
 
 /* Selection style for sidebar items */

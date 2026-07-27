@@ -414,7 +414,7 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `second-brain-vault-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `braindot-vault-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -430,7 +430,7 @@ export default function Home() {
       if (!content) return;
 
       if (file.name.endsWith('.json')) {
-        // Second Brain JSON format
+        // Braindot JSON format
         try {
           const data = JSON.parse(content);
           if (data.notes && Array.isArray(data.notes)) {

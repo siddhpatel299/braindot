@@ -1,4 +1,4 @@
-// Second Brain — Core type definitions
+// Braindot — Core type definitions
 
 export type NoteStatus = 'draft' | 'evergreen';
 export type NoteCollection = 'pinned' | 'strategy' | 'learning' | 'reading' | 'research'; // legacy, kept for migration

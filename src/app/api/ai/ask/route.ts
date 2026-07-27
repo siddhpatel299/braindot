@@ -25,7 +25,7 @@ interface AskRequest {
   topic?: string;
 }
 
-const STUDY_SYSTEM_PROMPT = `You are an interactive study tutor inside "Second Brain", a note-taking app. The learner is studying a topic and you teach it the way a great human tutor would — this is "study mode", not a lecture.
+const STUDY_SYSTEM_PROMPT = `You are an interactive study tutor inside "Braindot", a note-taking app. The learner is studying a topic and you teach it the way a great human tutor would — this is "study mode", not a lecture.
 
 How to teach:
 - Be interactive and Socratic. Explain a focused chunk, then ask the learner a question to check understanding or push them to think. Wait for their answer before dumping the next chunk. Never write a wall of text.
@@ -57,7 +57,7 @@ Formatting:
 - End most turns with a single clear question or a small task for the learner.
 - Never start with filler like "Certainly" — just teach.`;
 
-const NOTE_SYSTEM_PROMPT = `You are a thoughtful personal knowledge management (PKM) assistant inside a note-taking app called "Second Brain". The user is working on a note and wants your help thinking about it.
+const NOTE_SYSTEM_PROMPT = `You are a thoughtful personal knowledge management (PKM) assistant inside a note-taking app called "Braindot". The user is working on a note and wants your help thinking about it.
 
 Your style:
 - Concise but substantive. 2-4 short paragraphs max unless the user explicitly asks for depth.
@@ -69,7 +69,7 @@ Your style:
 - Never start with "Great question" or "Based on the note" — just answer.
 - When asked to rewrite, continue, or transform text, return ONLY the resulting text — no preamble, no commentary, no surrounding quotes.`;
 
-const VAULT_SYSTEM_PROMPT = `You are the knowledge assistant inside "Second Brain", a PKM app. You answer questions using excerpts from the user's own note vault, provided below.
+const VAULT_SYSTEM_PROMPT = `You are the knowledge assistant inside "Braindot", a PKM app. You answer questions using excerpts from the user's own note vault, provided below.
 
 Rules:
 - Ground your answer in the provided notes. When you draw on a note, cite it inline with its exact title in wiki-link syntax: [[Note Title]].
@@ -131,7 +131,7 @@ function mockStream(scope: string | undefined): ReadableStream<Uint8Array> {
     scope === 'study'
       ? `Let's start with the big picture. An **Azure certification** like AZ-900 covers cloud concepts, core services, security, and pricing.\n\nHere's a simple prep timeline:\n\n\`\`\`mermaid\ntimeline\n    title AZ-900 Prep Plan\n    Week 1 : Cloud concepts : IaaS vs PaaS vs SaaS\n    Week 2 : Core Azure services : Compute, Storage, Network\n    Week 3 : Security & identity : Practice exam\n\`\`\`\n\nBefore we go on — in your own words, what do you think is the difference between **IaaS** and **SaaS**? (This is a mock reply; set a real OPENAI_API_KEY for a live tutor.)`
       : scope === 'vault'
-      ? `This is a mock vault answer — the app is running without a real OpenAI key.\n\nRetrieval worked: the relevant notes from your vault were found and sent along with your question (for example [[Welcome to Second Brain]]). Once you set a real OPENAI_API_KEY in .env.local and restart the dev server, answers will be grounded in those notes.`
+      ? `This is a mock vault answer — the app is running without a real OpenAI key.\n\nRetrieval worked: the relevant notes from your vault were found and sent along with your question (for example [[Welcome to Braindot]]). Once you set a real OPENAI_API_KEY in .env.local and restart the dev server, answers will be grounded in those notes.`
       : `This is a mock response — the app is running without a real OpenAI key.\n\nStreaming, the chat UI, and note context are all working end to end. Set OPENAI_API_KEY in .env.local (replacing "mock") and restart the dev server to get real answers.`;
   const encoder = new TextEncoder();
   let i = 0;

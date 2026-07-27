@@ -4,10 +4,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { ConvexClientProvider } from "@/lib/convex";
 
 export const metadata: Metadata = {
-  title: "Second Brain — PKM",
+  title: "Braindot — PKM",
   description: "A command-palette-first personal knowledge management app. VSCode dark aesthetic, JetBrains Mono throughout.",
-  keywords: ["PKM", "Second Brain", "Zettelkasten", "Notes", "Markdown"],
-  authors: [{ name: "Second Brain" }],
+  keywords: ["PKM", "Braindot", "Zettelkasten", "Notes", "Markdown"],
+  authors: [{ name: "Braindot" }],
   icons: {
     icon: "/logo.svg",
   },

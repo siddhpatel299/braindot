@@ -26,17 +26,17 @@ export const TEMPLATE_FOLDERS: Folder[] = [
 export const TEMPLATE_NOTES: Note[] = [
   {
     id: 'tpl_welcome',
-    filename: 'welcome-to-second-brain.md',
-    title: 'Welcome to Second Brain',
+    filename: 'welcome-to-braindot.md',
+    title: 'Welcome to Braindot',
     subtitle: 'Your knowledge, connected.',
     tags: ['strategy', 'learning'],
-    body: `# Welcome to Second Brain
+    body: `# Welcome to Braindot
 
 This is your first note. It lives in your **Resources** folder under **PKM**.
 
 ## What is this app?
 
-Second Brain is a personal knowledge management (PKM) workspace. Think of it as a thinking environment — not a filing system. Your notes connect to each other, your reading flows into your vault, and AI helps you see patterns.
+Braindot is a personal knowledge management (PKM) workspace. Think of it as a thinking environment — not a filing system. Your notes connect to each other, your reading flows into your vault, and AI helps you see patterns.
 
 ## How to get started
 
@@ -57,7 +57,7 @@ Second Brain is a personal knowledge management (PKM) workspace. Think of it as 
 - **AI** — ask questions about your notes, get writing help
 
 > [!callout]
-> The best way to learn is to start writing. Create a note about something you learned today. Link it to this welcome note with [[welcome-to-second-brain]]. That's your first connection.
+> The best way to learn is to start writing. Create a note about something you learned today. Link it to this welcome note with [[welcome-to-braindot]]. That's your first connection.
 
 ## Tips
 
@@ -169,7 +169,7 @@ Write something you learned today. It doesn't have to be profound — just one i
 
 ## How does this connect to other things?
 
-Use [[wiki-links]] to connect this note to other notes. For example, link to [[welcome-to-second-brain]] or [[how-to-use-this-app]].
+Use [[wiki-links]] to connect this note to other notes. For example, link to [[welcome-to-braindot]] or [[how-to-use-this-app]].
 
 > [!callout]
 > The best notes answer one question: "What did I learn?" Write that, and the connections will follow.

@@ -1,4 +1,4 @@
-// Second Brain — Markdown parsing & rendering utilities
+// Braindot — Markdown parsing & rendering utilities
 // We render markdown into a styled HTML overlay that visually highlights
 // wiki-links, callouts, headings, bold, italic, bullets — while a transparent
 // textarea sits on top so the user edits the raw markdown directly.

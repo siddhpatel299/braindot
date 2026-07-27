@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Second Brain — Your knowledge, alive</title>
+<title>Braindot — Your knowledge, alive</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
@@ -26,8 +26,10 @@ body{font-family:var(--mono);background:var(--bg);color:var(--t1);line-height:1.
 /* NAV */
 nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 48px;gap:24px;z-index:100}
 .nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
-.nav-logo-mark{width:26px;height:26px;background:var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
-.nav-logo-name{font-size:13px;font-weight:700;color:var(--t1)}
+.nav-logo-name{font-size:16px;font-weight:700;color:var(--t1);letter-spacing:-0.02em;display:inline-flex;align-items:baseline}
+.nav-caret{display:inline-block;width:.52em;height:.94em;background:var(--acc);vertical-align:-.11em;margin-left:.12em;border-radius:1px}
+@media (prefers-reduced-motion:no-preference){.nav-caret{animation:nav-blink 1.15s steps(1,end) infinite}}
+@keyframes nav-blink{0%,55%{opacity:1}56%,100%{opacity:.16}}
 .nav-links{display:flex;gap:24px;margin-left:auto}
 .nav-links a{font-size:12px;color:var(--t2);text-decoration:none}
 .nav-links a:hover{color:var(--t1)}
@@ -221,8 +223,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 
 <nav>
   <a class="nav-logo" href="/landing">
-    <div class="nav-logo-mark"><i class="ti ti-brain" aria-hidden="true"></i></div>
-    <span class="nav-logo-name">Second Brain</span>
+    <span class="nav-logo-name">braindot<span class="nav-caret"></span></span>
   </a>
   <div class="nav-links">
     <a href="#features">features</a>
@@ -242,7 +243,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
   <div class="hero-eyebrow"><span class="eyebrow-pulse"></span>now in private beta</div>
   <h1 class="hero-h1"><span class="dim">your knowledge,</span></h1>
   <div class="hero-typewriter"><span id="tw"></span><span class="tw-cursor"></span></div>
-  <p class="hero-sub">Second Brain is a PKM workspace where notes, reading, tasks, and ideas <em>connect</em> — and stay alive. Not a filing system. A thinking environment.</p>
+  <p class="hero-sub">Braindot is a PKM workspace where notes, reading, tasks, and ideas <em>connect</em> — and stay alive. Not a filing system. A thinking environment.</p>
   <div class="hero-actions">
     <a class="btn-acc" href="/demo"><i class="ti ti-player-play" aria-hidden="true"></i> try demo — no signup</a>
     <a class="btn-ghost" href="/auth?mode=signup">sign up free</a>
@@ -468,7 +469,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
       <div class="rv-reader">
         <div class="rv-ch">chapter 7 — express</div>
         <div class="rv-htitle">Show your work</div>
-        <div class="rv-p">The goal of a Second Brain is not to hoard. It is to <span class="hly">use it. Express it. Make things with it</span>. Every note is only as valuable as what you do with it.</div>
+        <div class="rv-p">The goal of a second brain is not to hoard. It is to <span class="hly">use it. Express it. Make things with it</span>. Every note is only as valuable as what you do with it.</div>
         <div class="rv-p">Forte calls this the <span class="hlp">intermediate packet: a small, reusable unit of work complete enough to use</span> — a paragraph, a diagram, a short essay that can be recombined endlessly.</div>
         <div class="rv-toolbar">
           <span class="rv-tbtn"><i class="ti ti-highlight" aria-hidden="true"></i> highlight</span>
@@ -549,7 +550,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
   <h2 class="sec-h2">from people who think for a living</h2>
   <div class="testi-grid">
     <div class="testi">
-      <div class="tq">"I've tried Obsidian, Notion, Roam. Second Brain is the first one where my notes feel <em>alive</em>. The graph view alone changed how I approach writing."</div>
+      <div class="tq">"I've tried Obsidian, Notion, Roam. Braindot is the first one where my notes feel <em>alive</em>. The graph view alone changed how I approach writing."</div>
       <div class="ta">
         <div class="tav" style="background:#534AB7">MK</div>
         <div><div class="tn">Maya K.</div><div class="tr">researcher, Stanford</div></div>
@@ -590,7 +591,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 <footer>
   <a class="fl" href="/landing">
     <div class="fl-mark"><i class="ti ti-brain" aria-hidden="true"></i></div>
-    <span class="fl-name">Second Brain</span>
+    <span class="fl-name">Braindot</span>
   </a>
   <div class="flinks">
     <a href="/landing#features">features</a>
@@ -598,7 +599,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
     <a href="/auth">sign in</a>
     <a href="/auth?mode=signup">sign up</a>
   </div>
-  <span class="fcopy">© 2026 Second Brain. all rights reserved.</span>
+  <span class="fcopy">© 2026 Braindot. all rights reserved.</span>
 </footer>
 
 <script>

@@ -8,13 +8,13 @@ import {
   Sparkles,
   Tags,
   Search,
-  Brain,
   LayoutDashboard,
   KanbanSquare,
   PenTool,
   BookOpen,
   GraduationCap,
 } from 'lucide-react';
+import { LogoMark } from './Logo';
 
 export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'journal' | 'ai' | 'study' | 'tags' | 'search' | 'kanban' | 'canvas' | 'reading';
 
@@ -84,35 +84,32 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
         gap: 6,
       }}
     >
-      {/* Logo — clickable to go to dashboard */}
+      {/* Logo — the Braindot caret, clickable to go to dashboard */}
       <button
         onClick={() => onSelect('dashboard')}
-        title="Dashboard"
-        aria-label="Dashboard"
+        title="Braindot — dashboard"
+        aria-label="Braindot — dashboard"
         style={{
           width: 32,
           height: 32,
           borderRadius: 7,
-          background: 'var(--acc)',
+          background: 'var(--acc-bg)',
+          border: '1px solid var(--acc-bd)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: 8,
-          boxShadow: '0 0 0 1px rgba(124,110,247,0.4), 0 0 16px rgba(124,110,247,0.18)',
           cursor: 'pointer',
-          border: 'none',
-          transition: 'transform 0.15s, box-shadow 0.15s',
+          transition: 'transform 0.15s, background 0.15s',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-          e.currentTarget.style.boxShadow = '0 0 0 1px rgba(124,110,247,0.6), 0 0 20px rgba(124,110,247,0.3)';
+          e.currentTarget.style.transform = 'scale(1.06)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = '0 0 0 1px rgba(124,110,247,0.4), 0 0 16px rgba(124,110,247,0.18)';
         }}
       >
-        <Brain size={18} color="#0c0c0e" strokeWidth={2.25} />
+        <LogoMark size={20} />
       </button>
 
       <RailButton icon={LayoutDashboard} label="Dashboard" active={active === 'dashboard'} onClick={() => onSelect('dashboard')} />

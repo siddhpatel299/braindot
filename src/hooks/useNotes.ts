@@ -103,16 +103,16 @@ function newUserState(): PersistedState {
   const now = new Date().toISOString();
   const templateNotes: Note[] = [
     {
-      id: 'tpl_welcome', filename: 'welcome-to-second-brain.md',
-      title: 'Welcome to Second Brain', subtitle: 'Your knowledge, connected.',
+      id: 'tpl_welcome', filename: 'welcome-to-braindot.md',
+      title: 'Welcome to Braindot', subtitle: 'Your knowledge, connected.',
       tags: ['strategy', 'learning'],
-      body: `# Welcome to Second Brain
+      body: `# Welcome to Braindot
 
 This is your first note. It lives in your **Resources** folder under **PKM**.
 
 ## What is this app?
 
-Second Brain is a PKM workspace where notes connect to each other, your reading flows into your vault, and AI helps you see patterns.
+Braindot is a PKM workspace where notes connect to each other, your reading flows into your vault, and AI helps you see patterns.
 
 ## How to get started
 
@@ -147,7 +147,7 @@ Write something you learned today. It doesn't have to be profound — just one i
 
 ## How does this connect?
 
-Use [[wiki-links]] to connect this note to other notes. For example, link to [[welcome-to-second-brain]].`,
+Use [[wiki-links]] to connect this note to other notes. For example, link to [[welcome-to-braindot]].`,
       backlinks: [], createdAt: now, updatedAt: now, wordCount: 0,
       status: 'draft', folderId: SEED_FOLDER_IDS.resourcesPkm, pinned: false,
     },
