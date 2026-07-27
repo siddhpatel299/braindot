@@ -1,23 +1,14 @@
-fix: hero shows the real product, and diagrams match the app's palette
+fix: tighten hero spacing, widen the demo, drop the orphan feature card
 
-The landing was promising something the demo did not deliver, and it led with
-the wrong thing.
+Three regressions/rough edges from the last pass:
 
-Positioning: notes are the product; study mode is a feature for students. The
-hero led with the tutor, which narrowed the whole pitch. Now the headline and
-demo are about the note loop, and study mode has a proper feature card (it had
-none) alongside the other nine.
-
-Hero demo now shows what the app actually does: type a note, type [[ to open
-the note picker, the link completes and a backlink appears on the other note.
-That is the real core loop rather than an idealised mockup.
-
-Also fixed:
-- the old static app preview still said "second-brain" — stale branding on a
-  live page, missed because the rename was case-sensitive. Removed the whole
-  mockup: it was redundant next to the live demo and showed a UI that no
-  longer matches the app.
-- a chart label was clipping outside its viewBox.
-- Mermaid diagrams rendered with a clashing red/maroon rainbow because the
-  cScale palette was never overridden, so the app looked worse than the
-  landing claimed. Whole ramp is now brand purple in both themes.
+- The demo sat 112px below the CTAs and fell entirely below the fold, so the
+  hero ate a whole screen to say very little. Gap is now 40px and the demo is
+  visible without scrolling, which is where the old app preview used to sit.
+- The demo was a lone 600px card and read as a widget rather than the product.
+  Widened to 860px and given a file-tree rail, so it looks like the app — and
+  the backlink now visibly lands on "Zettelkasten method" in that tree, which
+  makes the two-way link legible instead of just asserted.
+- The features grid had 10 cards in 3 columns, leaving one stranded next to
+  two empty cells. Removed "Embedded mind maps" as the most redundant of the
+  set (canvas and the graph already cover visual thinking), leaving a clean 3x3.

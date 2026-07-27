@@ -56,7 +56,7 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 .hero-sub{font-size:15px;color:var(--t2);max-width:540px;line-height:1.85;margin-bottom:40px}
 .hero-sub em{color:var(--t1);font-style:normal}
-.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:68px}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:40px}
 .btn-acc{font-family:var(--mono);font-size:13px;padding:11px 22px;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
 .btn-acc:hover{background:var(--acc2);color:#111}
 .btn-ghost{font-family:var(--mono);font-size:13px;padding:11px 22px;background:transparent;color:var(--t2);border:1px solid var(--bd2);border-radius:4px;cursor:pointer}
@@ -66,13 +66,24 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 .hero-preview{width:100%;max-width:880px;background:var(--bg1);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;box-shadow:0 48px 96px rgba(0,0,0,.7),0 0 0 1px var(--bd)}
 
 /* ===== Hero demo: the core note loop (write → [[link]] → backlink) ===== */
-.nd-demo{width:100%;max-width:600px;margin:44px auto 8px;text-align:left;background:var(--bg1);border:1px solid var(--bd2);border-radius:12px;overflow:hidden;box-shadow:0 32px 70px -28px rgba(0,0,0,.85)}
+.nd-demo{width:100%;max-width:860px;margin:0 auto 8px;text-align:left;background:var(--bg1);border:1px solid var(--bd2);border-radius:12px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px var(--bd)}
 .nd-head{display:flex;align-items:center;gap:7px;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--bd)}
 .nd-dot{width:9px;height:9px;border-radius:50%}
 .nd-file{font-size:11.5px;color:var(--t2);margin-left:7px}
 .nd-saved{margin-left:auto;font-size:10.5px;color:var(--grn);opacity:0;transition:opacity .3s}
 .nd-saved.on{opacity:1}
-.nd-body{position:relative;padding:18px 18px 22px;min-height:186px}
+/* the demo reads as the app, not a lone card: slim tree rail beside the note */
+.nd-split{display:flex;min-height:210px}
+.nd-tree{width:186px;flex-shrink:0;border-right:1px solid var(--bd);background:var(--bg1);padding:12px 0}
+.nd-sec{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);padding:0 14px;margin:10px 0 5px}
+.nd-sec:first-child{margin-top:0}
+.nd-item{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--t2);padding:5px 14px}
+.nd-item i{font-size:12px;opacity:.6}
+.nd-item.act{background:var(--acc-bg);color:var(--acc2);box-shadow:inset 2px 0 0 var(--acc)}
+.nd-item .bl{margin-left:auto;font-size:9px;color:var(--t3);background:var(--bg3);border-radius:3px;padding:0 5px;opacity:0;transition:opacity .35s}
+.nd-item .bl.on{opacity:1;color:var(--grn)}
+.nd-body{position:relative;flex:1;min-width:0;padding:18px 18px 22px}
+@media (max-width:700px){ .nd-tree{display:none} }
 .nd-text{margin:0;font-family:inherit;font-size:13px;line-height:1.85;color:var(--t2);white-space:pre-wrap;word-break:break-word}
 .nd-text .h{color:var(--t1);font-weight:700}
 .nd-text .lk{color:var(--acc2);text-decoration:underline;text-underline-offset:2px}
@@ -298,13 +309,25 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
       <span class="nd-file">spaced-repetition.md</span>
       <span class="nd-saved" id="ndSaved">saved</span>
     </div>
-    <div class="nd-body">
-      <pre class="nd-text"><span id="ndText"></span><span class="nd-caret"></span></pre>
-      <div class="nd-ac" id="ndAc">
-        <div class="nd-ac-h">link to note</div>
-        <div class="nd-ac-i on">Zettelkasten method<span>evergreen</span></div>
-        <div class="nd-ac-i">Zeigarnik effect<span>draft</span></div>
-        <div class="nd-ac-k">↑↓ navigate · ↵ link</div>
+    <div class="nd-split">
+      <div class="nd-tree">
+        <div class="nd-sec">pinned</div>
+        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>Zettelkasten method<span class="bl" id="ndBlCount">+1</span></div>
+        <div class="nd-sec">resources</div>
+        <div class="nd-item act"><i class="ti ti-file-text" aria-hidden="true"></i>Spaced repetition</div>
+        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>Zeigarnik effect</div>
+        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>PARA method</div>
+        <div class="nd-sec">areas</div>
+        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>Decision fatigue</div>
+      </div>
+      <div class="nd-body">
+        <pre class="nd-text"><span id="ndText"></span><span class="nd-caret"></span></pre>
+        <div class="nd-ac" id="ndAc">
+          <div class="nd-ac-h">link to note</div>
+          <div class="nd-ac-i on">Zettelkasten method<span>evergreen</span></div>
+          <div class="nd-ac-i">Zeigarnik effect<span>draft</span></div>
+          <div class="nd-ac-k">↑↓ navigate · ↵ link</div>
+        </div>
       </div>
     </div>
     <div class="nd-foot">
@@ -362,11 +385,6 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
       <div class="ficon" style="background:var(--blu-bg);border-color:#0f3a50"><i class="ti ti-layout-kanban" style="color:var(--blu)" aria-hidden="true"></i></div>
       <div class="ftitle">Kanban + Todos</div>
       <div class="fdesc">Tasks and todos in one smart split view. Every kanban card can link back to a note — so your work always connects to your thinking.</div>
-    </div>
-    <div class="feat-card">
-      <div class="ficon"><i class="ti ti-sitemap" aria-hidden="true"></i></div>
-      <div class="ftitle">Embedded mind maps</div>
-      <div class="fdesc">Type /mindmap in any note to embed a visual map right there in the document. Not a separate page — it belongs to the note it's about.</div>
     </div>
     <div class="feat-card">
       <div class="ficon" style="background:var(--grn-bg);border-color:#1a4a2a"><i class="ti ti-sparkles" style="color:var(--grn)" aria-hidden="true"></i></div>
@@ -595,6 +613,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
   const ac = document.getElementById('ndAc');
   const bl = document.getElementById('ndBl');
   const saved = document.getElementById('ndSaved');
+  const blCount = document.getElementById('ndBlCount');
   if (!out || !ac || !bl || !saved) return;
 
   const HEAD = '# Spaced repetition\n\n';
@@ -609,6 +628,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
     out.innerHTML = render(BODY, LINK);
     bl.classList.add('on');
     saved.classList.add('on');
+    blCount?.classList.add('on');
     return;
   }
 
@@ -634,6 +654,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
       ac.classList.remove('on');
       bl.classList.remove('on');
       saved.classList.remove('on');
+      blCount?.classList.remove('on');
       await wait(900);
 
       await typeBody(BODY, 32);
@@ -650,6 +671,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
       await wait(420);
 
       bl.classList.add('on');
+      blCount?.classList.add('on');
       await wait(500);
       saved.classList.add('on');
       await wait(4800);
