@@ -8,6 +8,8 @@ Not a filing cabinet. A thinking environment.
 
 [**Live demo →**](https://braindot.vercel.app/demo) &nbsp;·&nbsp; no signup required
 
+<img src="docs/screenshots/editor.png" alt="The Braindot editor: file tree, a note open in markdown, and the AI context panel" width="880">
+
 </div>
 
 ---
@@ -52,6 +54,13 @@ the background, so writing never waits on a network round trip.
 - Light and dark themes
 - Knowledge graph with a force-directed layout
 - Command palette (`⌘K`)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/graph.png" alt="Knowledge graph view" width="100%"><br><sub><b>Knowledge graph</b> — nodes sized by how connected they are</sub></td>
+<td width="50%"><img src="docs/screenshots/study-mode.png" alt="Study mode with a generated diagram" width="100%"><br><sub><b>Study mode</b> — a tutor that draws, and saves into your notes</sub></td>
+</tr>
+</table>
 
 ## Stack
 
@@ -107,6 +116,22 @@ npx convex env set SITE_URL https://your-app-url
 Full deployment walkthrough: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## How the sync works
+
+```mermaid
+flowchart LR
+    K([keystroke]) --> S["React state<br/>+ localStorage"]
+    S --> UI[["editor renders<br/>instantly"]]
+    S -. "debounced diff<br/>(upserts + deletes)" .-> P[/"push"/]
+    P --> C[("Convex<br/>per-user rows")]
+    C == "live subscription" ==> M{"local copy<br/>clean?"}
+    M -- yes --> S
+    M -- "no, you're editing" --> W["local wins<br/>until push lands"]
+
+    style S fill:#221f3d,stroke:#7c6ef7,color:#f0f0f2
+    style C fill:#2b2750,stroke:#7c6ef7,color:#f0f0f2
+    style UI fill:#0a1f16,stroke:#34d399,color:#e6e4f5
+    style W fill:#1c1608,stroke:#fbbf24,color:#e6e4f5
+```
 
 The interesting architectural decision is that the client is the source of truth while you are
 typing.
