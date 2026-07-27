@@ -65,46 +65,6 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 /* PREVIEW */
 .hero-preview{width:100%;max-width:880px;background:var(--bg1);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;box-shadow:0 48px 96px rgba(0,0,0,.7),0 0 0 1px var(--bd)}
 
-/* ===== Hero demo: the core note loop (write → [[link]] → backlink) ===== */
-.nd-demo{width:100%;max-width:860px;margin:0 auto 8px;text-align:left;background:var(--bg1);border:1px solid var(--bd2);border-radius:12px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px var(--bd)}
-.nd-head{display:flex;align-items:center;gap:7px;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--bd)}
-.nd-dot{width:9px;height:9px;border-radius:50%}
-.nd-file{font-size:11.5px;color:var(--t2);margin-left:7px}
-.nd-saved{margin-left:auto;font-size:10.5px;color:var(--grn);opacity:0;transition:opacity .3s}
-.nd-saved.on{opacity:1}
-/* the demo reads as the app, not a lone card: slim tree rail beside the note */
-.nd-split{display:flex;min-height:210px}
-.nd-tree{width:186px;flex-shrink:0;border-right:1px solid var(--bd);background:var(--bg1);padding:12px 0}
-.nd-sec{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);padding:0 14px;margin:10px 0 5px}
-.nd-sec:first-child{margin-top:0}
-.nd-item{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--t2);padding:5px 14px}
-.nd-item i{font-size:12px;opacity:.6}
-.nd-item.act{background:var(--acc-bg);color:var(--acc2);box-shadow:inset 2px 0 0 var(--acc)}
-.nd-item .bl{margin-left:auto;font-size:9px;color:var(--t3);background:var(--bg3);border-radius:3px;padding:0 5px;opacity:0;transition:opacity .35s}
-.nd-item .bl.on{opacity:1;color:var(--grn)}
-.nd-body{position:relative;flex:1;min-width:0;padding:18px 18px 22px}
-@media (max-width:700px){ .nd-tree{display:none} }
-.nd-text{margin:0;font-family:inherit;font-size:13px;line-height:1.85;color:var(--t2);white-space:pre-wrap;word-break:break-word}
-.nd-text .h{color:var(--t1);font-weight:700}
-.nd-text .lk{color:var(--acc2);text-decoration:underline;text-underline-offset:2px}
-.nd-caret{display:inline-block;width:.5em;height:.95em;background:var(--acc2);vertical-align:-.13em;margin-left:.05em;border-radius:1px;animation:blink .85s step-end infinite}
-.nd-ac{position:absolute;left:18px;bottom:16px;width:250px;background:var(--bg2);border:1px solid var(--bd2);border-radius:8px;box-shadow:0 14px 34px rgba(0,0,0,.55);padding:5px;opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}
-.nd-ac.on{opacity:1;transform:none}
-.nd-ac-h{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);padding:5px 8px 6px}
-.nd-ac-i{display:flex;align-items:baseline;gap:8px;padding:7px 8px;border-radius:5px;font-size:12px;color:var(--t2);border:1px solid transparent}
-.nd-ac-i span{margin-left:auto;font-size:9.5px;color:var(--t3)}
-.nd-ac-i.on{background:var(--acc-bg);border-color:#3d378a;color:var(--t1)}
-.nd-ac-k{font-size:9px;color:var(--t3);padding:6px 8px 3px;opacity:.75}
-.nd-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--bd);background:var(--bg2);font-size:11px;color:var(--t3)}
-.nd-bl{display:inline-flex;align-items:center;gap:6px;color:var(--grn);opacity:0;transform:translateY(3px);transition:opacity .35s ease,transform .35s ease}
-.nd-bl.on{opacity:1;transform:none}
-.nd-bl b{color:var(--t1);font-weight:700}
-.nd-hint{margin-left:auto}
-@media (prefers-reduced-motion:reduce){
-  .nd-caret{animation:none}
-  .nd-bl,.nd-saved{opacity:1;transform:none}
-}
-@media (max-width:560px){ .nd-hint{display:none} .nd-ac{width:auto;right:18px} }
 .ptitlebar{height:36px;background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:6px}
 .ptb-dot{width:10px;height:10px;border-radius:50%}
 .ptb-title{font-size:11px;color:var(--t3);margin:0 auto}
@@ -300,39 +260,83 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
     <a class="btn-ghost" href="/auth?mode=signup">sign up free</a>
   </div>
 
-  <!-- The core loop: write, link with [[, backlinks form themselves -->
-  <div class="nd-demo" id="ndDemo">
-    <div class="nd-head">
-      <span class="nd-dot" style="background:#f87171"></span>
-      <span class="nd-dot" style="background:#fbbf24"></span>
-      <span class="nd-dot" style="background:#34d399"></span>
-      <span class="nd-file">spaced-repetition.md</span>
-      <span class="nd-saved" id="ndSaved">saved</span>
+  <div class="hero-preview">
+    <div class="ptitlebar">
+      <div class="ptb-dot" style="background:#f87171"></div>
+      <div class="ptb-dot" style="background:#fbbf24"></div>
+      <div class="ptb-dot" style="background:#34d399"></div>
+      <span class="ptb-title">braindot — zettelkasten-method.md</span>
     </div>
-    <div class="nd-split">
-      <div class="nd-tree">
-        <div class="nd-sec">pinned</div>
-        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>Zettelkasten method<span class="bl" id="ndBlCount">+1</span></div>
-        <div class="nd-sec">resources</div>
-        <div class="nd-item act"><i class="ti ti-file-text" aria-hidden="true"></i>Spaced repetition</div>
-        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>Zeigarnik effect</div>
-        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>PARA method</div>
-        <div class="nd-sec">areas</div>
-        <div class="nd-item"><i class="ti ti-file-text" aria-hidden="true"></i>Decision fatigue</div>
+    <div class="pbody">
+      <div class="prail">
+        <div class="pri active"><i class="ti ti-notes" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-network" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-books" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-layout-board" aria-hidden="true"></i></div>
+        <div class="pri"><i class="ti ti-layout-kanban" aria-hidden="true"></i></div>
+        <div class="pri" style="margin-top:auto"><i class="ti ti-settings" aria-hidden="true"></i></div>
       </div>
-      <div class="nd-body">
-        <pre class="nd-text"><span id="ndText"></span><span class="nd-caret"></span></pre>
-        <div class="nd-ac" id="ndAc">
-          <div class="nd-ac-h">link to note</div>
-          <div class="nd-ac-i on">Zettelkasten method<span>evergreen</span></div>
-          <div class="nd-ac-i">Zeigarnik effect<span>draft</span></div>
-          <div class="nd-ac-k">↑↓ navigate · ↵ link</div>
+      <div class="pfiletree">
+        <div class="pft-sec">pinned</div>
+        <div class="pft-item active"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Zettelkasten method <span class="pft-badge">12</span></div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> PARA method <span class="pft-badge">7</span></div>
+        <div class="pft-sec">strategy</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Decision fatigue</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Mental models</div>
+        <div class="pft-sec">learning</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Spaced repetition</div>
+        <div class="pft-item"><i class="ti ti-file-text" style="font-size:11px" aria-hidden="true"></i> Feynman technique</div>
+      </div>
+      <div class="peditor">
+        <div class="petabs">
+          <div class="petab active"><span class="unsaved"></span>zettelkasten-method.md</div>
+          <div class="petab">para-method.md</div>
+        </div>
+        <div class="pecontent">
+          <div class="pnmeta">
+            <span class="ptag">#strategy</span>
+            <span class="ptag" style="color:var(--grn);background:var(--grn-bg);border-color:#1a4a2a">#learning</span>
+            <span>Jun 30, 2026</span>
+            <span style="color:var(--grn)">● evergreen</span>
+          </div>
+          <div class="ptitle">Atomic notes and the Zettelkasten method</div>
+          <div class="psub">one idea per note · link everything · write for your future self</div>
+          <div class="ph2">the core idea</div>
+          <div class="pp">Each note should express <em>one single idea</em> completely. The power of Zettelkasten is not in individual notes but in the connections between them.</div>
+          <div class="pcallout"><p>A note that links to 10 others is worth more than 10 isolated notes. The value is in the network, not the nodes.</p></div>
+          <div class="ph2">writing principles</div>
+          <div class="pp">Write in your own words. Ask: what does this connect to? Write for your future self — assume zero context tomorrow.</div>
+        </div>
+        <div class="pstatus">
+          <span class="psi"><i class="ti ti-check" aria-hidden="true"></i> autosaved</span>
+          <span class="psi"><i class="ti ti-link" aria-hidden="true"></i> 12 links</span>
+          <span class="psi"><i class="ti ti-file-text" aria-hidden="true"></i> 340 words</span>
+          <span class="psi" style="margin-left:auto;color:var(--acc2)"><i class="ti ti-sparkles" aria-hidden="true"></i> AI active</span>
         </div>
       </div>
-    </div>
-    <div class="nd-foot">
-      <span class="nd-bl" id="ndBl"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> backlink added to <b>Zettelkasten method</b></span>
-      <span class="nd-hint">links both ways, automatically</span>
+      <div class="pctx">
+        <div class="pctabs">
+          <div class="pctab active">AI</div>
+          <div class="pctab">Graph</div>
+        </div>
+        <div class="pcbody">
+          <div class="pcard">
+            <div class="pctype">missing link</div>
+            <div class="pctext"><em>bounded rationality</em> from March isn't linked — strong overlap.</div>
+            <div class="pcaction">link now ↗</div>
+          </div>
+          <div class="pcard">
+            <div class="pctype">synthesis ready</div>
+            <div class="pctext"><em>6 notes</em> on methods are dense enough to merge.</div>
+            <div class="pcaction">synthesize ↗</div>
+          </div>
+          <div class="pcard">
+            <div class="pctype">review due</div>
+            <div class="pctext">Last reviewed <em>14 days</em> ago.</div>
+            <div class="pcaction">review now ↗</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -604,81 +608,5 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
   <span class="fcopy">© 2026 Braindot. all rights reserved.</span>
 </footer>
 
-<script>
-/* Hero demo: the core loop of the app — write a note, type [[ to link it,
-   and a backlink appears on the other note. Loops. Reduced-motion users get
-   the finished state with no animation. */
-(function () {
-  const out = document.getElementById('ndText');
-  const ac = document.getElementById('ndAc');
-  const bl = document.getElementById('ndBl');
-  const saved = document.getElementById('ndSaved');
-  const blCount = document.getElementById('ndBlCount');
-  if (!out || !ac || !bl || !saved) return;
-
-  const HEAD = '# Spaced repetition\n\n';
-  const BODY = 'Review just before you would forget.\nEach gap longer than the last.\n\nConnects to ';
-  const LINK = '[[Zettelkasten method]]';
-  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const render = (body, link) =>
-    '<span class="h">' + esc(HEAD.trim()) + '</span>\n\n' + esc(body) +
-    (link ? '<span class="lk">' + esc(link) + '</span>' : '');
-
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    out.innerHTML = render(BODY, LINK);
-    bl.classList.add('on');
-    saved.classList.add('on');
-    blCount?.classList.add('on');
-    return;
-  }
-
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const typeBody = (text, speed) => new Promise((done) => {
-    let i = 0;
-    const t = setInterval(() => {
-      out.innerHTML = render(text.slice(0, ++i), '');
-      if (i >= text.length) { clearInterval(t); done(); }
-    }, speed);
-  });
-  const typeLink = (text, speed) => new Promise((done) => {
-    let i = 0;
-    const t = setInterval(() => {
-      out.innerHTML = render(BODY, text.slice(0, ++i));
-      if (i >= text.length) { clearInterval(t); done(); }
-    }, speed);
-  });
-
-  async function run() {
-    for (;;) {
-      out.innerHTML = render('', '');
-      ac.classList.remove('on');
-      bl.classList.remove('on');
-      saved.classList.remove('on');
-      blCount?.classList.remove('on');
-      await wait(900);
-
-      await typeBody(BODY, 32);
-      await wait(280);
-
-      // typing "[[" opens the note picker
-      await typeLink('[[', 90);
-      ac.classList.add('on');
-      await wait(1500);
-
-      // pick the note — the link completes itself
-      ac.classList.remove('on');
-      await typeLink(LINK, 26);
-      await wait(420);
-
-      bl.classList.add('on');
-      blCount?.classList.add('on');
-      await wait(500);
-      saved.classList.add('on');
-      await wait(4800);
-    }
-  }
-  run();
-})();
-</script>
 </body>
 </html>
