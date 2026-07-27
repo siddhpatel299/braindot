@@ -1,13 +1,10 @@
-revert: bring back the full app preview in the hero
+revert: restore the original short hero headline and typewriter
 
-Removing it was an overcorrection. The only real problem with the original
-was the stale "second-brain" title bar, which is a one-line fix — not a
-reason to throw away a mockup that shows the whole product (file tree,
-tabbed editor, note metadata, and the AI suggestion panel) in one glance.
+The replacement headline ran two full-width lines at 70px and dominated the
+screen. Back to the original: a short "your knowledge," over a single rotating
+word, which is why it was set that way — the line stays one word wide however
+large the type gets.
 
-The simpler animated note demo that replaced it showed less and read as a
-widget rather than an application.
-
-- restored at its original 880px, title bar now reads "braindot"
-- sits 40px under the CTAs, visible without scrolling
-- removed the now-dead demo markup, CSS and script
+- restored the eyebrow, the two-part headline and the shorter sub
+- typewriter script back, now guarded for prefers-reduced-motion (it wasn't
+  before) so it renders one static word instead of looping

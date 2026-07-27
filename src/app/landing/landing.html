@@ -251,10 +251,11 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 <div class="hero">
   <div class="hero-grid"></div>
   <div class="hero-glow"></div>
-  <h1 class="hero-h1">Notes that connect themselves.<br><span class="dim">So March you can talk to June you.</span></h1>
-  <p class="hero-sub">A markdown workspace where linking is the point. Type <em>[[</em> to connect
-    any two ideas, watch backlinks and the graph build themselves, and ask an AI that has read
-    your whole vault when you want to find the thread again.</p>
+  <div class="hero-eyebrow"><span class="eyebrow-pulse"></span>now in private beta</div>
+  <h1 class="hero-h1"><span class="dim">your knowledge,</span></h1>
+  <div class="hero-typewriter"><span id="tw"></span><span class="tw-cursor"></span></div>
+  <p class="hero-sub">Braindot is a PKM workspace where notes, reading, tasks, and ideas
+    <em>connect</em> — and stay alive. Not a filing system. A thinking environment.</p>
   <div class="hero-actions">
     <a class="btn-acc" href="/demo"><i class="ti ti-player-play" aria-hidden="true"></i> try demo — no signup</a>
     <a class="btn-ghost" href="/auth?mode=signup">sign up free</a>
@@ -608,5 +609,32 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
   <span class="fcopy">© 2026 Braindot. all rights reserved.</span>
 </footer>
 
+<script>
+/* Hero typewriter — cycles the second line of the headline. */
+(function () {
+  const el = document.getElementById('tw');
+  if (!el) return;
+  const phrases = ['alive.', 'connected.', 'yours.', 'growing.', 'thinking.'];
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = phrases[0];
+    return;
+  }
+
+  let pi = 0, ci = 0, del = false;
+  function tick() {
+    const w = phrases[pi];
+    if (!del) {
+      el.textContent = w.slice(0, ++ci);
+      if (ci === w.length) { setTimeout(() => { del = true; tick(); }, 1900); return; }
+    } else {
+      el.textContent = w.slice(0, --ci);
+      if (ci === 0) { del = false; pi = (pi + 1) % phrases.length; }
+    }
+    setTimeout(tick, del ? 55 : 88);
+  }
+  tick();
+})();
+</script>
 </body>
 </html>
