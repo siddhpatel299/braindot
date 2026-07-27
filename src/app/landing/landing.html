@@ -164,6 +164,7 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 
 /* STATS */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.stats-caption{font-size:11px;color:var(--t3);letter-spacing:.04em;margin-bottom:12px;text-align:center;font-style:italic}
 .stat{background:var(--bg1);padding:30px 24px;text-align:center}
 .stat-n{font-size:38px;font-weight:700;color:var(--t1);letter-spacing:-.03em;margin-bottom:5px}
 .stat-n .a{color:var(--acc2)}
@@ -171,6 +172,12 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88
 
 /* TESTIMONIALS */
 .testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:48px}
+.builder-note{margin-top:40px;max-width:64ch;background:var(--bg1);border:1px solid var(--bd);border-left:3px solid var(--acc);border-radius:0 10px 10px 0;padding:28px 30px}
+.builder-note p{font-size:14.5px;line-height:1.75;color:var(--t2);margin:0 0 14px}
+.builder-note p:last-of-type{margin-bottom:0}
+.builder-sig{display:flex;align-items:baseline;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--bd)}
+.builder-name{font-size:13px;font-weight:700;color:var(--t1)}
+.builder-role{font-size:11.5px;color:var(--t3)}
 .testi{background:var(--bg1);border:1px solid var(--bd);border-radius:8px;padding:22px}
 .tq{font-size:12px;color:var(--t2);line-height:1.85;margin-bottom:14px;font-style:italic}
 .tq em{color:var(--t1);font-style:normal}
@@ -332,8 +339,9 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 
 <div class="divider"></div>
 
-<!-- STATS -->
+<!-- STATS — illustrative, clearly labelled as an example vault -->
 <div style="padding:0 48px;max-width:1100px;margin:72px auto">
+  <div class="stats-caption">for example — a vault after a few months of steady use</div>
   <div class="stats-row">
     <div class="stat"><div class="stat-n"><span class="a">247</span></div><div class="stat-l">notes in your vault</div></div>
     <div class="stat"><div class="stat-n"><span class="a">1,084</span></div><div class="stat-l">connections between ideas</div></div>
@@ -544,31 +552,23 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 
 <div class="divider"></div>
 
-<!-- TESTIMONIALS -->
+<!-- WHY I BUILT IT -->
 <div class="sec-wrap">
-  <div class="eyebrow">early users</div>
-  <h2 class="sec-h2">from people who think for a living</h2>
-  <div class="testi-grid">
-    <div class="testi">
-      <div class="tq">"I've tried Obsidian, Notion, Roam. Braindot is the first one where my notes feel <em>alive</em>. The graph view alone changed how I approach writing."</div>
-      <div class="ta">
-        <div class="tav" style="background:#534AB7">MK</div>
-        <div><div class="tn">Maya K.</div><div class="tr">researcher, Stanford</div></div>
-      </div>
-    </div>
-    <div class="testi">
-      <div class="tq">"The reading section is the feature I didn't know I needed. Highlight → note → link. That loop is <em>faster than anything</em> I've built with third-party tools."</div>
-      <div class="ta">
-        <div class="tav" style="background:#0F6E56">TR</div>
-        <div><div class="tn">Tom R.</div><div class="tr">indie hacker &amp; writer</div></div>
-      </div>
-    </div>
-    <div class="testi">
-      <div class="tq">"The monospace aesthetic sounds like a gimmick until you use it. It makes the app feel like a <em>serious tool</em>, not a consumer app pretending to be one."</div>
-      <div class="ta">
-        <div class="tav" style="background:#BA7517">SP</div>
-        <div><div class="tn">Sara P.</div><div class="tr">product designer</div></div>
-      </div>
+  <div class="eyebrow">why this exists</div>
+  <h2 class="sec-h2">a note is worth more for what it connects to</h2>
+  <div class="builder-note">
+    <p>I kept starting note systems and abandoning them. The notes were fine. The problem was
+      that nothing ever came back to me — I would write something good, file it in a folder,
+      and never see it again.</p>
+    <p>So braindot is built around connection rather than storage. Notes link to each other,
+      backlinks appear on their own, and the graph shows you the shape of what you have been
+      thinking about. The AI can read across the whole vault, not one note at a time, which is
+      what makes it able to notice things you have forgotten you wrote.</p>
+    <p>It is a working beta, built in the open. If you try it and something feels wrong, I
+      would genuinely like to hear about it.</p>
+    <div class="builder-sig">
+      <span class="builder-name">Siddh</span>
+      <span class="builder-role">designer &amp; developer</span>
     </div>
   </div>
 </div>
