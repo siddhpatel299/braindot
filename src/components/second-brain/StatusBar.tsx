@@ -1,6 +1,7 @@
 'use client';
 
 import { Check, Link2, AlignLeft, Sparkles } from 'lucide-react';
+import { plural } from '@/utils/markdown';
 
 interface StatusBarProps {
   wordCount: number;
@@ -41,11 +42,11 @@ export function StatusBar({
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Link2 size={12} strokeWidth={2} />
-          {linkCount} links
+          {plural(linkCount, 'link')}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <AlignLeft size={12} strokeWidth={2} />
-          {wordCount} words
+          {plural(wordCount, 'word')}
         </span>
       </div>
 
@@ -67,7 +68,7 @@ export function StatusBar({
         </span>
         <span style={{ color: 'var(--t2)' }}>⌘K to command</span>
         <span style={{ color: 'var(--t3)' }}>
-          {totalNotes} notes · {totalConnections.toLocaleString()} connections
+          {plural(totalNotes, 'note')} · {plural(totalConnections, 'connection')}
         </span>
       </div>
     </div>

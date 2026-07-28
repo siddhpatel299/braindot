@@ -3,13 +3,15 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Note, Folder, TAG_COLORS } from '@/types';
 import { forceDirectedLayout } from '@/utils/graph';
+import { plural } from '@/utils/markdown';
 import {
   getHeat, getNodeRadius, getEdgeStyle, curvedPath, formatTime, formatShortDate,
   HEAT_STYLES, HeatLevel,
 } from '@/utils/heat';
 import {
-  Search, X, Tag, Folder as FolderIcon, Hash, ArrowRight, Network, Activity, Flame,
+  Search, X, Tag, Folder as FolderIcon, Hash, ArrowRight, Network, Activity, Flame, ChevronDown,
 } from 'lucide-react';
+import { ViewHeader, ViewEmptyState } from './ViewHeader';
 
 interface GraphViewProps {
   notes: Note[];
@@ -241,46 +243,73 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
     return heat === 'hot' || heat === 'warm';
   };
 
+  const orphanCount = useMemo(() => {
+    const connected = new Set<string>();
+    for (const e of allEdges) { connected.add(e.from); connected.add(e.to); }
+    return notes.filter((n) => !connected.has(n.id)).length;
+  }, [notes, allEdges]);
+
+  const header = (
+    <ViewHeader
+      icon={Network}
+      title="Graph"
+      facts={`${plural(notes.length, 'note')} · ${plural(allEdges.length, 'link')} · ${plural(orphanCount, 'orphan')}`}
+    >
+      {/* Colour-by and the filter belong here, not in a 260px control panel. */}
+      <HeaderSelect
+        value={colorMode}
+        onChange={(v) => setColorMode(v as ColorMode)}
+        options={[
+          { id: 'activity', label: 'colour by edit recency' },
+          { id: 'tag', label: 'colour by tag' },
+          { id: 'links', label: 'colour by link count' },
+        ]}
+      />
+      <HeaderSelect
+        value={showMode}
+        onChange={(v) => setShowMode(v as ShowMode)}
+        options={[
+          { id: 'all', label: 'all notes' },
+          { id: 'hot', label: 'recently edited' },
+          { id: 'orphans', label: 'orphans only' },
+        ]}
+      />
+    </ViewHeader>
+  );
+
+  if (notes.length === 0) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+        {header}
+        <ViewEmptyState
+          icon={Network}
+          heading="Too few notes to draw."
+          body="The graph starts saying something at around twenty notes with a few links each. Link two notes with [[double brackets]] and the shape appears on its own."
+          primaryLabel="back to notes"
+          onPrimary={onBack}
+          secondary="no setup — the graph is generated from your links"
+        />
+      </div>
+    );
+  }
+
   if (filteredNotes.length === 0) {
     return (
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
-        <GraphSidebar
-          notes={notes}
-          folders={folders}
-          onBack={onBack}
-          colorMode={colorMode}
-          setColorMode={setColorMode}
-          showMode={showMode}
-          setShowMode={setShowMode}
-          stats={stats}
-          heatMap={heatMap}
-          onOpenNote={onOpenNote}
-        />
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 14, fontStyle: 'italic' }}>
-          no notes match your filters
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+        {header}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t2)', fontSize: 13 }}>
+          No notes match this filter.
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
-      {/* Left sidebar: filters + stats + legend + activity feed */}
-      <GraphSidebar
-        notes={notes}
-        folders={folders}
-        onBack={onBack}
-        colorMode={colorMode}
-        setColorMode={setColorMode}
-        showMode={showMode}
-        setShowMode={setShowMode}
-        stats={stats}
-        heatMap={heatMap}
-        onOpenNote={onOpenNote}
-      />
-
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+      {header}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
       {/* Main canvas: the graph */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--bg)' }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--bg)', minWidth: 0 }}>
         <svg
           ref={svgRef}
           width="100%"
@@ -331,7 +360,11 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
               <g
                 key={n.id}
                 style={{ cursor: 'pointer' }}
-                onClick={() => { setSelectedNode(n.id); onOpenNote(n.id); }}
+                // Click inspects, double-click opens. Clicking used to jump
+                // straight into the editor, which left no way to look at a node
+                // without leaving the graph.
+                onClick={() => setSelectedNode(n.id)}
+                onDoubleClick={() => onOpenNote(n.id)}
                 onMouseEnter={() => setHoveredNode(n.id)}
                 onMouseLeave={() => setHoveredNode(null)}
               >
@@ -351,7 +384,7 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
                     cx={n.x}
                     cy={n.y}
                     r={r + 4}
-                    fill={heat === 'hot' ? 'rgba(251,146,60,0.12)' : 'rgba(176,168,251,0.10)'}
+                    fill={heat === 'hot' ? 'rgba(176,168,251,0.14)' : 'rgba(124,110,247,0.10)'}
                     data-pulse-ring={n.id}
                   />
                 )}
@@ -386,317 +419,289 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
           })}
         </svg>
 
-        {/* Legend (top-left) */}
-        <div style={{
-          position: 'absolute', top: 14, left: 14,
-          background: 'var(--bg1)', border: '1px solid var(--bd2)', borderRadius: 6,
-          padding: '10px 12px', fontSize: 10, color: 'var(--t3)',
-          display: 'flex', flexDirection: 'column', gap: 5,
-        }}>
-          <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 2 }}>
-            {colorMode === 'activity' ? 'Activity Heat' : colorMode === 'tag' ? 'Tag Colors' : 'Link Density'}
-          </div>
-          {colorMode === 'activity' && (
-            <>
-              <LegendDot color="#fb923c" size={11} label="today" />
-              <LegendDot color="#b0a8fb" size={9} label="this week" />
-              <LegendDot color="#534AB7" size={8} label="this month" />
-              <LegendDot color="#2e2e44" size={6} label="older" />
-              <div style={{ height: 1, background: 'var(--bd)', margin: '3px 0' }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 20, height: 1, background: 'var(--acc-bd)' }} />
-                <span>strong link</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 20, height: 1, background: '#1e1e21', borderTop: '1px dashed #1e1e21' }} />
-                <span>weak link</span>
-              </div>
-            </>
-          )}
-          {colorMode === 'tag' && (
-            <>
-              {Object.entries(TAG_COLORS).map(([tag, c]) => (
-                <LegendDot key={tag} color={c.color} size={9} label={`#${tag}`} />
-              ))}
-              <LegendDot color="#534AB7" size={9} label="no tag" />
-            </>
-          )}
-          {colorMode === 'links' && (
-            <>
-              <LegendDot color="#b0a8fb" size={11} label="8+ backlinks" />
-              <LegendDot color="#7c6ef7" size={9} label="4-7 backlinks" />
-              <LegendDot color="#534AB7" size={8} label="1-3 backlinks" />
-              <LegendDot color="#2e2e44" size={6} label="orphan" />
-            </>
-          )}
-        </div>
-
         {/* Hover tooltip */}
         {hoveredNode && noteById.get(hoveredNode) && (
           <NodeTooltip note={noteById.get(hoveredNode)!} heat={heatMap.get(hoveredNode) || 'cold'} />
         )}
 
-        {/* Bottom-right node count */}
+        {/* One sentence instead of two legend boxes. The ramp is monotonic, so
+            "brighter = more recent" is the whole key. */}
         <div style={{
-          position: 'absolute', bottom: 14, right: 14,
-          background: 'var(--bg1)', border: '1px solid var(--bd)', borderRadius: 5,
-          padding: '6px 10px', fontSize: 11, color: 'var(--t3)', fontFamily: 'inherit',
+          position: 'absolute', left: 18, bottom: 16, maxWidth: '52ch',
+          fontSize: 11, lineHeight: 1.7, color: 'var(--t3)', pointerEvents: 'none',
         }}>
-          {stats.hot} hot · {stats.warm} warm · {stats.cold} fading
+          {colorMode === 'activity' && <>Brighter nodes were edited more recently. </>}
+          {colorMode === 'tag' && <>Node colour is the note&rsquo;s first tag. </>}
+          {colorMode === 'links' && <>Brighter and larger nodes have more backlinks. </>}
+          <span style={{ color: 'var(--t2)' }}>
+            {stats.hot > 0 ? `${plural(stats.hot, 'note')} touched today; ` : ''}
+            {orphanCount > 0
+              ? `${plural(orphanCount, 'note')} with no links at all sit unattached at the edges.`
+              : 'every note is connected to at least one other.'}
+          </span>
         </div>
+      </div>
+
+      {/* Right: inspector for the selected node — the thing you actually want
+          after clicking, rather than a panel of controls you set once. */}
+      <NodeInspector
+        note={selectedNode ? noteById.get(selectedNode) ?? null : null}
+        allNotes={notes}
+        heat={selectedNode ? heatMap.get(selectedNode) ?? 'cold' : 'cold'}
+        edges={allEdges}
+        noteById={noteById}
+        onClear={() => setSelectedNode(null)}
+        onOpenNote={onOpenNote}
+        onSelectNote={setSelectedNode}
+      />
       </div>
     </div>
   );
 }
 
-/* ---------- Graph Sidebar (filters + legend + activity feed) ---------- */
+/* ---------- Header select ---------- */
 
-function GraphSidebar({
-  notes, folders, onBack, colorMode, setColorMode, showMode, setShowMode, stats, heatMap, onOpenNote,
+function HeaderSelect({
+  value,
+  onChange,
+  options,
 }: {
-  notes: Note[];
-  folders: Folder[];
-  onBack: () => void;
-  colorMode: ColorMode;
-  setColorMode: (m: ColorMode) => void;
-  showMode: ShowMode;
-  setShowMode: (m: ShowMode) => void;
-  stats: { hot: number; warm: number; month: number; cold: number; total: number; edges: number };
-  heatMap: Map<string, HeatLevel>;
+  value: string;
+  onChange: (v: string) => void;
+  options: { id: string; label: string }[];
+}) {
+  return (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          height: 28,
+          padding: '0 26px 0 11px',
+          borderRadius: 5,
+          border: '1px solid var(--bd2)',
+          background: 'transparent',
+          color: 'var(--t2)',
+          fontSize: 11,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+          appearance: 'none',
+          outline: 'none',
+        }}
+      >
+        {options.map((o) => (
+          <option key={o.id} value={o.id} style={{ background: 'var(--bg2)', color: 'var(--t1)' }}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={11}
+        color="var(--t3)"
+        style={{ position: 'absolute', right: 9, pointerEvents: 'none' }}
+      />
+    </div>
+  );
+}
+
+/* ---------- Node inspector ---------- */
+
+function NodeInspector({
+  note,
+  allNotes,
+  heat,
+  edges,
+  noteById,
+  onClear,
+  onOpenNote,
+  onSelectNote,
+}: {
+  note: Note | null;
+  allNotes: Note[];
+  heat: HeatLevel;
+  edges: { from: string; to: string }[];
+  noteById: Map<string, Note>;
+  onClear: () => void;
   onOpenNote: (id: string) => void;
+  onSelectNote: (id: string) => void;
 }) {
-  // Activity feed data
-  const hotNotes = useMemo(() => notes.filter((n) => heatMap.get(n.id) === 'hot').sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [notes, heatMap]);
-  const warmNotes = useMemo(() => notes.filter((n) => heatMap.get(n.id) === 'warm').sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [notes, heatMap]);
-  const coldNotes = useMemo(() => notes.filter((n) => heatMap.get(n.id) === 'cold').sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()).slice(0, 5), [notes, heatMap]);
-
-  // 14-day heatmap data
-  const heatmapData = useMemo(() => {
-    const days: { date: string; count: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
-      const count = notes.filter((n) => n.updatedAt.slice(0, 10) === dateStr).length;
-      days.push({ date: dateStr, count });
+  const neighbours = useMemo(() => {
+    if (!note) return [];
+    const ids = new Set<string>();
+    for (const e of edges) {
+      if (e.from === note.id) ids.add(e.to);
+      if (e.to === note.id) ids.add(e.from);
     }
-    return days;
-  }, [notes]);
+    return Array.from(ids).map((id) => noteById.get(id)).filter((n): n is Note => Boolean(n));
+  }, [note, edges, noteById]);
 
   return (
-    <div style={{
-      width: 260, minWidth: 260,
-      background: 'var(--bg1)', borderRight: '1px solid var(--bd)',
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    }}>
-      <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 14px' }}>
-        {/* Back button */}
-        <button onClick={onBack} style={{
-          background: 'transparent', border: '1px solid var(--bd2)', borderRadius: 4,
-          padding: '6px 10px', color: 'var(--t2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18,
-        }}>
-          <ArrowRight size={12} style={{ transform: 'rotate(180deg)' }} /> back
-        </button>
-
-        {/* Title */}
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Network size={16} color="var(--acc2)" />
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>living graph</h1>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--t3)', margin: 0 }}>activity-aware knowledge map</p>
-        </div>
-
-        {/* Color by */}
-        <div style={{ marginBottom: 16 }}>
-          <Label>color by</Label>
-          <div style={{ display: 'flex', gap: 3 }}>
-                {([
-                  { id: 'activity', label: 'activity', icon: Activity },
-                  { id: 'tag', label: 'tag', icon: Tag },
-                  { id: 'links', label: 'links', icon: Network },
-                ] as const).map((opt) => {
-                  const Icon = opt.icon;
-                  return (
-                    <button key={opt.id} onClick={() => setColorMode(opt.id)} style={{
-                      flex: 1, padding: '5px 6px', borderRadius: 4,
-                      background: colorMode === opt.id ? 'var(--acc-bg)' : 'transparent',
-                      border: '1px solid ' + (colorMode === opt.id ? 'var(--acc-bd)' : 'var(--bd2)'),
-                      color: colorMode === opt.id ? 'var(--acc2)' : 'var(--t3)',
-                      fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
-                      textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
-                    }}>
-                      <Icon size={10} />
-                      {opt.label}
-                    </button>
-                  );
-                })}
-          </div>
-        </div>
-
-        {/* Show */}
-        <div style={{ marginBottom: 16 }}>
-          <Label>show</Label>
-          <div style={{ display: 'flex', gap: 3 }}>
-            {([
-              { id: 'all', label: 'all' },
-              { id: 'hot', label: 'hot only' },
-              { id: 'orphans', label: 'orphans' },
-            ] as const).map((opt) => (
-              <button key={opt.id} onClick={() => setShowMode(opt.id)} style={{
-                flex: 1, padding: '5px 6px', borderRadius: 4,
-                background: showMode === opt.id ? 'var(--acc-bg)' : 'transparent',
-                border: '1px solid ' + (showMode === opt.id ? 'var(--acc-bd)' : 'var(--bd2)'),
-                color: showMode === opt.id ? 'var(--acc2)' : 'var(--t3)',
-                fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
-                textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600,
-              }}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div style={{ background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 5, padding: '12px 14px', marginBottom: 16 }}>
-          <Label>graph stats</Label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fb923c' }} />
-              <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: 600 }}>{stats.hot}</span>
-              <span style={{ fontSize: 10, color: 'var(--t3)' }}>hot</span>
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#b0a8fb' }} />
-              <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: 600 }}>{stats.warm}</span>
-              <span style={{ fontSize: 10, color: 'var(--t3)' }}>warm</span>
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2e2e44' }} />
-              <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: 600 }}>{stats.cold}</span>
-              <span style={{ fontSize: 10, color: 'var(--t3)' }}>fading</span>
-            </span>
-          </div>
-          <StatRow label="nodes" value={stats.total} />
-          <StatRow label="edges" value={stats.edges} />
-        </div>
-
-        {/* Activity feed: 14-day heatmap */}
-        <div style={{ marginBottom: 16 }}>
-          <Label>writing heat — last 14 days</Label>
-          <div style={{ display: 'flex', gap: 2, marginBottom: 4 }}>
-            {heatmapData.map((day) => {
-              const intensity = Math.min(day.count / 3, 1);
-              const bg = day.count === 0 ? 'var(--bg3)' : `rgba(124,110,247,${0.3 + intensity * 0.7})`;
-              return (
-                <div key={day.date} title={`${day.date}: ${day.count} edits`} style={{
-                  flex: 1, height: 24, borderRadius: 2, background: bg,
-                  border: intensity > 0.7 ? '1px solid #fb923c' : '1px solid transparent',
-                }} />
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--t3)' }}>
-            <span>{formatShortDate(heatmapData[0]?.date || new Date().toISOString())}</span>
-            <span>today</span>
-          </div>
-        </div>
-
-        {/* Today — hot notes */}
-        {hotNotes.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <Label>today — {hotNotes.length} touched</Label>
-            {hotNotes.map((n) => (
-              <ActivityRow key={n.id} note={n} dotColor="#fb923c" timeLabel={formatTime(n.updatedAt)} onOpen={() => onOpenNote(n.id)} />
-            ))}
-          </div>
-        )}
-
-        {/* This week — warm notes */}
-        {warmNotes.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <Label>this week</Label>
-            {warmNotes.map((n) => (
-              <ActivityRow key={n.id} note={n} dotColor="#b0a8fb" timeLabel={formatShortDate(n.updatedAt)} onOpen={() => onOpenNote(n.id)} />
-            ))}
-          </div>
-        )}
-
-        {/* Fading — cold notes */}
-        {coldNotes.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <Label>fading — 30d+ untouched</Label>
-            {coldNotes.map((n) => (
-              <ActivityRow key={n.id} note={n} dotColor="#2e2e44" timeLabel={formatShortDate(n.updatedAt)} muted onOpen={() => onOpenNote(n.id)} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Sub-components ---------- */
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.09em',
-      color: 'var(--t3)', fontWeight: 600, marginBottom: 8,
-    }}>
-      {children}
-    </div>
-  );
-}
-
-function StatRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 12 }}>
-      <span style={{ color: 'var(--t3)' }}>{label}</span>
-      <span style={{ color: 'var(--t1)', fontWeight: 600 }}>{value}</span>
-    </div>
-  );
-}
-
-function LegendDot({ color, size, label }: { color: string; size: number; label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ width: size, height: size, borderRadius: '50%', background: color }} />
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function ActivityRow({
-  note, dotColor, timeLabel, muted, onOpen,
-}: {
-  note: Note;
-  dotColor: string;
-  timeLabel: string;
-  muted?: boolean;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      onClick={onOpen}
+    <div
       style={{
-        width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid var(--bd)',
-        borderRadius: 0, padding: '6px 0', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-        display: 'flex', alignItems: 'center', gap: 8,
+        width: 300,
+        minWidth: 300,
+        flexShrink: 0,
+        background: 'var(--bg1)',
+        borderLeft: '1px solid var(--bd)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg2)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
-      <div style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, color: muted ? 'var(--t3)' : 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {note.title}
-        </div>
+      <div
+        style={{
+          height: 40,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '0 16px',
+          borderBottom: '1px solid var(--bd)',
+        }}
+      >
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: note ? HEAT_STYLES[heat].color : 'var(--bd2)',
+          }}
+        />
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: note ? 'var(--t1)' : 'var(--t3)' }}>
+          {note ? 'selected' : 'nothing selected'}
+        </span>
+        {note && (
+          <button
+            onClick={onClear}
+            style={{
+              marginLeft: 'auto',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--t3)',
+              fontSize: 10.5,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            clear
+          </button>
+        )}
       </div>
-      <span style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>{timeLabel}</span>
-    </button>
+
+      {!note ? (
+        <div style={{ padding: '20px 16px', fontSize: 11.5, lineHeight: 1.7, color: 'var(--t3)' }}>
+          Click any node to see what it links to, what links back, and how long since you touched it.
+        </div>
+      ) : (
+        <div
+          className="sb-scroll"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}
+        >
+          <div>
+            <div
+              className="sb-reading"
+              style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.25, marginBottom: 8 }}
+            >
+              {note.title}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, color: 'var(--t3)', flexWrap: 'wrap' }}>
+              {note.status === 'evergreen' && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--grn)' }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--grn)' }} />
+                  evergreen
+                </span>
+              )}
+              <span>{plural(note.wordCount, 'word')}</span>
+              <span style={{ color: HEAT_STYLES[heat].activityColor }}>{HEAT_STYLES[heat].activityString}</span>
+            </div>
+          </div>
+
+          {note.subtitle && (
+            <p className="sb-reading" style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--t2)', margin: 0 }}>
+              {note.subtitle}
+            </p>
+          )}
+
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--t2)', marginBottom: 10 }}>
+              connected · {neighbours.length}
+            </div>
+            {neighbours.length === 0 ? (
+              <div style={{ fontSize: 11.5, color: 'var(--t3)' }}>
+                Nothing links here yet. This note is one of the orphans.
+              </div>
+            ) : (
+              neighbours.slice(0, 8).map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => onSelectNote(n.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    padding: '7px 0',
+                    borderBottom: '1px solid var(--bd)',
+                    fontSize: 12,
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottomWidth: 1,
+                    borderBottomStyle: 'solid',
+                    borderBottomColor: 'var(--bd)',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: n.status === 'evergreen' ? 'var(--grn)' : 'var(--bd2)',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t2)' }}>
+                    {n.title}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+
+          <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => onOpenNote(note.id)}
+              style={{
+                flex: 1,
+                height: 32,
+                borderRadius: 5,
+                background: 'var(--acc)',
+                border: '1px solid var(--acc)',
+                color: '#fff',
+                fontSize: 11.5,
+                fontWeight: 600,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--acc2)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--acc)')}
+            >
+              open note <ArrowRight size={12} />
+            </button>
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--t3)' }}>
+            {allNotes.length} notes in the vault
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -715,9 +720,9 @@ function NodeTooltip({ note, heat }: { note: Note; heat: HeatLevel }) {
         <div style={{ color: 'var(--t3)', fontStyle: 'italic', marginBottom: 6, fontSize: 11 }}>{note.subtitle}</div>
       )}
       <div style={{ color: 'var(--t3)', fontSize: 11, display: 'flex', gap: 10 }}>
-        <span>{note.backlinks.length} backlinks</span>
+        <span>{plural(note.backlinks.length, 'backlink')}</span>
         <span>·</span>
-        <span>{note.wordCount} words</span>
+        <span>{plural(note.wordCount, 'word')}</span>
         {note.tags.length > 0 && <><span>·</span><span>{note.tags.map((t) => `#${t}`).join(' ')}</span></>}
       </div>
       <div style={{ color: heatStyle.activityColor, fontSize: 10, marginTop: 4, fontWeight: 600 }}>

@@ -4,19 +4,19 @@ import { LucideIcon } from 'lucide-react';
 import {
   StickyNote,
   Share2,
-  CalendarDays,
-  Sparkles,
   Tags,
   Search,
   LayoutDashboard,
   KanbanSquare,
   PenTool,
   BookOpen,
-  GraduationCap,
 } from 'lucide-react';
 import { LogoMark } from './Logo';
 
-export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'journal' | 'ai' | 'study' | 'tags' | 'search' | 'kanban' | 'canvas' | 'reading';
+/** The rail is for switching *places*. Journal, Ask AI and Study mode are not
+ *  places — they all land you back in the editor — so they live where they act:
+ *  the editor's right-hand panel, the command palette, and the dashboard. */
+export type IconRailView = 'dashboard' | 'notes' | 'graph' | 'tags' | 'search' | 'kanban' | 'canvas' | 'reading';
 
 interface IconRailProps {
   active: IconRailView;
@@ -118,9 +118,6 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
       <RailButton icon={KanbanSquare} label="Kanban + Todos" active={active === 'kanban'} onClick={() => onSelect('kanban')} />
       <RailButton icon={PenTool} label="Canvas" active={active === 'canvas'} onClick={() => onSelect('canvas')} />
       <RailButton icon={BookOpen} label="Reading" active={active === 'reading'} onClick={() => onSelect('reading')} />
-      <RailButton icon={CalendarDays} label="Daily journal" active={active === 'journal'} onClick={() => onSelect('journal')} />
-      <RailButton icon={Sparkles} label="Ask AI" active={active === 'ai'} onClick={() => onSelect('ai')} />
-      <RailButton icon={GraduationCap} label="Study mode" active={active === 'study'} onClick={() => onSelect('study')} />
 
       {/* Divider */}
       <div

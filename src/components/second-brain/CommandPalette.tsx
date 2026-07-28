@@ -15,6 +15,7 @@ interface CommandPaletteProps {
   onExport: () => void;
   onCreateFolder: () => void;
   onAskAI: () => void;
+  onStudyMode: () => void;
 }
 
 interface CommandItem {
@@ -37,6 +38,7 @@ export function CommandPalette({
   onExport,
   onCreateFolder,
   onAskAI,
+  onStudyMode,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -114,6 +116,17 @@ export function CommandPalette({
         },
       },
       {
+        id: 'cmd-study',
+        type: 'command',
+        label: 'Study this note',
+        hint: 'open study mode for the current note',
+        icon: 'ai',
+        action: () => {
+          onStudyMode();
+          onClose();
+        },
+      },
+      {
         id: 'cmd-graph',
         type: 'command',
         label: 'Open graph view',
@@ -150,7 +163,7 @@ export function CommandPalette({
     }));
 
     return [...cmds, ...noteItems];
-  }, [notes, onCreateNote, onOpenGraph, onExport, onOpenNote, onClose, onCreateFolder, onAskAI]);
+  }, [notes, onCreateNote, onOpenGraph, onExport, onOpenNote, onClose, onCreateFolder, onAskAI, onStudyMode]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return items;

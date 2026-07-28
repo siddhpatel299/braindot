@@ -22,46 +22,50 @@ export interface HeatStyle {
   activityColor: string;
 }
 
+// One violet ramp, monotonic in lightness — brighter means edited more
+// recently. Orange (#fb923c) and navy (#2e2e44) used to sit at the ends, which
+// read as two extra semantic hues rather than as one scale. Label colours are
+// --t2 or lighter; the old #444450 failed contrast at 1.97:1.
 export const HEAT_STYLES: Record<HeatLevel, HeatStyle> = {
   hot: {
-    color: '#fb923c',
+    color: '#b0a8fb',
     radiusMultiplier: 1.0,
     hasGlow: true,
     hasPulse: true,
     glowFilter: 'url(#glow-hot)',
-    labelColor: '#fde68a',
+    labelColor: '#f0f0f2',
     activityString: 'edited today',
-    activityColor: '#fb923c',
+    activityColor: '#b0a8fb',
   },
   warm: {
-    color: '#b0a8fb',
+    color: '#7c6ef7',
     radiusMultiplier: 0.85,
     hasGlow: true,
     hasPulse: true,
     glowFilter: 'url(#glow-warm)',
-    labelColor: '#b0a8fb',
+    labelColor: '#d6d6db',
     activityString: 'edited this week',
     activityColor: '#b0a8fb',
   },
   month: {
-    color: '#534AB7',
+    color: '#5a4fc4',
     radiusMultiplier: 0.70,
     hasGlow: false,
     hasPulse: false,
     glowFilter: '',
-    labelColor: '#7F77DD',
+    labelColor: '#888894',
     activityString: 'edited this month',
-    activityColor: '#7F77DD',
+    activityColor: '#888894',
   },
   cold: {
-    color: '#2e2e44',
+    color: '#3d3670',
     radiusMultiplier: 0.55,
     hasGlow: false,
     hasPulse: false,
     glowFilter: '',
-    labelColor: '#444450',
+    labelColor: '#888894',
     activityString: 'not touched in 30+ days',
-    activityColor: '#444450',
+    activityColor: '#888894',
   },
 };
 

@@ -174,7 +174,14 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 /* Title + subtitle inputs (prose) */
 .sb-prose-input { font-family: var(--editor-font) !important; }
 
-/* Preview-mode rendered markdown — prose in the reading font, code stays mono */
+/* Escape hatch for note *content* shown outside the editor — the dashboard's
+   "pick up where you left off" band is a note preview, not chrome, so it reads
+   in the user's chosen reading font rather than the mono UI face. */
+.sb-reading, .sb-reading * { font-family: var(--editor-font) !important; }
+
+/* Preview-mode rendered markdown — prose in the reading font, code stays mono.
+   Size matches .sb-editor-wrap so toggling edit/preview doesn't reflow. */
+.sb-preview-prose { font-size: 16.5px; line-height: 1.8; }
 .sb-preview-prose,
 .sb-preview-prose * { font-family: var(--editor-font) !important; }
 .sb-preview-prose code,
@@ -208,6 +215,15 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   animation: sb-fade-in 0.12s ease-out;
 }
 
+@keyframes sb-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.sb-spin {
+  animation: sb-spin 1s linear infinite;
+}
+
 /* Scrollbars */
 .sb-scroll::-webkit-scrollbar {
   width: 8px;
@@ -233,10 +249,13 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 
 /* Markdown editor overlay technique */
+/* The note body is the product — it outranks the chrome, which sits at 11–13px.
+   Both the textarea and the styled <pre> inherit from here, so changing the
+   size in one place keeps the caret aligned with the rendered text. */
 .sb-editor-wrap {
   position: relative;
   font-family: 'JetBrains Mono', 'Fira Mono', monospace;
-  font-size: 14px;
+  font-size: 16.5px;
   line-height: 1.8;
   letter-spacing: 0;
   tab-size: 2;

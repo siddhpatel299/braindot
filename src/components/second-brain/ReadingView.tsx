@@ -7,8 +7,10 @@ import {
   Search, Plus, BookOpen, FileText, Rss, Link as LinkIcon, X,
   Highlighter, StickyNote, Sparkles, ArrowRight, Type, List,
   Upload, ArrowUpRight, RefreshCw, Loader2, Globe,
-  ChevronLeft, ChevronRight, Minus, Menu,
+  ChevronLeft, ChevronRight, Minus, Menu, Library,
 } from 'lucide-react';
+import { plural } from '@/utils/markdown';
+import { ViewHeader, HeaderButton, HeaderDivider } from './ViewHeader';
 
 interface ReadingViewProps {
   libraryItems: LibraryItem[];
@@ -97,6 +99,11 @@ export function ReadingView({
   const [tabFilter, setTabFilter] = useState<TabFilter>('all');
   const [activeItemId, setActiveItemId] = useState<string | null>(libraryItems[0]?.id || null);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('ai');
+  // Reading defaults to one column. Both rails used to be pinned open, which
+  // left a 915px column wrapped around a 680px measure — the widest screen in
+  // the app showing the narrowest text. They open on demand instead.
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
   const [currentHighlightColor, setCurrentHighlightColor] = useState<HighlightColor>('yellow');
   const [showImport, setShowImport] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
@@ -447,52 +454,45 @@ export function ReadingView({
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
-      {/* Topbar */}
-      <div style={{
-        height: 44, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--t3)' }}>
-          <button onClick={onBack} style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 }}>dashboard</button>
-          <span>/</span>
-          <span style={{ color: 'var(--t1)', display: 'flex', alignItems: 'center', gap: 5 }}>
-            <BookOpen size={13} color="var(--acc2)" /> reading
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => openFeed('news')} style={{
-            height: 28, padding: '0 12px',
-            background: 'var(--bg2)', color: 'var(--t2)', border: '1px solid var(--bd2)', borderRadius: 4,
-            fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 5,
-          }}>
-            <Globe size={12} /> tech news
-          </button>
-          <button onClick={() => openFeed('papers')} style={{
-            height: 28, padding: '0 12px',
-            background: 'var(--bg2)', color: 'var(--t2)', border: '1px solid var(--bd2)', borderRadius: 4,
-            fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 5,
-          }}>
-            <FileText size={12} /> papers
-          </button>
-          <button onClick={() => setShowImport(true)} style={{
-            height: 28, padding: '0 12px',
-            background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 4,
-            fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: 5,
-          }}>
-            <Plus size={12} /> add source
-          </button>
-        </div>
-      </div>
+      <ViewHeader
+        icon={BookOpen}
+        title={activeItem ? activeItem.title : 'Reading'}
+        facts={
+          activeItem
+            ? [activeItem.author, `${Math.round(activeItem.progress)}%`].filter(Boolean).join(' · ')
+            : `${plural(libraryItems.length, 'item')} in the library`
+        }
+      >
+        <HeaderButton
+          icon={Library}
+          label={libraryOpen ? 'hide library' : 'library'}
+          onClick={() => setLibraryOpen((o) => !o)}
+        />
+        {activeItem && (
+          <HeaderButton
+            icon={Highlighter}
+            label={`${itemHighlights.length} highlight${itemHighlights.length === 1 ? '' : 's'}`}
+            onClick={() => setRailOpen((o) => !o)}
+            accent={railOpen}
+          />
+        )}
+        <HeaderDivider />
+        <HeaderButton icon={Globe} label="news" onClick={() => openFeed('news')} />
+        <HeaderButton icon={FileText} label="papers" onClick={() => openFeed('papers')} />
+        <HeaderButton icon={Plus} label="add source" accent onClick={() => setShowImport(true)} />
+      </ViewHeader>
 
-      {/* 3-column layout */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Library panel (220px) */}
+      {/* Reader-first layout — rails only when asked for */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        {/* Library panel — collapses to nothing; reopened from the header */}
         <div style={{
-          width: 220, minWidth: 220, background: 'var(--bg1)', borderRight: '1px solid var(--bd)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          width: libraryOpen ? 220 : 0,
+          minWidth: libraryOpen ? 220 : 0,
+          background: 'var(--bg1)',
+          borderRight: libraryOpen ? '1px solid var(--bd)' : 'none',
+          display: libraryOpen ? 'flex' : 'none',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}>
           <div style={{ padding: '10px 10px 6px', flexShrink: 0 }}>
             <div style={{
@@ -806,10 +806,11 @@ export function ReadingView({
           )}
         </div>
 
-        {/* AI Sidebar (250px) */}
+        {/* Highlights / AI drawer — opens from the header count, not pinned */}
         <div style={{
-          width: 250, minWidth: 250, background: 'var(--bg1)', borderLeft: '1px solid var(--bd)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          width: railOpen ? 250 : 0, minWidth: railOpen ? 250 : 0,
+          background: 'var(--bg1)', borderLeft: railOpen ? '1px solid var(--bd)' : 'none',
+          display: railOpen ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden',
         }}>
           <div style={{ display: 'flex', height: 38, borderBottom: '1px solid var(--bd)', flexShrink: 0 }}>
             {([

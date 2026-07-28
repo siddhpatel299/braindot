@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Note, TAG_COLORS } from '@/types';
 import { useSemanticSearch, SearchMode, SearchResult } from '@/hooks/useSemanticSearch';
-import { formatDate, countWords } from '@/utils/markdown';
+import { formatDate, countWords, plural } from '@/utils/markdown';
 import { Search, Brain, Type, Layers, Sparkles, X, ArrowRight, Clock, RefreshCw } from 'lucide-react';
 
 interface SearchViewProps {
@@ -474,7 +474,7 @@ function ResultCard({
             {formatDate(note.updatedAt)}
           </span>
           <span>·</span>
-          <span>{note.backlinks.length} backlinks</span>
+          <span>{plural(note.backlinks.length, 'backlink')}</span>
           <span>·</span>
           <span>{note.status}</span>
           <span style={{ flex: 1 }} />

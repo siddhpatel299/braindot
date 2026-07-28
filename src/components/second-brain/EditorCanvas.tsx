@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Note, TAG_COLORS } from '@/types';
-import { renderMarkdownOverlay, formatDate, countWords } from '@/utils/markdown';
+import { renderMarkdownOverlay, formatDate, countWords, plural } from '@/utils/markdown';
 import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
 import { htmlToMarkdown, looksLikeRichHtml } from '@/utils/htmlToMarkdown';
 import { computeLineDiff, diffStats } from '@/utils/diff';
@@ -211,18 +211,12 @@ export function EditorCanvas({
   const diffLines = useMemo(() => computeLineDiff(note.body, editor.body), [note.body, editor.body]);
   const stats = useMemo(() => diffStats(note.body, editor.body), [note.body, editor.body]);
 
-  // This is a writing-first app: stay in the mode the user chose instead of
-  // flipping back to preview on every note open. The last chosen mode
-  // (edit/preview) is restored across sessions; diff is always transient.
-  useEffect(() => {
-    const saved = localStorage.getItem('sb-editor-mode');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (saved === 'preview' || saved === 'edit') setViewMode(saved);
-  }, []);
-
+  // This is a writing-first app: every session starts in edit mode. Switching
+  // to preview/diff sticks while you move between notes (this component is not
+  // remounted per note) but is never restored across reloads — landing in a
+  // read-only view you set days ago is not what "open my notes" should mean.
   const changeViewMode = useCallback((mode: ViewMode) => {
     setViewMode(mode);
-    if (mode !== 'diff') localStorage.setItem('sb-editor-mode', mode);
   }, []);
 
   // Auto-resize textarea to match content height
@@ -786,9 +780,9 @@ export function EditorCanvas({
           padding: '28px 48px 80px',
         }}
       >
-        {/* Comfortable writing measure — don't let lines run edge-to-edge
-            on wide screens */}
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+        {/* Comfortable writing measure — ~66 characters at the 16.5px body
+            size. Wider than this and the eye loses the line on return. */}
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
         {/* Note header: tags + metadata */}
         <div
           style={{
@@ -821,9 +815,9 @@ export function EditorCanvas({
           <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
           <span style={{ color: 'var(--t3)', fontSize: 11 }}>{formatDate(note.updatedAt)}</span>
           <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{countWords(note.body)} words</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{plural(countWords(note.body), 'word')}</span>
           <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{backlinks.length} backlinks</span>
+          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{plural(backlinks.length, 'backlink')}</span>
           <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
           <button
             onClick={() => onToggleEvergreen(note.id)}
@@ -898,11 +892,12 @@ export function EditorCanvas({
             border: 'none',
             outline: 'none',
             color: 'var(--t1)',
-            fontSize: 28,
+            fontSize: 34,
             fontWeight: 700,
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.022em',
+            lineHeight: 1.15,
             padding: 0,
-            marginBottom: 6,
+            marginBottom: 8,
             fontFamily: 'inherit',
             caretColor: 'var(--acc2)',
           }}
@@ -919,11 +914,11 @@ export function EditorCanvas({
             background: 'transparent',
             border: 'none',
             outline: 'none',
-            color: 'var(--t3)',
-            fontSize: 15,
+            color: 'var(--t2)',
+            fontSize: 16,
             fontStyle: 'italic',
             padding: 0,
-            marginBottom: 28,
+            marginBottom: 30,
             fontFamily: 'inherit',
             caretColor: 'var(--acc2)',
           }}

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Note, Folder, KanbanCardItem, TodoItem } from '@/types';
 import { KanbanBoard } from './KanbanBoard';
 import { TodoList } from './TodoList';
-import { ArrowRight, KanbanSquare } from 'lucide-react';
+import { KanbanSquare, List, Columns3, Plus } from 'lucide-react';
+import { ViewHeader, HeaderSegment, HeaderButton, ViewEmptyState } from './ViewHeader';
 
 interface KanbanTodoPageProps {
   notes: Note[];
@@ -67,94 +68,50 @@ export function KanbanTodoPage({
     });
   };
 
+  const openCount = kanbanCards.filter((c) => c.status !== 'done').length + todos.filter((t) => !t.done).length;
+  const facts = [
+    `${openCount} open`,
+    kanbanCards.filter((c) => c.status === 'done').length > 0
+      ? `${kanbanCards.filter((c) => c.status === 'done').length} done`
+      : '',
+    linkedNoteCount > 0 ? `${linkedNoteCount} linked to notes` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const isEmpty = kanbanCards.length === 0 && todos.length === 0;
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
-      {/* Top bar with breadcrumb + segmented toggle */}
-      <div style={{
-        height: 44,
-        background: 'var(--bg1)',
-        borderBottom: '1px solid var(--bd)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 16px',
-        flexShrink: 0,
-      }}>
-        {/* Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--t3)' }}>
-          <button
-            onClick={onBack}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--t3)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 12,
-              padding: 0,
-            }}
-          >
-            dashboard
-          </button>
-          <span>/</span>
-          <span style={{ color: 'var(--t1)', display: 'flex', alignItems: 'center', gap: 5 }}>
-            <KanbanSquare size={13} color="var(--acc2)" />
-            kanban + todos
-          </span>
-        </div>
+      <ViewHeader icon={KanbanSquare} title="Tasks" facts={isEmpty ? undefined : facts}>
+        <HeaderSegment
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { id: 'board+list', label: 'both' },
+            { id: 'board', label: 'board', icon: Columns3 },
+            { id: 'list', label: 'list', icon: List },
+          ]}
+        />
+        <HeaderButton
+          icon={Plus}
+          label="add task"
+          accent
+          onClick={() => handleAddCard('backlog', 'New task')}
+        />
+      </ViewHeader>
 
-        {/* Segmented view toggle */}
-        <div style={{ display: 'flex', gap: 2, background: 'var(--bg3)', borderRadius: 4, padding: 2 }}>
-          {([
-            { id: 'board+list', label: 'board + list' },
-            { id: 'board', label: 'board only' },
-            { id: 'list', label: 'list only' },
-          ] as const).map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => setViewMode(opt.id)}
-              style={{
-                background: viewMode === opt.id ? 'var(--bg1)' : 'transparent',
-                border: 'none',
-                borderRadius: 3,
-                padding: '4px 10px',
-                color: viewMode === opt.id ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 11,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                fontWeight: viewMode === opt.id ? 600 : 400,
-                transition: 'background 0.1s, color 0.1s',
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Toolbar: project stats */}
-      <div style={{
-        height: 40,
-        background: 'var(--bg1)',
-        borderBottom: '1px solid var(--bd)',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 16px',
-        gap: 14,
-        fontSize: 11,
-        color: 'var(--t3)',
-        flexShrink: 0,
-      }}>
-        <span style={{ color: 'var(--t2)', fontWeight: 600 }}>my workspace</span>
-        <span>·</span>
-        <span>{kanbanCards.length} tasks</span>
-        <span>·</span>
-        <span>{todos.length} todos</span>
-        <span>·</span>
-        <span>{linkedNoteCount} linked to notes</span>
-      </div>
-
-      {/* Main split: kanban board + todo rail */}
+      {isEmpty ? (
+        <ViewEmptyState
+          icon={KanbanSquare}
+          heading="No tasks yet."
+          body="Tasks here are the ones that produce notes — a draft to finish, a chapter to read. Anything else belongs in your calendar."
+          primaryLabel="add the first task"
+          onPrimary={() => handleAddCard('backlog', 'New task')}
+          secondary="or press ⌘K and type “task”"
+        />
+      ) : (
+      /* Main split: kanban board + todo rail */
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Kanban board — hidden in "list only" mode */}
         <div style={{
@@ -185,24 +142,22 @@ export function KanbanTodoPage({
           flexDirection: 'column',
           overflow: 'hidden',
         }}>
-          {/* Todo header */}
+          {/* Todo header — sentence case, matching the panel headings elsewhere */}
           <div style={{
-            padding: '12px 14px 8px',
+            padding: '12px 14px 10px',
             borderBottom: '1px solid var(--bd)',
             flexShrink: 0,
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: 10,
           }}>
-            <div style={{
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: '0.09em',
-              color: 'var(--t3)',
-              fontWeight: 600,
-            }}>
-              todos
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)', letterSpacing: '0.02em' }}>
+              Todos
+            </span>
+            <span style={{ fontSize: 10.5, color: 'var(--t3)' }}>
               {todos.filter((t) => !t.done).length} pending · {todos.filter((t) => t.done).length} done
-            </div>
+            </span>
           </div>
           {/* Todo list */}
           <div style={{ flex: 1, padding: '10px 14px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -219,6 +174,7 @@ export function KanbanTodoPage({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

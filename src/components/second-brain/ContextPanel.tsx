@@ -4,15 +4,22 @@ import { useState, useMemo } from 'react';
 import { Note } from '@/types';
 import { generateSuggestions, relativeTime, formatDate, extractWikiLinks } from '@/utils/markdown';
 import { forceDirectedLayout } from '@/utils/graph';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, FileText, Library, GraduationCap, LucideIcon } from 'lucide-react';
+import { AIChat, AIMode } from './AIChat';
+
+export type ContextTab = 'info' | 'ai' | 'graph' | 'history';
 
 interface ContextPanelProps {
   note: Note;
   allNotes: Note[];
-  activeTab: 'ai' | 'graph' | 'history';
-  onTabChange: (t: 'ai' | 'graph' | 'history') => void;
+  activeTab: ContextTab;
+  onTabChange: (t: ContextTab) => void;
+  /** Which AI sub-tab is showing. Lifted so the palette can jump straight to study. */
+  aiMode: AIMode;
+  onAiModeChange: (m: AIMode) => void;
   onOpenNote: (id: string) => void;
-  onAskAI: () => void;
+  onOpenNoteByTitle: (title: string) => void;
+  onSaveToNote: (markdown: string) => void;
   onExportEssay: () => void;
   onInsertLink: (linkTitle: string) => void;
   onDraftSynthesis: () => void;
@@ -21,13 +28,22 @@ interface ContextPanelProps {
   history: { id: string; noteId: string; text: string; timestamp: number }[];
 }
 
+const AI_MODES: { id: AIMode; label: string; icon: LucideIcon }[] = [
+  { id: 'note', label: 'this note', icon: FileText },
+  { id: 'vault', label: 'vault', icon: Library },
+  { id: 'study', label: 'study', icon: GraduationCap },
+];
+
 export function ContextPanel({
   note,
   allNotes,
   activeTab,
   onTabChange,
+  aiMode,
+  onAiModeChange,
   onOpenNote,
-  onAskAI,
+  onOpenNoteByTitle,
+  onSaveToNote,
   onExportEssay,
   onInsertLink,
   onDraftSynthesis,
@@ -79,8 +95,8 @@ export function ContextPanel({
   return (
     <div
       style={{
-        width: 260,
-        minWidth: 260,
+        width: 300,
+        minWidth: 300,
         height: '100%',
         background: 'var(--bg1)',
         borderLeft: '1px solid var(--bd)',
@@ -95,9 +111,10 @@ export function ContextPanel({
           height: 34,
           display: 'flex',
           borderBottom: '1px solid var(--bd)',
+          flexShrink: 0,
         }}
       >
-        {(['ai', 'graph', 'history'] as const).map((t) => {
+        {(['info', 'ai', 'graph', 'history'] as const).map((t) => {
           const isActive = activeTab === t;
           return (
             <button
@@ -109,9 +126,9 @@ export function ContextPanel({
                 border: 'none',
                 borderBottom: isActive ? '2px solid var(--acc)' : '2px solid transparent',
                 color: isActive ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 12,
+                fontSize: 10.5,
                 textTransform: 'uppercase',
-                letterSpacing: '0.09em',
+                letterSpacing: '0.06em',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 fontWeight: isActive ? 600 : 400,
@@ -130,36 +147,87 @@ export function ContextPanel({
         })}
       </div>
 
-      <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-        {activeTab === 'ai' && (
-          <AIPanel
+      {/* AI is a chat: it owns the full panel height and scrolls internally, so
+          it gets its own non-scrolling container rather than the shared one. */}
+      {activeTab === 'ai' ? (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: 12, gap: 10 }}>
+          <div style={{ display: 'flex', gap: 2, background: 'var(--bg2)', borderRadius: 5, padding: 2, flexShrink: 0 }}>
+            {AI_MODES.map((m) => {
+              const isActive = aiMode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => onAiModeChange(m.id)}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    background: isActive ? 'var(--bg4)' : 'transparent',
+                    border: 'none',
+                    borderRadius: 4,
+                    color: isActive ? 'var(--t1)' : 'var(--t3)',
+                    fontSize: 10,
+                    fontFamily: 'inherit',
+                    fontWeight: isActive ? 600 : 400,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.color = 'var(--t2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.color = 'var(--t3)';
+                  }}
+                >
+                  <m.icon size={11} />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <AIChat
+            mode={aiMode}
             note={note}
-            suggestions={suggestions}
-            graphData={graphData}
-            onOpenNote={onOpenNote}
-            onAskAI={onAskAI}
-            onExportEssay={onExportEssay}
-            onInsertLink={onInsertLink}
-            onDraftSynthesis={onDraftSynthesis}
-            onAnswerInNewNote={onAnswerInNewNote}
-            onScheduleReview={onScheduleReview}
+            allNotes={allNotes}
+            onSaveToNote={onSaveToNote}
+            onOpenNoteByTitle={onOpenNoteByTitle}
           />
-        )}
-        {activeTab === 'graph' && <GraphPanel note={note} allNotes={allNotes} onOpenNote={onOpenNote} />}
-        {activeTab === 'history' && <HistoryPanel note={note} history={history} onOpenNote={onOpenNote} />}
-      </div>
+        </div>
+      ) : (
+        <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+          {activeTab === 'info' && (
+            <InfoPanel
+              note={note}
+              suggestions={suggestions}
+              graphData={graphData}
+              onOpenNote={onOpenNote}
+              onExportEssay={onExportEssay}
+              onInsertLink={onInsertLink}
+              onDraftSynthesis={onDraftSynthesis}
+              onAnswerInNewNote={onAnswerInNewNote}
+              onScheduleReview={onScheduleReview}
+            />
+          )}
+          {activeTab === 'graph' && <GraphPanel note={note} allNotes={allNotes} onOpenNote={onOpenNote} />}
+          {activeTab === 'history' && <HistoryPanel note={note} history={history} onOpenNote={onOpenNote} />}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ---------- AI Tab ---------- */
+/* ---------- Info Tab ---------- */
 
-function AIPanel({
+function InfoPanel({
   note,
   suggestions,
   graphData,
   onOpenNote,
-  onAskAI,
   onExportEssay,
   onInsertLink,
   onDraftSynthesis,
@@ -170,7 +238,6 @@ function AIPanel({
   suggestions: ReturnType<typeof generateSuggestions>;
   graphData: { neighbors: Note[]; distant: Note[] };
   onOpenNote: (id: string) => void;
-  onAskAI: () => void;
   onExportEssay: () => void;
   onInsertLink: (linkTitle: string) => void;
   onDraftSynthesis: () => void;
@@ -231,10 +298,9 @@ function AIPanel({
         <MiniGraph note={note} neighbors={graphData.neighbors} distant={graphData.distant} onOpenNote={onOpenNote} />
       </div>
 
-      {/* Action buttons */}
+      {/* Ask AI and Study now live in the AI tab next door, not behind a button. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
         <ActionButton label="export as essay" onClick={onExportEssay} />
-        <ActionButton label="ask AI about this" onClick={onAskAI} />
       </div>
     </div>
   );
@@ -412,7 +478,7 @@ function MiniGraph({
       {distantPositions.map((p) => (
         <g key={`dist-${p.note.id}`} style={{ cursor: 'pointer' }} onClick={() => onOpenNote(p.note.id)}>
           <circle cx={p.x} cy={p.y} r={2.5} fill="#3d378a" />
-          <text x={p.x + 4} y={p.y + 2} fontSize={6} fill="var(--t3)" fontFamily="JetBrains Mono">
+          <text x={p.x + 4} y={p.y + 2} fontSize={7} fill="var(--t2)" fontFamily="JetBrains Mono">
             {p.note.title.slice(0, 8)}
           </text>
         </g>
@@ -554,7 +620,7 @@ function GraphPanel({
                   x={n.x + r + 4}
                   y={n.y + 3}
                   fontSize={8}
-                  fill={isCurrent ? 'var(--acc2)' : 'var(--t3)'}
+                  fill={isCurrent ? 'var(--acc2)' : 'var(--t2)'}
                   fontFamily="JetBrains Mono"
                   fontWeight={isCurrent ? 600 : 400}
                 >

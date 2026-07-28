@@ -14,11 +14,11 @@ import { FileTree } from '@/components/second-brain/FileTree';
 import { CommandBar } from '@/components/second-brain/CommandBar';
 import { EditorTabs } from '@/components/second-brain/EditorTabs';
 import { EditorCanvas } from '@/components/second-brain/EditorCanvas';
-import { ContextPanel } from '@/components/second-brain/ContextPanel';
+import { ContextPanel, ContextTab } from '@/components/second-brain/ContextPanel';
+import { AIMode } from '@/components/second-brain/AIChat';
 import { StatusBar } from '@/components/second-brain/StatusBar';
 import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
-import { StudyMode } from '@/components/second-brain/StudyMode';
 import { AppDialog, DialogState } from '@/components/second-brain/AppDialog';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
@@ -103,11 +103,11 @@ export default function Home() {
   const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search' | 'graph' | 'kanban' | 'canvas' | 'reading'>('dashboard');
   const [search, setSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [contextTab, setContextTab] = useState<'ai' | 'graph' | 'history'>('ai');
+  const [contextTab, setContextTab] = useState<ContextTab>('info');
+  const [aiMode, setAiMode] = useState<AIMode>('note');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [fileTreeView, setFileTreeView] = useState<'folders' | 'tags'>('folders');
   const [askAIOpen, setAskAIOpen] = useState(false);
-  const [studyOpen, setStudyOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -520,6 +520,14 @@ export default function Home() {
     });
   }, [state.notes, deleteNote, showToast]);
 
+  // Study is a tab in the editor's context panel now, so "open study" means
+  // "put me in the editor with that tab showing".
+  const openStudy = useCallback(() => {
+    setAppView('notes');
+    setContextTab('ai');
+    setAiMode('study');
+  }, []);
+
   // ---------- Icon rail actions ----------
   const handleIconSelect = useCallback((v: IconRailView) => {
     setIconView(v);
@@ -535,15 +543,6 @@ export default function Home() {
       setAppView('canvas');
     } else if (v === 'reading') {
       setAppView('reading');
-    } else if (v === 'ai') {
-      setContextTab('ai');
-      setAskAIOpen(true);
-    } else if (v === 'study') {
-      // Open the tutor panel over whatever the user is looking at — don't yank
-      // them into a default note. It anchors to the open note if there is one.
-      setStudyOpen(true);
-    } else if (v === 'journal') {
-      handleCreateJournal();
     } else if (v === 'tags') {
       setAppView('notes');
       setFileTreeView('tags');
@@ -552,7 +551,7 @@ export default function Home() {
       setAppView('notes');
       setFileTreeView('folders');
     }
-  }, [handleCreateJournal, showToast]);
+  }, [showToast]);
 
   // ---------- Keyboard shortcuts ----------
   useEffect(() => {
@@ -704,19 +703,24 @@ export default function Home() {
         {appView === 'dashboard' ? (
           <Dashboard
             notes={state.notes}
-            folders={state.folders}
             streak={state.streak}
-            totalConnections={state.totalConnections}
+            todos={kanbanTodos.todos}
+            kanbanCards={kanbanTodos.kanbanCards}
+            libraryItems={reading.libraryItems}
+            highlights={reading.highlights}
             onOpenNote={handleOpenNote}
             onCreateNote={() => handleCreateNote()}
             onCreateJournal={handleCreateJournal}
             onAskAI={() => setAskAIOpen(true)}
+            onStudyMode={openStudy}
             onViewGraph={() => {
-              setAppView('notes');
-              setContextTab('graph');
+              setAppView('graph');
+              setIconView('graph');
             }}
             onExportVault={handleExportVault}
             onImportVault={handleImportVault}
+            onToggleTodo={kanbanTodos.toggleTodo}
+            onNavigate={handleIconSelect}
           />
         ) : appView === 'search' ? (
           <SearchView
@@ -865,8 +869,11 @@ export default function Home() {
               allNotes={state.notes}
               activeTab={contextTab}
               onTabChange={setContextTab}
+              aiMode={aiMode}
+              onAiModeChange={setAiMode}
               onOpenNote={handleOpenNote}
-              onAskAI={() => setAskAIOpen(true)}
+              onOpenNoteByTitle={handleOpenNoteByTitle}
+              onSaveToNote={handleSaveToNote}
               onExportEssay={handleExportEssay}
               onInsertLink={handleInsertLink}
               onDraftSynthesis={handleDraftSynthesis}
@@ -899,6 +906,7 @@ export default function Home() {
         onExport={handleExportNote}
         onCreateFolder={() => handleCreateFolder(null)}
         onAskAI={() => setAskAIOpen(true)}
+        onStudyMode={openStudy}
       />
 
       <AskAIModal
@@ -907,13 +915,6 @@ export default function Home() {
         note={activeNote}
         allNotes={state.notes}
         onOpenNoteByTitle={handleOpenNoteByTitle}
-      />
-
-      <StudyMode
-        open={studyOpen}
-        onClose={() => setStudyOpen(false)}
-        note={activeNote}
-        onSaveToNote={handleSaveToNote}
       />
 
       <AppDialog dialog={dialog} onClose={() => setDialog(null)} />

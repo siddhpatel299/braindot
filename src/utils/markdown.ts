@@ -170,6 +170,11 @@ export function renderMarkdownOverlay(body: string): string {
   return out.join('\n') + '\n';
 }
 
+/** "1 link" / "2 links". Pass `many` explicitly for irregular words. */
+export function plural(n: number, one: string, many = one + 's'): string {
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}
+
 /** Format a relative time like "2 min ago", "1h ago", "3d ago". */
 export function relativeTime(iso: string | number): string {
   const then = typeof iso === 'number' ? iso : new Date(iso).getTime();

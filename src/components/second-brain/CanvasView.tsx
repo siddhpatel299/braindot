@@ -7,8 +7,10 @@ import {
 } from '@/types';
 import {
   MousePointer2, StickyNote as StickyIcon, ArrowRight, Box, Plus,
-  ZoomIn, ZoomOut, Maximize, FileText, Sparkles, X, Trash2, Type,
+  ZoomIn, ZoomOut, Maximize, FileText, Sparkles, X, Trash2, Type, PenTool,
 } from 'lucide-react';
+import { plural } from '@/utils/markdown';
+import { ViewHeader } from './ViewHeader';
 
 interface CanvasViewProps {
   board: CanvasBoard;
@@ -270,21 +272,20 @@ export function CanvasView({
     transition: 'background 0.1s, color 0.1s',
   });
 
+  const boardFacts = [
+    plural(board.cards.length, 'card'),
+    board.groups.length > 0 ? plural(board.groups.length, 'group') : '',
+    board.connectors.length > 0 ? plural(board.connectors.length, 'connector') : '',
+    tool !== 'select' ? `${tool} mode` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
-      {/* Breadcrumb + toolbar */}
-      <div style={{
-        height: 44, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--t3)' }}>
-          <button onClick={onBack} style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 }}>dashboard</button>
-          <span>/</span>
-          <span style={{ color: 'var(--t1)', display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Box size={13} color="var(--acc2)" /> canvas
-          </span>
-        </div>
-        {/* Tools */}
+      {/* One header — the breadcrumb row and the separate stat bar were 80px
+          of chrome saying what the board is already showing. */}
+      <ViewHeader icon={PenTool} title={board.name} facts={boardFacts}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', gap: 3, background: 'var(--bg3)', borderRadius: 5, padding: 3 }}>
             <button onClick={() => setTool('select')} style={toolBtnStyle(tool === 'select')} title="Select / move (pan)"><MousePointer2 size={14} /></button>
@@ -302,24 +303,7 @@ export function CanvasView({
             <button onClick={fitToScreen} style={toolBtnStyle(false)} title="Fit to screen"><Maximize size={14} /></button>
           </div>
         </div>
-      </div>
-
-      {/* Board stats bar */}
-      <div style={{
-        height: 36, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
-        display: 'flex', alignItems: 'center', padding: '0 16px', gap: 14, fontSize: 11, color: 'var(--t3)', flexShrink: 0,
-      }}>
-        <span style={{ color: 'var(--t2)', fontWeight: 600 }}>{board.name}</span>
-        <span>·</span>
-        <span>{board.cards.length} cards</span>
-        <span>·</span>
-        <span>{board.groups.length} groups</span>
-        <span>·</span>
-        <span>{board.connectors.length} connectors</span>
-        {tool !== 'select' && (
-          <span style={{ color: 'var(--acc2)', fontStyle: 'italic' }}>· {tool} mode — {tool === 'connector' && connectorFrom ? 'click target card' : 'click on canvas'}</span>
-        )}
-      </div>
+      </ViewHeader>
 
       {/* Main area: board sidebar + canvas */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
