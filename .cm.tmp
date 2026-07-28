@@ -1,17 +1,21 @@
-feat: rebuild the dashboard to match the new design
+feat: port the auth and landing screens to the new design
 
-Ports the dashboard layout properly rather than just recolouring the old one.
+Auth — rebuilt as their split, not a restyle of the old one
+- form column (352px) on the left, editorial column on the right
+- serif title, mono field labels, 36px fields with accent focus rings
+- live password-strength meter on sign up, keep-me-signed-in on sign in
+- "Continue in demo mode" is now a full-width secondary action rather than a
+  footnote, with a line explaining what demo mode actually does
+- right column carries a serif pull-quote (sign in) or the what-you-get list
+  (sign up); it hides under 880px
 
-- greeting + inline quick-action pills in the header, instead of a row of
-  oversized action cards
-- five compact stat cards (adds orphan count) on an auto-fit grid
-- two-column body: recently edited / 14-day writing heat / PARA progress on
-  the left, knowledge graph / tag chips / recently created on the right
-- the 14-day writing heat chart and PARA progress bars are new; both were in
-  the design and missing here
-- mono for every label, count and timestamp; sans for content
-- collapses to one column under 1040px
+Landing
+- it had its own :root, so the earlier token port never reached it — it was
+  still entirely purple. Now on the same OKLCH blue/amber ramp as the app.
+- IBM Plex Sans body, Newsreader headline at 62px/-1.8px tracking, mono eyebrow
+- headline is their thesis line, left-aligned, 16ch measure
+- buttons and nav CTA to their radius and weight
+- removed the typewriter (the headline no longer rotates) and its script
 
-Also swapped the import control from a ref + .click() to a <label> wrapping
-the hidden input: fewer moving parts, keyboard accessible, and it stops the
-React compiler flagging a ref read during render.
+Logo is now the ring-with-a-dot mark from the design — it says the product's
+name in the shape, which the caret never did.

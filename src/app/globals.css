@@ -375,35 +375,26 @@ code, pre, kbd, samp { font-family: var(--font-code); }
   color: var(--t3);
 }
 
-/* ===== Auth page: split layout (product left, form right) ===== */
+/* ===== Auth: form on the left, editorial panel on the right ===== */
 .auth-page {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  background: #0a0a0c;
-}
-.auth-aside {
+  height: 100vh;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 56px 52px;
-  background:
-    radial-gradient(900px 520px at 12% 8%, rgba(124, 110, 247, 0.13), transparent 68%),
-    #0d0d10;
-  border-right: 1px solid #1e1e24;
+  background: var(--bg);
+  color: var(--t1);
+  font-family: var(--font-ui);
 }
-.auth-main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 32px;
+.auth-form-col {
+  flex: 1; min-width: 0; display: flex; overflow-y: auto;
+  justify-content: center; padding: 40px;
 }
-.auth-mobile-brand { display: none; }
-
-@media (max-width: 900px) {
-  .auth-page { grid-template-columns: 1fr; }
-  .auth-aside { display: none; }
-  .auth-mobile-brand { display: flex; justify-content: center; }
+.auth-aside-col {
+  flex: 1; min-width: 0; border-left: 1px solid var(--bd);
+  background: var(--bg1); display: flex; overflow-y: auto;
+  justify-content: center; padding: 50px;
+}
+@media (max-width: 880px) {
+  .auth-aside-col { display: none; }
+  .auth-form-col { padding: 32px 24px; }
 }
 
 /* Braindot wordmark caret — the block cursor that IS the logo */

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
-import { ArrowRight, Eye, EyeOff, Play, Network, GraduationCap, BookOpen } from 'lucide-react';
+import { LogoMark } from '@/components/second-brain/Logo';
 
 function friendlyAuthError(raw: string, mode: 'signin' | 'signup'): string {
   const msg = raw.toLowerCase();
@@ -13,9 +13,7 @@ function friendlyAuthError(raw: string, mode: 'signin' | 'signup'): string {
       ? 'Wrong email or password. If you\'re new here, switch to sign up.'
       : 'An account with this email already exists — try signing in.';
   }
-  if (msg.includes('account already exists')) {
-    return 'An account with this email already exists — try signing in.';
-  }
+  if (msg.includes('account already exists')) return 'An account with this email already exists — try signing in.';
   if (msg.includes('password') && (msg.includes('short') || msg.includes('length') || msg.includes('validation'))) {
     return 'Password must be at least 8 characters.';
   }
@@ -25,73 +23,38 @@ function friendlyAuthError(raw: string, mode: 'signin' | 'signup'): string {
   return 'Authentication failed. Please try again.';
 }
 
-// Lines the preview types out. Deliberately looks like a real note being
-// written, with the caret — the logo — doing the writing.
-const TYPED_LINES = [
-  '# Spaced repetition',
-  '',
-  'Review just before you would forget.',
-  'Each gap longer than the last.',
-  '',
-  'Connects to [[Zettelkasten]].',
-];
-
-function TypingPreview() {
-  const [text, setText] = useState('');
-  const idx = useRef(0);
-
-  useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const full = TYPED_LINES.join('\n');
-    if (reduced) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setText(full);
-      return;
-    }
-    const t = setInterval(() => {
-      idx.current += 1;
-      if (idx.current > full.length) {
-        idx.current = 0;
-      }
-      setText(full.slice(0, idx.current));
-    }, 55);
-    return () => clearInterval(t);
-  }, []);
-
-  return (
-    <div style={{
-      background: 'var(--bg1)',
-      border: '1px solid #232329',
-      borderRadius: 10,
-      overflow: 'hidden',
-      boxShadow: '0 20px 50px -24px rgba(0,0,0,0.9)',
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        padding: '9px 12px', background: 'var(--bg2)', borderBottom: '1px solid #232329',
-      }}>
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--red)' }} />
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--amb)' }} />
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--grn)' }} />
-        <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--t3)' }}>spaced-repetition.md</span>
-      </div>
-      <pre style={{
-        margin: 0, padding: '16px 18px', minHeight: 168,
-        fontFamily: "var(--font-ui)", fontSize: 12.5, lineHeight: 1.75,
-        color: 'var(--t2)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-      }}>
-        {text}
-        <span className="sb-caret sb-caret-blink" />
-      </pre>
-    </div>
-  );
+function passwordStrength(pw: string): { pct: number; label: string; color: string } {
+  if (!pw) return { pct: 0, label: '', color: 'var(--t3)' };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (pw.length < 8) return { pct: 18, label: 'too short', color: 'var(--red)' };
+  if (score <= 2) return { pct: 40, label: 'weak', color: 'var(--red)' };
+  if (score === 3) return { pct: 65, label: 'fair', color: 'var(--amb)' };
+  if (score === 4) return { pct: 85, label: 'good', color: 'var(--grn)' };
+  return { pct: 100, label: 'strong', color: 'var(--grn)' };
 }
 
-const CAPABILITIES = [
-  { icon: Network, text: 'Notes that link to each other, and a graph that shows the shape of your thinking' },
-  { icon: GraduationCap, text: 'An AI study tutor that quizzes you and draws diagrams, saved straight into your notes' },
-  { icon: BookOpen, text: 'Read articles, papers and books in-app; highlights flow into your vault' },
+const SIGNUP_POINTS = [
+  'A markdown editor where linking is one keystroke, and backlinks appear on their own.',
+  'A graph that shows the shape of what you have been thinking about.',
+  'An AI that has read your whole vault, and a tutor that teaches from it.',
 ];
+
+const LABEL: React.CSSProperties = {
+  fontFamily: 'var(--font-code)', fontSize: 9.5, letterSpacing: '.09em',
+  textTransform: 'uppercase', color: 'var(--t3)',
+};
+
+const FIELD: React.CSSProperties = {
+  height: 36, padding: '0 11px', border: '1px solid var(--bd)', borderRadius: 7,
+  background: 'var(--bg1)', fontSize: 13, outline: 'none', color: 'var(--t1)',
+  fontFamily: 'inherit', width: '100%',
+  transition: 'border-color .14s, box-shadow .14s',
+};
 
 function AuthContent() {
   const searchParams = useSearchParams();
@@ -100,8 +63,8 @@ function AuthContent() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
   const [name, setName] = useState('');
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,12 +73,12 @@ function AuthContent() {
     if (searchParams.get('mode') === 'signup') setMode('signup');
   }, [searchParams]);
 
-  // Already signed in → straight to the app
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      window.location.href = '/';
-    }
+    if (!authLoading && isAuthenticated) window.location.href = '/';
   }, [isAuthenticated, authLoading]);
+
+  const isSignup = mode === 'signup';
+  const pw = passwordStrength(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,29 +86,15 @@ function AuthContent() {
     setLoading(true);
     setError(null);
     try {
-      if (mode === 'signup' && password.length < 8) {
-        throw new Error('Password must be at least 8 characters.');
-      }
+      if (isSignup && password.length < 8) throw new Error('Password must be at least 8 characters.');
       const params: Record<string, string> = {
-        email,
-        password,
-        flow: mode === 'signup' ? 'signUp' : 'signIn',
+        email, password, flow: isSignup ? 'signUp' : 'signIn',
       };
-      if (mode === 'signup') {
-        params.name = name || email.split('@')[0];
-      }
+      if (isSignup) params.name = name || email.split('@')[0];
       await signIn('password', params);
-
-      // Minimal profile info for UI display — the actual session is a
-      // server-verified Convex Auth token.
-      localStorage.setItem('second-brain-user', JSON.stringify({
-        email,
-        name: name || email.split('@')[0],
-      }));
+      localStorage.setItem('second-brain-user', JSON.stringify({ email, name: name || email.split('@')[0] }));
       localStorage.removeItem('second-brain-demo');
-      if (mode === 'signup') {
-        localStorage.setItem('second-brain-new-user', 'true');
-      }
+      if (isSignup) localStorage.setItem('second-brain-new-user', 'true');
       window.location.href = '/';
     } catch (err) {
       const raw = err instanceof Error ? err.message : 'Something went wrong';
@@ -154,196 +103,176 @@ function AuthContent() {
     }
   };
 
-  const field: React.CSSProperties = {
-    width: '100%', background: 'var(--bg2)', border: '1px solid #2c2c34',
-    borderRadius: 6, padding: '11px 12px', color: 'var(--t1)', fontSize: 13,
-    fontFamily: 'inherit', outline: 'none', caretColor: 'var(--acc2)',
-    transition: 'border-color 0.14s, box-shadow 0.14s',
-  };
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em',
-    color: 'var(--t3)', fontWeight: 600, marginBottom: 6, display: 'block',
-  };
   const focusOn = (e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.style.borderColor = 'var(--acc)';
     e.currentTarget.style.boxShadow = '0 0 0 3px var(--acc-a20)';
   };
   const focusOff = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = 'var(--bd2)';
+    e.currentTarget.style.borderColor = 'var(--bd)';
     e.currentTarget.style.boxShadow = 'none';
   };
 
   return (
-    <div className="auth-page" style={{ fontFamily: "var(--font-ui)" }}>
-      {/* ---------- LEFT: what you're signing up for ---------- */}
-      <aside className="auth-aside">
-        <a href="/landing" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'baseline', marginBottom: 34 }}>
-          <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', color: 'var(--t1)', display: 'inline-flex', alignItems: 'baseline' }}>
-            braindot<span className="sb-caret sb-caret-blink" />
-          </span>
-        </a>
-
-        <h2 style={{
-          fontSize: 27, lineHeight: 1.22, fontWeight: 700, letterSpacing: '-0.025em',
-          color: 'var(--t1)', margin: '0 0 12px', maxWidth: '15ch',
-        }}>
-          Your knowledge, connected.
-        </h2>
-        <p style={{ fontSize: 13.5, lineHeight: 1.7, color: 'var(--t3)', margin: '0 0 30px', maxWidth: '46ch' }}>
-          A thinking environment, not a filing cabinet. Write in markdown, link
-          everything, and let AI help you see the patterns.
-        </p>
-
-        <TypingPreview />
-
-        <ul style={{ listStyle: 'none', padding: 0, margin: '30px 0 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {CAPABILITIES.map(({ icon: Icon, text }) => (
-            <li key={text} style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-              <span style={{
-                flexShrink: 0, width: 24, height: 24, borderRadius: 6,
-                background: 'var(--acc-a10)', border: '1px solid var(--acc-a30)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1,
-              }}>
-                <Icon size={12} color="var(--acc2)" />
-              </span>
-              <span style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--t2)' }}>{text}</span>
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      {/* ---------- RIGHT: the form ---------- */}
-      <main className="auth-main">
-        <div style={{ width: '100%', maxWidth: 380 }}>
-          {/* brand shows here only when the aside is hidden (mobile) */}
-          <a href="/landing" className="auth-mobile-brand" style={{ textDecoration: 'none', marginBottom: 26 }}>
-            <span style={{ fontWeight: 700, fontSize: 19, letterSpacing: '-0.02em', color: 'var(--t1)', display: 'inline-flex', alignItems: 'baseline' }}>
-              braindot<span className="sb-caret sb-caret-blink" />
-            </span>
+    <div className="auth-page">
+      {/* ---------- form ---------- */}
+      <div className="auth-form-col">
+        <div style={{ width: 352, maxWidth: '100%', margin: 'auto 0' }}>
+          <a href="/landing" style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 30, textDecoration: 'none' }}>
+            <LogoMark size={15} />
+            <span style={{ fontFamily: 'var(--font-code)', fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>braindot</span>
           </a>
 
-          <div style={{ display: 'flex', gap: 2, background: 'var(--bg2)', borderRadius: 7, padding: 3, marginBottom: 26 }}>
-            {(['signin', 'signup'] as const).map((m) => (
-              <button key={m} type="button" onClick={() => { setMode(m); setError(null); }} style={{
-                flex: 1, padding: '9px 0', borderRadius: 5,
-                background: mode === m ? 'var(--bg3)' : 'transparent',
-                border: 'none', color: mode === m ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.06em',
-                transition: 'background 0.14s, color 0.14s',
-              }}>{m === 'signin' ? 'sign in' : 'sign up'}</button>
-            ))}
+          <div style={{ fontFamily: 'var(--font-reading-serif)', fontSize: 28, letterSpacing: '-0.6px', marginBottom: 6, color: 'var(--t1)' }}>
+            {isSignup ? 'Start your vault' : 'Welcome back'}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 26, lineHeight: 1.6 }}>
+            {isSignup
+              ? 'Everything syncs to the cloud, so your notes follow you between devices.'
+              : 'Sign in to your notes, reading and canvas.'}
           </div>
 
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--t1)', margin: '0 0 7px', letterSpacing: '-0.025em' }}>
-            {mode === 'signup' ? 'Create your vault' : 'Welcome back'}
-          </h1>
-          <p style={{ fontSize: 12.5, color: 'var(--t3)', margin: '0 0 26px', lineHeight: 1.6 }}>
-            {mode === 'signup'
-              ? 'Everything syncs to the cloud, so your vault follows you between devices.'
-              : 'Sign in to your notes, reading and canvas.'}
-          </p>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            {isSignup && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <span style={LABEL}>what should we call your vault</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Second desk"
+                  autoComplete="name" onFocus={focusOn} onBlur={focusOff} style={FIELD} />
+              </label>
+            )}
 
-          {error && (
-            <div role="alert" style={{
-              background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)',
-              borderRadius: 6, padding: '10px 12px', marginBottom: 16,
-              fontSize: 12, color: 'var(--red)', lineHeight: 1.5,
-            }}>
-              {error}
-            </div>
-          )}
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <span style={LABEL}>email</span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                placeholder="you@example.com" autoComplete="email"
+                onFocus={focusOn} onBlur={focusOff} style={FIELD} />
+            </label>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {mode === 'signup' && (
-              <div>
-                <label htmlFor="au-name" style={labelStyle}>name</label>
-                <input id="au-name" value={name} onChange={(e) => setName(e.target.value)}
-                  placeholder="your name" required autoComplete="name"
-                  onFocus={focusOn} onBlur={focusOff} style={field} />
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <span style={LABEL}>password</span>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
+                placeholder="••••••••" autoComplete={isSignup ? 'new-password' : 'current-password'}
+                onFocus={focusOn} onBlur={focusOff} style={FIELD} />
+            </label>
+
+            {isSignup && password.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: -3 }}>
+                <div style={{ flex: 1, height: 3, borderRadius: 2, background: 'var(--bg3)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 2, background: pw.color, width: `${pw.pct}%`, transition: 'width .2s' }} />
+                </div>
+                <span style={{ fontFamily: 'var(--font-code)', fontSize: 9.5, color: pw.color, width: 66, textAlign: 'right' }}>
+                  {pw.label}
+                </span>
               </div>
             )}
-            <div>
-              <label htmlFor="au-email" style={labelStyle}>email</label>
-              <input id="au-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com" required autoComplete="email"
-                onFocus={focusOn} onBlur={focusOff} style={field} />
-            </div>
-            <div>
-              <label htmlFor="au-pw" style={labelStyle}>password</label>
-              <div style={{ position: 'relative' }}>
-                <input id="au-pw" type={showPw ? 'text' : 'password'} value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={mode === 'signup' ? 'at least 8 characters' : '••••••••'} required
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                  onFocus={focusOn} onBlur={focusOff} style={{ ...field, paddingRight: 42 }} />
-                <button type="button" onClick={() => setShowPw((s) => !s)}
-                  aria-label={showPw ? 'Hide password' : 'Show password'}
-                  title={showPw ? 'Hide password' : 'Show password'}
-                  style={{
-                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-                    width: 30, height: 30, borderRadius: 5, background: 'transparent',
-                    border: 'none', color: 'var(--t3)', cursor: 'pointer',
+
+            {!isSignup && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -2 }}>
+                <button type="button" onClick={() => setRemember((r) => !r)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: 'var(--t2)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                  <span style={{
+                    width: 13, height: 13, borderRadius: 4,
+                    border: `1.5px solid ${remember ? 'var(--acc)' : 'var(--bd2)'}`,
+                    background: remember ? 'var(--acc)' : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--acc2)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; }}
-                >
-                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                    color: 'var(--bg)', fontSize: 9,
+                  }}>{remember ? '✓' : ''}</span>
+                  Keep me signed in
                 </button>
+                <span style={{ flex: 1 }} />
               </div>
-            </div>
+            )}
+
+            {error && <div style={{ fontSize: 11.5, color: 'var(--red)', lineHeight: 1.5 }}>{error}</div>}
 
             <button type="submit" disabled={loading} style={{
-              marginTop: 4, padding: '12px 0',
-              background: loading ? 'var(--bg3)' : 'var(--acc)',
-              color: loading ? 'var(--t3)' : '#fff', border: 'none', borderRadius: 6,
-              fontSize: 13, fontFamily: 'inherit', cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-              transition: 'background 0.14s',
+              height: 38, borderRadius: 7, background: loading ? 'var(--bg3)' : 'var(--acc)',
+              color: loading ? 'var(--t3)' : 'var(--bg)', fontSize: 13, fontWeight: 500,
+              marginTop: 5, border: 'none', cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit',
             }}>
-              {loading
-                ? 'please wait…'
-                : (<>{mode === 'signup' ? 'Create vault' : 'Sign in'}<ArrowRight size={14} /></>)}
+              {loading ? 'please wait…' : isSignup ? 'Create vault' : 'Sign in'}
             </button>
           </form>
 
-          {/* Demo promoted to a real action — the lowest-friction way in */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0' }}>
-            <span style={{ flex: 1, height: 1, background: 'var(--bg3)' }} />
-            <span style={{ fontSize: 10.5, color: 'var(--t3)', letterSpacing: '0.06em' }}>OR</span>
-            <span style={{ flex: 1, height: 1, background: 'var(--bg3)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0' }}>
+            <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
+            <span style={{ fontFamily: 'var(--font-code)', fontSize: 9.5, color: 'var(--t3)' }}>or</span>
+            <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
           </div>
 
           <a href="/demo" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: '11px 0', borderRadius: 6, textDecoration: 'none',
-            background: 'transparent', border: '1px solid #2c2c34',
-            color: 'var(--t2)', fontSize: 12.5, fontWeight: 600,
-            transition: 'border-color 0.14s, color 0.14s, background 0.14s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '100%', height: 38, border: '1px solid var(--bd2)', borderRadius: 7,
+            fontSize: 13, color: 'var(--t1)', textDecoration: 'none',
+            transition: 'border-color .14s, color .14s',
           }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--acc)';
-              e.currentTarget.style.color = 'var(--t1)';
-              e.currentTarget.style.background = 'var(--acc-a10)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--bd2)';
-              e.currentTarget.style.color = 'var(--t2)';
-              e.currentTarget.style.background = 'transparent';
-            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--acc)'; e.currentTarget.style.color = 'var(--acc)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--bd2)'; e.currentTarget.style.color = 'var(--t1)'; }}
           >
-            <Play size={12} />
-            Explore the demo — no account needed
+            Continue in demo mode
           </a>
+          <div style={{ fontSize: 11.5, color: 'var(--t3)', marginTop: 12, lineHeight: 1.6 }}>
+            Demo mode gives you the whole app with a sample vault. Nothing is persisted to the cloud.
+          </div>
 
-          <p style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center', marginTop: 18, lineHeight: 1.6 }}>
-            {mode === 'signup'
-              ? 'Free while in beta. No card, no spam.'
-              : <>New here? <button type="button" onClick={() => { setMode('signup'); setError(null); }} style={{ background: 'none', border: 'none', color: 'var(--acc2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, padding: 0, textDecoration: 'underline' }}>Create a vault</button></>}
-          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 24, fontSize: 12 }}>
+            <span style={{ color: 'var(--t2)' }}>
+              {isSignup ? 'Already have a vault?' : 'No vault yet?'}
+            </span>
+            <button type="button" onClick={() => { setMode(isSignup ? 'signin' : 'signup'); setError(null); }}
+              style={{ color: 'var(--acc)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 }}>
+              {isSignup ? 'Sign in' : 'Create one'}
+            </button>
+          </div>
+
+          <a href="/landing" style={{
+            display: 'inline-block', marginTop: 26, fontFamily: 'var(--font-code)',
+            fontSize: 10.5, color: 'var(--t3)', textDecoration: 'none',
+          }}>
+            ← back to braindot
+          </a>
         </div>
-      </main>
+      </div>
+
+      {/* ---------- editorial panel ---------- */}
+      <div className="auth-aside-col">
+        <div style={{ maxWidth: 420, margin: 'auto 0' }}>
+          {!isSignup ? (
+            <>
+              <div style={{
+                fontFamily: 'var(--font-reading-serif)', fontSize: 26, lineHeight: 1.3,
+                letterSpacing: '-0.5px', textWrap: 'pretty', color: 'var(--t1)',
+              }}>
+                “A perfect archive is a bad memory. Memory is useful because it is lossy — it
+                discards the particular and keeps the shape.”
+              </div>
+              <div style={{ fontFamily: 'var(--font-code)', fontSize: 10.5, color: 'var(--t3)', marginTop: 18 }}>
+                from a vault, three years in
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ ...LABEL, fontSize: 10, letterSpacing: '.1em', color: 'var(--acc)', marginBottom: 16 }}>
+                what you get
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-reading-serif)', fontSize: 26, lineHeight: 1.25,
+                letterSpacing: '-0.5px', textWrap: 'pretty', color: 'var(--t1)',
+              }}>
+                An empty vault, and everything that makes it worth filling.
+              </div>
+            </>
+          )}
+
+          <div style={{ marginTop: 34, display: 'flex', flexDirection: 'column', gap: 11 }}>
+            {SIGNUP_POINTS.map((p) => (
+              <div key={p} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ marginTop: 6, flexShrink: 0 }}><LogoMark size={11} /></span>
+                <span style={{ fontSize: 12.5, lineHeight: 1.65, color: 'var(--t2)' }}>{p}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
