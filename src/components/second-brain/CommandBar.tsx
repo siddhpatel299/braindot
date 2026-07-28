@@ -20,7 +20,7 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
   return (
     <div
       style={{
-        height: 48,
+        height: 40,
         background: 'var(--bg1)',
         borderBottom: '1px solid var(--bd)',
         display: 'flex',
@@ -33,7 +33,7 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
       <div
         style={{
           flex: 1,
-          height: 34,
+          height: 26,
           background: 'var(--bg3)',
           border: '1px solid var(--bd2)',
           borderRadius: 4,
@@ -127,8 +127,8 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
         <div
           title="Writing streak"
           style={{
-            height: 28,
-            padding: '0 10px',
+            height: 24,
+            padding: '0 9px',
             background: 'var(--amb-bg)',
             border: '1px solid var(--amb-bd)',
             borderRadius: 4,
@@ -151,8 +151,8 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
           aria-label="Toggle theme"
           title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           style={{
-            height: 32,
-            width: 32,
+            height: 24,
+            width: 24,
             background: 'var(--bg2)',
             border: '1px solid var(--bd2)',
             borderRadius: 4,
@@ -179,8 +179,8 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
         <button
           onClick={onCreate}
           style={{
-            height: 32,
-            padding: '0 14px',
+            height: 24,
+            padding: '0 12px',
             background: 'var(--acc)',
             color: '#fff',
             border: 'none',
@@ -192,8 +192,7 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
             alignItems: 'center',
             gap: 5,
             fontWeight: 600,
-            boxShadow: '0 0 0 1px rgba(124,110,247,0.3)',
-            transition: 'background 0.12s',
+                        transition: 'background 0.12s',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--acc2)';
@@ -213,8 +212,8 @@ export function CommandBar({ search, onSearchChange, onOpenPalette, onCreate, st
             aria-label="Sign out"
             title="Sign out"
             style={{
-              height: 32,
-              width: 32,
+              height: 24,
+              width: 24,
               background: 'var(--bg2)',
               border: '1px solid var(--bd2)',
               borderRadius: 4,

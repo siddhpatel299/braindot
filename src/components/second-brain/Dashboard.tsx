@@ -182,7 +182,7 @@ export function Dashboard({
           sub={`${stats.evergreenCount} evergreen · ${stats.draftCount} draft`}
           color="var(--acc2)"
           bgColor="var(--acc-bg)"
-          borderColor="#3d378a"
+          borderColor="var(--acc-bd)"
         />
         <StatCard
           icon={Link2}

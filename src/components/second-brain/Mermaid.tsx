@@ -53,41 +53,42 @@ export function Mermaid({ chart }: { chart: string }) {
     (async () => {
       try {
         const mermaid = await getMermaid();
-        // Timeline and mindmap diagrams colour their sections from a cScale
-        // palette, which by default is a clashing rainbow. Override the whole
-        // ramp with brand purple tints so every diagram type looks like the app.
+        // Mermaid derives shades from these values (darken/lighten), so they
+        // must be literal colours — CSS variables would break its colour maths.
+        // These mirror the app's blue accent ramp.
         const dark = theme !== 'light';
         const scale = dark
-          ? ['#221f3d', '#2b2750', '#332e63', '#3b3676', '#443e89', '#4d469c']
-          : ['#eeecfd', '#e2defb', '#d6d0f9', '#cac2f7', '#beb4f5', '#b2a6f3'];
-        const scaleText = dark ? '#e6e4f5' : '#241f4d';
+          ? ['#1b2b40', '#22384f', '#29455e', '#30526d', '#375f7c', '#3e6c8b']
+          : ['#e8f1fb', '#dbe9f8', '#cee1f5', '#c1d9f2', '#b4d1ef', '#a7c9ec'];
+        const accent = dark ? '#5aa0e8' : '#2c6fb5';
+        const scaleText = dark ? '#e6edf5' : '#16304d';
         const ramp: Record<string, string> = {};
         scale.forEach((c, i) => {
           ramp[`cScale${i}`] = c;
           ramp[`cScaleLabel${i}`] = scaleText;
-          ramp[`cScalePeer${i}`] = dark ? '#7c6ef7' : '#5b4fe8';
+          ramp[`cScalePeer${i}`] = accent;
         });
 
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: 'strict',
           theme: 'base',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
           themeVariables: {
             darkMode: dark,
-            background: dark ? '#111113' : '#ffffff',
-            primaryColor: dark ? '#221f3d' : '#eeecfd',
-            primaryBorderColor: dark ? '#7c6ef7' : '#5b4fe8',
-            primaryTextColor: dark ? '#f0f0f2' : '#1a1a18',
-            secondaryColor: dark ? '#1b1b21' : '#f0efec',
-            tertiaryColor: dark ? '#17171a' : '#f7f7f5',
-            lineColor: dark ? '#7c6ef7' : '#5b4fe8',
-            textColor: dark ? '#c9c9d4' : '#2a2a30',
-            mainBkg: dark ? '#221f3d' : '#eeecfd',
-            nodeBorder: dark ? '#7c6ef7' : '#5b4fe8',
-            clusterBkg: dark ? '#141419' : '#f4f4f1',
-            clusterBorder: dark ? '#2a2a32' : '#dedcd7',
-            titleColor: dark ? '#f0f0f2' : '#17171a',
+            background: dark ? '#1d1d21' : '#ffffff',
+            primaryColor: dark ? '#1f3350' : '#e8f1fb',
+            primaryBorderColor: accent,
+            primaryTextColor: dark ? '#eef1f5' : '#16304d',
+            secondaryColor: dark ? '#26262b' : '#f2f4f7',
+            tertiaryColor: dark ? '#212126' : '#f8f9fb',
+            lineColor: accent,
+            textColor: dark ? '#c3c7cf' : '#2a2f38',
+            mainBkg: dark ? '#1f3350' : '#e8f1fb',
+            nodeBorder: accent,
+            clusterBkg: dark ? '#212126' : '#f4f6f9',
+            clusterBorder: dark ? '#33333a' : '#dde1e7',
+            titleColor: dark ? '#eef1f5' : '#16304d',
             fontSize: '13px',
             ...ramp,
           },

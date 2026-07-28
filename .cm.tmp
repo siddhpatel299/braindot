@@ -1,0 +1,31 @@
+feat: adopt the new design system — OKLCH palette, three fonts, tighter density
+
+Ports the visual system from the design pass onto the working app. Because
+everything already routed through CSS variables, the whole product recolours
+from the token block.
+
+Palette
+- moved to OKLCH so both themes derive from the same hues instead of being
+  eyeballed; light is no longer a rough inversion
+- accent is now blue (hue 250) with amber (68) secondary, replacing the purple
+  that every other indie dev tool also uses
+- added translucent accent steps (--acc-a05..a60) and replaced 62 hardcoded
+  purple literals across 20 files with tokens, so nothing is left stranded
+
+Typography — three fonts, three jobs
+- IBM Plex Sans for the interface (was: monospace forced on everything)
+- JetBrains Mono kept for labels, counts and code
+- Newsreader for prose, and serif is now the DEFAULT reading font rather than
+  an opt-in; this is a writing app and prose reads better in a text face
+- the reading-font picker still offers mono and sans
+
+Density — matched to the design's measurements
+- top bar 48 -> 40px with 24px controls, sidebar 240 -> 216px, tree rows
+  26 -> 23px, rail 50 -> 52px
+
+Notes
+- Mermaid keeps literal hex, not tokens: it derives shades from these values
+  and CSS variables break its colour maths
+- the auth page was hardcoded dark; it now follows the theme
+- verified the editor overlay still aligns under a proportional serif, which
+  was the main risk in switching prose away from monospace

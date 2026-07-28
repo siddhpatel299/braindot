@@ -23,7 +23,7 @@ const themeScript = `
     var theme = (saved === 'dark' || saved === 'light') ? saved : system;
     document.documentElement.setAttribute('data-theme', theme);
     var ef = localStorage.getItem('sb-editor-font');
-    if (ef === 'serif' || ef === 'sans') {
+    if (ef === 'mono' || ef === 'sans') {
       document.documentElement.setAttribute('data-editor-font', ef);
     }
   } catch (e) {

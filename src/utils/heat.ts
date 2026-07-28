@@ -34,14 +34,14 @@ export const HEAT_STYLES: Record<HeatLevel, HeatStyle> = {
     activityColor: '#fb923c',
   },
   warm: {
-    color: '#b0a8fb',
+    color: 'var(--acc2)',
     radiusMultiplier: 0.85,
     hasGlow: true,
     hasPulse: true,
     glowFilter: 'url(#glow-warm)',
-    labelColor: '#b0a8fb',
+    labelColor: 'var(--acc2)',
     activityString: 'edited this week',
-    activityColor: '#b0a8fb',
+    activityColor: 'var(--acc2)',
   },
   month: {
     color: '#534AB7',
@@ -81,7 +81,7 @@ export interface EdgeStyle {
 export function getEdgeStyle(fromHeat: HeatLevel, toHeat: HeatLevel): EdgeStyle {
   const isActive = (h: HeatLevel) => h === 'hot' || h === 'warm';
   if (isActive(fromHeat) && isActive(toHeat)) {
-    return { stroke: '#3d378a', strokeWidth: 1.2 };
+    return { stroke: 'var(--acc-bd)', strokeWidth: 1.2 };
   }
   if (isActive(fromHeat) || isActive(toHeat)) {
     return { stroke: '#252528', strokeWidth: 1.0 };

@@ -171,8 +171,8 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
     }
     // links mode — quartile coloring
     const bl = note.backlinks.length;
-    if (bl >= 8) return '#b0a8fb';
-    if (bl >= 4) return '#7c6ef7';
+    if (bl >= 8) return 'var(--acc2)';
+    if (bl >= 4) return 'var(--acc)';
     if (bl >= 1) return '#534AB7';
     return '#2e2e44';
   }, [colorMode, heatMap, noteById]);
@@ -399,7 +399,7 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
           {colorMode === 'activity' && (
             <>
               <LegendDot color="#fb923c" size={11} label="today" />
-              <LegendDot color="#b0a8fb" size={9} label="this week" />
+              <LegendDot color="var(--acc2)" size={9} label="this week" />
               <LegendDot color="#534AB7" size={8} label="this month" />
               <LegendDot color="#2e2e44" size={6} label="older" />
               <div style={{ height: 1, background: 'var(--bd)', margin: '3px 0' }} />
@@ -423,8 +423,8 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
           )}
           {colorMode === 'links' && (
             <>
-              <LegendDot color="#b0a8fb" size={11} label="8+ backlinks" />
-              <LegendDot color="#7c6ef7" size={9} label="4-7 backlinks" />
+              <LegendDot color="var(--acc2)" size={11} label="8+ backlinks" />
+              <LegendDot color="var(--acc)" size={9} label="4-7 backlinks" />
               <LegendDot color="#534AB7" size={8} label="1-3 backlinks" />
               <LegendDot color="#2e2e44" size={6} label="orphan" />
             </>
@@ -569,7 +569,7 @@ function GraphSidebar({
               <span style={{ fontSize: 10, color: 'var(--t3)' }}>hot</span>
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#b0a8fb' }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--acc2)' }} />
               <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: 600 }}>{stats.warm}</span>
               <span style={{ fontSize: 10, color: 'var(--t3)' }}>warm</span>
             </span>
@@ -619,7 +619,7 @@ function GraphSidebar({
           <div style={{ marginBottom: 14 }}>
             <Label>this week</Label>
             {warmNotes.map((n) => (
-              <ActivityRow key={n.id} note={n} dotColor="#b0a8fb" timeLabel={formatShortDate(n.updatedAt)} onOpen={() => onOpenNote(n.id)} />
+              <ActivityRow key={n.id} note={n} dotColor="var(--acc2)" timeLabel={formatShortDate(n.updatedAt)} onOpen={() => onOpenNote(n.id)} />
             ))}
           </div>
         )}

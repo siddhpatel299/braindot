@@ -708,10 +708,10 @@ export function EditorCanvas({
                   // its own face.
                   const stack =
                     opt.id === 'serif'
-                      ? "'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif"
+                      ? "'Newsreader',Charter,Georgia,serif"
                       : opt.id === 'sans'
-                        ? "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif"
-                        : "'JetBrains Mono','Fira Mono',monospace";
+                        ? "'IBM Plex Sans',system-ui,sans-serif"
+                        : "'JetBrains Mono',ui-monospace,monospace";
                   return (
                     <button
                       key={opt.id}
@@ -719,7 +719,7 @@ export function EditorCanvas({
                       style={{
                         width: '100%', textAlign: 'left', padding: '7px 8px', borderRadius: 4,
                         background: active ? 'var(--acc-bg)' : 'transparent',
-                        border: active ? '1px solid #3d378a' : '1px solid transparent',
+                        border: active ? '1px solid var(--acc-bd)' : '1px solid transparent',
                         color: 'var(--t1)', cursor: 'pointer', display: 'flex',
                         alignItems: 'center', gap: 8,
                       }}
@@ -981,7 +981,7 @@ export function EditorCanvas({
                 style={{
                   padding: '6px 8px', borderRadius: 4, cursor: 'pointer',
                   background: i === linkSel ? 'var(--acc-bg)' : 'transparent',
-                  border: i === linkSel ? '1px solid #3d378a' : '1px solid transparent',
+                  border: i === linkSel ? '1px solid var(--acc-bd)' : '1px solid transparent',
                 }}
               >
                 <div style={{ fontSize: 12, color: i === linkSel ? 'var(--t1)' : 'var(--t2)', fontWeight: 500 }}>

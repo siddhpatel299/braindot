@@ -39,7 +39,7 @@ interface Chapter {
 }
 
 const TYPE_ABBREV: Record<string, { label: string; color: string; bg: string }> = {
-  epub: { label: 'EP', color: '#b0a8fb', bg: '#1e1a3a' },
+  epub: { label: 'EP', color: 'var(--acc2)', bg: '#1e1a3a' },
   pdf: { label: 'PDF', color: '#60a5fa', bg: '#1e3a5a' },
   rss: { label: 'RSS', color: '#fb923c', bg: '#3d2a10' },
   url: { label: 'URL', color: '#34d399', bg: '#0a1f16' },
@@ -47,7 +47,7 @@ const TYPE_ABBREV: Record<string, { label: string; color: string; bg: string }> 
 
 const HIGHLIGHT_BORDER: Record<HighlightColor, string> = {
   yellow: '#fbbf24',
-  purple: '#7c6ef7',
+  purple: 'var(--acc)',
   green: '#34d399',
 };
 
@@ -682,7 +682,7 @@ export function ReadingView({
                 <div style={{ width: 1, height: 18, background: 'var(--bd)' }} />
 
                 <ToolButton icon={Highlighter} label="yellow" active={currentHighlightColor === 'yellow'} onClick={() => setCurrentHighlightColor('yellow')} color="#fbbf24" />
-                <ToolButton icon={Highlighter} label="purple" active={currentHighlightColor === 'purple'} onClick={() => setCurrentHighlightColor('purple')} color="#7c6ef7" />
+                <ToolButton icon={Highlighter} label="purple" active={currentHighlightColor === 'purple'} onClick={() => setCurrentHighlightColor('purple')} color="var(--acc)" />
                 <ToolButton icon={Highlighter} label="green" active={currentHighlightColor === 'green'} onClick={() => setCurrentHighlightColor('green')} color="#34d399" />
               </div>
 
@@ -789,7 +789,7 @@ export function ReadingView({
                   padding: '4px 6px', display: 'flex', gap: 4,
                   boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
                 }}>
-                  <SelectionBtn icon={Highlighter} label="highlight" onClick={handleHighlight} color={currentHighlightColor === 'yellow' ? '#fbbf24' : currentHighlightColor === 'purple' ? '#7c6ef7' : '#34d399'} />
+                  <SelectionBtn icon={Highlighter} label="highlight" onClick={handleHighlight} color={currentHighlightColor === 'yellow' ? '#fbbf24' : currentHighlightColor === 'purple' ? 'var(--acc)' : '#34d399'} />
                   <SelectionBtn icon={Sparkles} label="ask AI" onClick={() => {
                     navigator.clipboard?.writeText(selectedText);
                     setShowSelectionToolbar(false);
@@ -1051,7 +1051,7 @@ function AISidebar({ item, highlights }: { item: LibraryItem; highlights: Highli
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span className="sb-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--acc)', boxShadow: '0 0 6px rgba(124,110,247,0.6)' }} />
+        <span className="sb-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--acc)', boxShadow: '0 0 6px var(--acc-a60)' }} />
         <span style={{ fontSize: 10, color: 'var(--acc2)' }}>reading intelligence</span>
       </div>
       {cards.map((card, i) => (

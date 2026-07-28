@@ -632,7 +632,7 @@ function WhyMatchedPanel({
       {canSynthesize && (
         <div style={{ padding: '14px 16px' }}>
           <div style={{
-            background: 'var(--acc-bg)', border: '1px solid #3d378a', borderRadius: 5,
+            background: 'var(--acc-bg)', border: '1px solid var(--acc-bd)', borderRadius: 5,
             padding: '12px 14px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>

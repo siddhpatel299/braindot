@@ -440,7 +440,7 @@ export function CanvasView({
           >
             <defs>
               <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#3d378a" />
+                <polygon points="0 0, 8 3, 0 6" fill="var(--acc-bd)" />
               </marker>
             </defs>
             {board.connectors.map((conn) => {
@@ -500,7 +500,7 @@ export function CanvasView({
               width: drawingGroup.w, height: drawingGroup.h,
               border: '1px dashed var(--acc)',
               borderRadius: 8,
-              background: 'rgba(124,110,247,0.05)',
+              background: 'var(--acc-a05)',
               pointerEvents: 'none',
             }} />
           )}
@@ -600,7 +600,7 @@ export function CanvasView({
             }}
             style={{
               height: 32, padding: '0 12px',
-              background: 'var(--bg2)', color: 'var(--acc2)', border: '1px solid #3d378a', borderRadius: 5,
+              background: 'var(--bg2)', color: 'var(--acc2)', border: '1px solid var(--acc-bd)', borderRadius: 5,
               fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600,
             }}
@@ -643,7 +643,7 @@ function CanvasNoteCardView({
         overflow: 'hidden',
         cursor: 'grab',
         transition: 'border 0.12s',
-        boxShadow: isConnectorSource ? '0 0 0 2px rgba(124,110,247,0.2)' : 'none',
+        boxShadow: isConnectorSource ? '0 0 0 2px var(--acc-a20)' : 'none',
       }}
       onMouseEnter={(e) => { if (!isConnectorSource) e.currentTarget.style.borderColor = 'var(--acc)'; }}
       onMouseLeave={(e) => { if (!isConnectorSource) e.currentTarget.style.borderColor = 'var(--bd2)'; }}
@@ -727,7 +727,7 @@ function CanvasStickyView({
         borderRadius: 7,
         padding: '10px 11px',
         cursor: 'grab',
-        boxShadow: isConnectorSource ? '0 0 0 2px rgba(124,110,247,0.2)' : 'none',
+        boxShadow: isConnectorSource ? '0 0 0 2px var(--acc-a20)' : 'none',
         transition: 'border 0.12s',
       }}
     >
@@ -824,7 +824,7 @@ function CanvasSynthesisView({
         borderRadius: 7,
         overflow: 'hidden',
         cursor: 'grab',
-        boxShadow: isConnectorSource ? '0 0 0 2px rgba(124,110,247,0.3)' : '0 0 0 1px rgba(124,110,247,0.1)',
+        boxShadow: isConnectorSource ? '0 0 0 2px var(--acc-a30)' : '0 0 0 1px var(--acc-a10)',
       }}
     >
       <div style={{
