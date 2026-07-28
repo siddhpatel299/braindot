@@ -425,6 +425,11 @@ code, pre, kbd, samp { font-family: var(--font-code); }
   56%, 100% { opacity: 0.16; }
 }
 
+/* Dashboard: two columns collapse on narrow viewports */
+@media (max-width: 1040px) {
+  .sb-dash-grid { grid-template-columns: 1fr !important; }
+}
+
 /* Selection style for sidebar items */
 .sb-note-row {
   cursor: pointer;
