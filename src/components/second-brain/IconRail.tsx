@@ -72,8 +72,8 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
   return (
     <div
       style={{
-        width: 52,
-        minWidth: 52,
+        width: 50,
+        minWidth: 50,
         height: '100%',
         background: 'var(--bg1)',
         borderRight: '1px solid var(--bd)',

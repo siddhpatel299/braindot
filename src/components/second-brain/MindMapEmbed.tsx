@@ -651,7 +651,7 @@ function MindMapModal({
               ...modalBtnStyle,
               background: editMode ? 'var(--acc-bg)' : 'transparent',
               color: editMode ? 'var(--acc2)' : 'var(--t3)',
-              border: editMode ? '1px solid var(--acc-bd)' : '1px solid var(--bd2)',
+              border: editMode ? '1px solid #3d378a' : '1px solid var(--bd2)',
             }}
             title="Edit mode"
           >

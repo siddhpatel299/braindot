@@ -1,102 +1,84 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'JetBrains Mono', 'Fira Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
 }
 
 /* ===== Braindot Design System — Theme Variables ===== */
 
-/* Palette in OKLCH so both themes are derived from the same hues rather than
-   eyeballed. Accent is blue (hue 250) with amber (hue 68) as the secondary.
-   Every surface/border/text step keeps a slight 265 hue bias so the neutrals
-   read as chosen, not as flat grey. */
-
 /* Dark mode (default) */
 [data-theme="dark"] {
-  --bg:       oklch(0.185 0.008 265);
-  --bg1:      oklch(0.205 0.008 265);
-  --bg2:      oklch(0.215 0.008 265);
-  --bg3:      oklch(0.252 0.009 265);
-  --bg4:      oklch(0.290 0.009 265);
-  --bd:       oklch(0.300 0.009 265);
-  --bd2:      oklch(0.380 0.010 265);
-  --t1:       oklch(0.930 0.008 265);
-  --t2:       oklch(0.645 0.012 265);
-  --t3:       oklch(0.500 0.012 265);
-  --acc:      oklch(0.720 0.140 250);
-  --acc2:     oklch(0.810 0.110 250);
-  --acc-bg:   oklch(0.300 0.060 250);
-  --acc-bd:   oklch(0.450 0.100 250);
-  --grn:      oklch(0.740 0.130 155);
-  --grn-bg:   oklch(0.290 0.050 155);
-  --grn-bd:   oklch(0.410 0.080 155);
-  --amb:      oklch(0.780 0.140 68);
-  --amb-bg:   oklch(0.300 0.060 68);
-  --amb-bd:   oklch(0.420 0.090 68);
-  --blu:      oklch(0.740 0.110 225);
-  --blu-bg:   oklch(0.290 0.050 225);
-  --blu-bd:   oklch(0.410 0.080 225);
-  --red:      oklch(0.680 0.160 22);
-  --red-bg:   oklch(0.290 0.070 22);
-  --coral:    oklch(0.760 0.130 40);
-  --coral-bg: oklch(0.300 0.060 40);
-  --coral-bd: oklch(0.420 0.090 40);
-  --callout-text: oklch(0.820 0.060 250);
-  --selection-bg: oklch(0.720 0.140 250 / 0.28);
-  --canvas-dot: oklch(0.265 0.008 265);
-  --shadow:   0 12px 32px oklch(0.12 0.01 265 / 0.55);
-  /* translucent accent steps, for glows/rings/tints */
-  --acc-a05: oklch(0.720 0.140 250 / 0.05);
-  --acc-a10: oklch(0.720 0.140 250 / 0.10);
-  --acc-a20: oklch(0.720 0.140 250 / 0.20);
-  --acc-a30: oklch(0.720 0.140 250 / 0.30);
-  --acc-a60: oklch(0.720 0.140 250 / 0.60);
+  --bg:       #0c0c0e;
+  --bg1:      #111113;
+  --bg2:      #171719;
+  --bg3:      #1e1e21;
+  --bg4:      #26262a;
+  --bd:       #252528;
+  --bd2:      #333338;
+  --t1:       #f0f0f2;
+  --t2:       #888894;
+  --t3:       #444450;
+  --acc:      #7c6ef7;
+  --acc2:     #b0a8fb;
+  --acc-bg:   #1a1830;
+  --acc-bd:   #3d378a;
+  --grn:      #34d399;
+  --grn-bg:   #0a1f16;
+  --grn-bd:   #1a4a2a;
+  --amb:      #fbbf24;
+  --amb-bg:   #1c1608;
+  --amb-bd:   #4a3010;
+  --blu:      #60a5fa;
+  --blu-bg:   #0c1f2e;
+  --blu-bd:   #0f3a50;
+  --red:      #f87171;
+  --red-bg:   #2a0f0f;
+  --coral:    #f0997b;
+  --coral-bg: #2a160c;
+  --coral-bd: #4a2515;
+  --callout-text: #9994cc;
+  --selection-bg: rgba(124, 110, 247, 0.25);
+  --canvas-dot: #18181b;
 }
 
-/* Light mode — derived from the same hues, not inverted */
+/* Light mode */
 [data-theme="light"] {
-  --bg:       oklch(0.972 0.004 265);
-  --bg1:      oklch(0.995 0.002 265);
-  --bg2:      oklch(0.962 0.005 265);
-  --bg3:      oklch(0.945 0.005 265);
-  --bg4:      oklch(0.915 0.006 265);
-  --bd:       oklch(0.895 0.006 265);
-  --bd2:      oklch(0.820 0.008 265);
-  --t1:       oklch(0.260 0.012 265);
-  --t2:       oklch(0.505 0.012 265);
-  --t3:       oklch(0.630 0.010 265);
-  --acc:      oklch(0.530 0.150 250);
-  --acc2:     oklch(0.450 0.150 250);
-  --acc-bg:   oklch(0.950 0.030 250);
-  --acc-bd:   oklch(0.860 0.060 250);
-  --grn:      oklch(0.540 0.130 155);
-  --grn-bg:   oklch(0.955 0.035 155);
-  --grn-bd:   oklch(0.860 0.070 155);
-  --amb:      oklch(0.600 0.130 62);
-  --amb-bg:   oklch(0.960 0.040 62);
-  --amb-bd:   oklch(0.870 0.080 62);
-  --blu:      oklch(0.520 0.110 225);
-  --blu-bg:   oklch(0.955 0.030 225);
-  --blu-bd:   oklch(0.860 0.060 225);
-  --red:      oklch(0.540 0.180 22);
-  --red-bg:   oklch(0.962 0.025 22);
-  --coral:    oklch(0.570 0.140 40);
-  --coral-bg: oklch(0.960 0.035 40);
-  --coral-bd: oklch(0.870 0.070 40);
-  --callout-text: oklch(0.420 0.120 250);
-  --selection-bg: oklch(0.530 0.150 250 / 0.18);
-  --canvas-dot: oklch(0.880 0.006 265);
-  --shadow:   0 12px 32px oklch(0.5 0.02 265 / 0.18);
-  --acc-a05: oklch(0.530 0.150 250 / 0.05);
-  --acc-a10: oklch(0.530 0.150 250 / 0.10);
-  --acc-a20: oklch(0.530 0.150 250 / 0.18);
-  --acc-a30: oklch(0.530 0.150 250 / 0.25);
-  --acc-a60: oklch(0.530 0.150 250 / 0.50);
+  --bg:       #f5f5f3;
+  --bg1:      #ffffff;
+  --bg2:      #f0efed;
+  --bg3:      #e8e7e4;
+  --bg4:      #dddcda;
+  --bd:       #e0dedd;
+  --bd2:      #cccbc8;
+  --t1:       #1a1a18;
+  --t2:       #5a5a56;
+  --t3:       #9a9994;
+  --acc:      #5b4fe8;
+  --acc2:     #4338ca;
+  --acc-bg:   #eeecfd;
+  --acc-bd:   #c7c3f5;
+  --grn:      #0f7a56;
+  --grn-bg:   #e8f7f1;
+  --grn-bd:   #6ee7b7;
+  --amb:      #b45309;
+  --amb-bg:   #fef3c7;
+  --amb-bd:   #fcd34d;
+  --blu:      #1d6fa4;
+  --blu-bg:   #e8f2fb;
+  --blu-bd:   #93c5fd;
+  --red:      #b91c1c;
+  --red-bg:   #fef2f2;
+  --coral:    #c2410c;
+  --coral-bg: #fff7ed;
+  --coral-bd: #fed7aa;
+  --callout-text: #4338ca;
+  --selection-bg: rgba(91, 79, 232, 0.18);
+  --canvas-dot: #d8d7d4;
 }
 
 /* Default to dark ONLY before JS sets data-theme (prevents flash).
@@ -104,38 +86,37 @@
    as [data-theme="light"] and, coming later in the file, would override it,
    permanently defeating light mode. */
 :root:not([data-theme]) {
-  --bg:       oklch(0.185 0.008 265);
-  --bg1:      oklch(0.205 0.008 265);
-  --bg2:      oklch(0.215 0.008 265);
-  --bg3:      oklch(0.252 0.009 265);
-  --bg4:      oklch(0.290 0.009 265);
-  --bd:       oklch(0.300 0.009 265);
-  --bd2:      oklch(0.380 0.010 265);
-  --t1:       oklch(0.930 0.008 265);
-  --t2:       oklch(0.645 0.012 265);
-  --t3:       oklch(0.500 0.012 265);
-  --acc:      oklch(0.720 0.140 250);
-  --acc2:     oklch(0.810 0.110 250);
-  --acc-bg:   oklch(0.300 0.060 250);
-  --acc-bd:   oklch(0.450 0.100 250);
-  --grn:      oklch(0.740 0.130 155);
-  --grn-bg:   oklch(0.290 0.050 155);
-  --grn-bd:   oklch(0.410 0.080 155);
-  --amb:      oklch(0.780 0.140 68);
-  --amb-bg:   oklch(0.300 0.060 68);
-  --amb-bd:   oklch(0.420 0.090 68);
-  --blu:      oklch(0.740 0.110 225);
-  --blu-bg:   oklch(0.290 0.050 225);
-  --blu-bd:   oklch(0.410 0.080 225);
-  --red:      oklch(0.680 0.160 22);
-  --red-bg:   oklch(0.290 0.070 22);
-  --coral:    oklch(0.760 0.130 40);
-  --coral-bg: oklch(0.300 0.060 40);
-  --coral-bd: oklch(0.420 0.090 40);
-  --callout-text: oklch(0.820 0.060 250);
-  --selection-bg: oklch(0.720 0.140 250 / 0.28);
-  --canvas-dot: oklch(0.265 0.008 265);
-  --shadow:   0 12px 32px oklch(0.12 0.01 265 / 0.55);
+  --bg:       #0c0c0e;
+  --bg1:      #111113;
+  --bg2:      #171719;
+  --bg3:      #1e1e21;
+  --bg4:      #26262a;
+  --bd:       #252528;
+  --bd2:      #333338;
+  --t1:       #f0f0f2;
+  --t2:       #888894;
+  --t3:       #444450;
+  --acc:      #7c6ef7;
+  --acc2:     #b0a8fb;
+  --acc-bg:   #1a1830;
+  --acc-bd:   #3d378a;
+  --grn:      #34d399;
+  --grn-bg:   #0a1f16;
+  --grn-bd:   #1a4a2a;
+  --amb:      #fbbf24;
+  --amb-bg:   #1c1608;
+  --amb-bd:   #4a3010;
+  --blu:      #60a5fa;
+  --blu-bg:   #0c1f2e;
+  --blu-bd:   #0f3a50;
+  --red:      #f87171;
+  --red-bg:   #2a0f0f;
+  --coral:    #f0997b;
+  --coral-bg: #2a160c;
+  --coral-bd: #4a2515;
+  --callout-text: #9994cc;
+  --selection-bg: rgba(124, 110, 247, 0.25);
+  --canvas-dot: #18181b;
 }
 
 * {
@@ -150,29 +131,12 @@
     color 100ms ease;
 }
 
-/* ===== Three fonts, three jobs =====
-   sans  — the interface (default)
-   mono  — labels, badges, counts, metadata: anything small and factual
-   serif — prose, i.e. the writing itself                                   */
-:root {
-  --font-ui:    'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-code:  'JetBrains Mono', ui-monospace, 'Fira Mono', monospace;
-
-  --font-reading-serif: 'Newsreader', Charter, 'Iowan Old Style', Georgia, serif;
-  --font-reading-sans:  var(--font-ui);
-  --font-reading-mono:  var(--font-code);
-  /* Prose defaults to serif; the reading-font picker overrides it. */
-  --editor-font: var(--font-reading-serif);
-}
-:root[data-editor-font="mono"] { --editor-font: var(--font-reading-mono); }
-:root[data-editor-font="sans"] { --editor-font: var(--font-reading-sans); }
-
 html, body {
   margin: 0;
   padding: 0;
   background: var(--bg);
   color: var(--t1);
-  font-family: var(--font-ui);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
   font-feature-settings: "calt" 1, "liga" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -184,18 +148,23 @@ html, body {
   height: 100vh;
 }
 
-/* The interface inherits the sans. Components set fontFamily:'inherit'
-   inline, so this reaches nearly all of them without per-file edits. */
+/* Force monospace on EVERYTHING (the chrome/UI identity) */
 button, input, textarea, select, div, span, p, h1, h2, h3, h4, h5, h6,
-li, a, label, th, td, small, strong, em, b, i {
-  font-family: var(--font-ui);
+li, a, label, code, pre, th, td, small, strong, em, b, i {
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
 }
 
-/* Code is always mono, everywhere. */
-code, pre, kbd, samp { font-family: var(--font-code); }
-
-/* Utility: opt a label/count/badge back into mono. */
-.sb-mono { font-family: var(--font-code) !important; }
+/* ===== Editor prose font — user-selectable (Settings › reading font) =====
+   Only the writing surface changes; all chrome above stays monospace.
+   Class selectors + !important out-specify the blanket rule above. */
+:root {
+  --font-reading-mono:  'JetBrains Mono', 'Fira Mono', monospace;
+  --font-reading-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, 'Times New Roman', serif;
+  --font-reading-sans:  system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --editor-font: var(--font-reading-mono);
+}
+:root[data-editor-font="serif"] { --editor-font: var(--font-reading-serif); }
+:root[data-editor-font="sans"]  { --editor-font: var(--font-reading-sans); }
 
 /* Edit-mode overlay: textarea + styled <pre> must share the exact same
    family/metrics or the caret drifts — both read --editor-font. */
@@ -375,26 +344,35 @@ code, pre, kbd, samp { font-family: var(--font-code); }
   color: var(--t3);
 }
 
-/* ===== Auth: form on the left, editorial panel on the right ===== */
+/* ===== Auth page: split layout (product left, form right) ===== */
 .auth-page {
-  height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  background: #0a0a0c;
+}
+.auth-aside {
   display: flex;
-  background: var(--bg);
-  color: var(--t1);
-  font-family: var(--font-ui);
+  flex-direction: column;
+  justify-content: center;
+  padding: 56px 52px;
+  background:
+    radial-gradient(900px 520px at 12% 8%, rgba(124, 110, 247, 0.13), transparent 68%),
+    #0d0d10;
+  border-right: 1px solid #1e1e24;
 }
-.auth-form-col {
-  flex: 1; min-width: 0; display: flex; overflow-y: auto;
-  justify-content: center; padding: 40px;
+.auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
 }
-.auth-aside-col {
-  flex: 1; min-width: 0; border-left: 1px solid var(--bd);
-  background: var(--bg1); display: flex; overflow-y: auto;
-  justify-content: center; padding: 50px;
-}
-@media (max-width: 880px) {
-  .auth-aside-col { display: none; }
-  .auth-form-col { padding: 32px 24px; }
+.auth-mobile-brand { display: none; }
+
+@media (max-width: 900px) {
+  .auth-page { grid-template-columns: 1fr; }
+  .auth-aside { display: none; }
+  .auth-mobile-brand { display: flex; justify-content: center; }
 }
 
 /* Braindot wordmark caret — the block cursor that IS the logo */
@@ -414,11 +392,6 @@ code, pre, kbd, samp { font-family: var(--font-code); }
 @keyframes sb-caret-blink {
   0%, 55% { opacity: 1; }
   56%, 100% { opacity: 0.16; }
-}
-
-/* Dashboard: two columns collapse on narrow viewports */
-@media (max-width: 1040px) {
-  .sb-dash-grid { grid-template-columns: 1fr !important; }
 }
 
 /* Selection style for sidebar items */

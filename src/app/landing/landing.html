@@ -5,67 +5,65 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Braindot — Your knowledge, alive</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:oklch(0.185 0.008 265);--bg1:oklch(0.205 0.008 265);--bg2:oklch(0.215 0.008 265);
-  --bg3:oklch(0.252 0.009 265);--bg4:oklch(0.290 0.009 265);
-  --bd:oklch(0.300 0.009 265);--bd2:oklch(0.380 0.010 265);
-  --t1:oklch(0.930 0.008 265);--t2:oklch(0.645 0.012 265);--t3:oklch(0.500 0.012 265);
-  --acc:oklch(0.720 0.140 250);--acc2:oklch(0.810 0.110 250);--acc-bg:oklch(0.300 0.060 250);--acc-bd:oklch(0.450 0.100 250);
-  --grn:oklch(0.740 0.130 155);--grn-bg:oklch(0.290 0.050 155);
-  --amb:oklch(0.780 0.140 68);--amb-bg:oklch(0.300 0.060 68);
-  --coral:oklch(0.760 0.130 40);--coral-bg:oklch(0.300 0.060 40);
-  --blu:oklch(0.740 0.110 225);--blu-bg:oklch(0.290 0.050 225);
-  --mono:'JetBrains Mono',ui-monospace,monospace;
-  --sans:'IBM Plex Sans',system-ui,sans-serif;
-  --serif:'Newsreader',Charter,Georgia,serif;
+  --bg:#0c0c0e;--bg1:#111113;--bg2:#171719;--bg3:#1e1e21;--bg4:#26262a;
+  --bd:#252528;--bd2:#333338;
+  --t1:#f0f0f2;--t2:#888894;--t3:#444450;
+  --acc:#7c6ef7;--acc2:#b0a8fb;--acc-bg:#1a1830;
+  --grn:#34d399;--grn-bg:#0a1f16;
+  --amb:#fbbf24;--amb-bg:#1c1608;
+  --coral:#f0997b;--coral-bg:#2a160c;
+  --blu:#60a5fa;--blu-bg:#0c1f2e;
+  --mono:'JetBrains Mono',monospace;
 }
 html{scroll-behavior:smooth}
-body{font-family:var(--sans);background:var(--bg);color:var(--t1);line-height:1.6;overflow-x:hidden}
+body{font-family:var(--mono);background:var(--bg);color:var(--t1);line-height:1.6;overflow-x:hidden}
 
 /* NAV */
-nav{position:fixed;top:0;left:0;right:0;height:52px;background:color-mix(in oklch,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 48px;gap:24px;z-index:100}
+nav{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(12,12,14,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 48px;gap:24px;z-index:100}
 .nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
-.nav-logo-name{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--t1);letter-spacing:-.2px}
-.nav-ring{width:14px;height:14px;border-radius:50%;border:2px solid var(--acc);position:relative;flex-shrink:0}
-.nav-ring i{position:absolute;right:-2px;bottom:-2px;width:5px;height:5px;border-radius:50%;background:var(--acc2)}
+.nav-logo-name{font-size:16px;font-weight:700;color:var(--t1);letter-spacing:-0.02em;display:inline-flex;align-items:baseline}
+.nav-caret{display:inline-block;width:.52em;height:.94em;background:var(--acc);vertical-align:-.11em;margin-left:.12em;border-radius:1px}
+@media (prefers-reduced-motion:no-preference){.nav-caret{animation:nav-blink 1.15s steps(1,end) infinite}}
+@keyframes nav-blink{0%,55%{opacity:1}56%,100%{opacity:.16}}
 .nav-links{display:flex;gap:24px;margin-left:auto}
 .nav-links a{font-size:12px;color:var(--t2);text-decoration:none}
 .nav-links a:hover{color:var(--t1)}
-.nav-cta{font-size:12px;font-weight:500;padding:6px 13px;background:var(--acc);color:var(--bg);border:none;border-radius:7px;cursor:pointer;text-decoration:none;margin-left:8px}
-.nav-cta:hover{background:var(--acc2)}
+.nav-cta{font-family:var(--mono);font-size:12px;padding:6px 14px;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;text-decoration:none;margin-left:8px}
+.nav-cta:hover{background:var(--acc2);color:#111}
 
 /* HERO */
 /* justify-content:flex-start, not center — the hero content is now taller
    than the viewport on short screens, and centering pushed the headline up
    behind the fixed nav. */
-.hero{min-height:auto;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;padding:104px 40px 70px;position:relative;overflow:hidden;text-align:left;max-width:1160px;margin:0 auto}
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:118px 48px 80px;position:relative;overflow:hidden;text-align:center}
 .hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:48px 48px;opacity:.3;pointer-events:none;z-index:0}
-.hero-glow{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,oklch(0.720 0.140 250 / 0.13) 0%,transparent 68%);pointer-events:none;z-index:0}
+.hero-glow{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(124,110,247,.14) 0%,transparent 68%);pointer-events:none;z-index:0}
 /* Lift all hero content above the absolute grid/glow layers so they sit
    behind, not on top (positioned siblings otherwise paint over static flow). */
 .hero>*:not(.hero-grid):not(.hero-glow){position:relative;z-index:1}
-.hero-eyebrow{font-family:var(--mono);font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.14em;margin-bottom:22px;display:flex;align-items:center;gap:8px}
+.hero-eyebrow{font-size:11px;color:var(--acc2);text-transform:uppercase;letter-spacing:.14em;margin-bottom:22px;display:flex;align-items:center;justify-content:center;gap:8px}
 .eyebrow-pulse{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-.hero-h1{font-family:var(--serif);font-size:clamp(38px,5.4vw,62px);font-weight:500;color:var(--t1);line-height:1.06;letter-spacing:-1.8px;margin-bottom:0;max-width:16ch;text-wrap:pretty}
+.hero-h1{font-size:clamp(34px,5.5vw,70px);font-weight:700;color:var(--t1);line-height:1.1;letter-spacing:-.03em;margin-bottom:6px}
 .hero-h1 .dim{color:var(--t3)}
 .hero-typewriter{font-size:clamp(34px,5.5vw,70px);font-weight:700;color:var(--acc2);line-height:1.1;letter-spacing:-.03em;min-height:1.15em;margin-bottom:30px}
 .tw-cursor{display:inline-block;width:3px;height:.82em;background:var(--acc);vertical-align:-.05em;margin-left:2px;animation:blink .85s step-end infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-.hero-sub{font-size:17px;color:var(--t2);max-width:56ch;line-height:1.65;margin:26px 0 0;text-wrap:pretty}
+.hero-sub{font-size:15px;color:var(--t2);max-width:540px;line-height:1.85;margin-bottom:40px}
 .hero-sub em{color:var(--t1);font-style:normal}
-.hero-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:32px 0 40px}
-.btn-acc{font-size:13.5px;font-weight:500;padding:11px 20px;background:var(--acc);color:var(--bg);border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
-.btn-acc:hover{background:var(--acc2)}
-.btn-ghost{font-size:13.5px;padding:11px 20px;background:transparent;color:var(--t1);border:1px solid var(--bd2);border-radius:8px;cursor:pointer}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:40px}
+.btn-acc{font-family:var(--mono);font-size:13px;padding:11px 22px;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn-acc:hover{background:var(--acc2);color:#111}
+.btn-ghost{font-family:var(--mono);font-size:13px;padding:11px 22px;background:transparent;color:var(--t2);border:1px solid var(--bd2);border-radius:4px;cursor:pointer}
 .btn-ghost:hover{border-color:var(--acc);color:var(--acc2)}
 
 /* PREVIEW */
-.hero-preview{width:100%;max-width:1080px;margin-top:8px;background:var(--bg1);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;box-shadow:0 48px 96px rgba(0,0,0,.7),0 0 0 1px var(--bd)}
+.hero-preview{width:100%;max-width:880px;background:var(--bg1);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;box-shadow:0 48px 96px rgba(0,0,0,.7),0 0 0 1px var(--bd)}
 
 .ptitlebar{height:36px;background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:6px}
 .ptb-dot{width:10px;height:10px;border-radius:50%}
@@ -86,7 +84,7 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:color-mix(in oklc
 .petab .unsaved{width:5px;height:5px;border-radius:50%;background:var(--amb);display:inline-block;margin-right:4px}
 .pecontent{flex:1;padding:18px 26px;overflow:hidden}
 .pnmeta{font-size:9px;color:var(--t3);margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.ptag{font-size:8px;padding:1px 6px;border-radius:3px;color:var(--acc2);background:var(--acc-bg);border:1px solid var(--acc-bd)}
+.ptag{font-size:8px;padding:1px 6px;border-radius:3px;color:var(--acc2);background:var(--acc-bg);border:1px solid #3d378a}
 .ptitle{font-size:16px;font-weight:700;color:var(--t1);margin-bottom:3px;line-height:1.2}
 .psub{font-size:10px;color:var(--t3);font-style:italic;margin-bottom:14px}
 .ph2{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:6px}
@@ -119,7 +117,7 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:color-mix(in oklc
 .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-top:52px}
 .feat-card{background:var(--bg1);padding:26px 26px 30px;position:relative;transition:background .2s}
 .feat-card:hover{background:var(--bg2)}
-.ficon{width:34px;height:34px;border-radius:6px;background:var(--acc-bg);border:1px solid var(--acc-bd);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--acc2);margin-bottom:12px}
+.ficon{width:34px;height:34px;border-radius:6px;background:var(--acc-bg);border:1px solid #3d378a;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--acc2);margin-bottom:12px}
 .ftitle{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:7px}
 .fdesc{font-size:11px;color:var(--t2);line-height:1.75}
 .fbadge{display:inline-block;font-size:9px;padding:1px 7px;border-radius:3px;margin-top:10px;border:1px solid}
@@ -128,7 +126,7 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:color-mix(in oklc
 .hiw{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-top:48px}
 .hiw-step{background:var(--bg1);padding:30px 26px}
 .hiw-num{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.hiw-num-box{width:22px;height:22px;border-radius:4px;background:var(--acc-bg);border:1px solid var(--acc-bd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--acc2)}
+.hiw-num-box{width:22px;height:22px;border-radius:4px;background:var(--acc-bg);border:1px solid #3d378a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--acc2)}
 .hiw-num-label{font-size:10px;color:var(--acc2);text-transform:uppercase;letter-spacing:.08em}
 .hiw-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:8px}
 .hiw-desc{font-size:11px;color:var(--t2);line-height:1.75}
@@ -161,7 +159,7 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:color-mix(in oklc
 .rv-htitle{font-size:12px;font-weight:700;color:var(--t1);margin-bottom:10px;line-height:1.3}
 .rv-p{font-size:9px;color:var(--t2);line-height:1.8;margin-bottom:8px}
 .hly{background:#3d3200;border-bottom:1px solid #fbbf24;color:var(--t1)}
-.hlp{background:#1e1a3a;border-bottom:1px solid var(--acc);color:var(--t1)}
+.hlp{background:#1e1a3a;border-bottom:1px solid #7c6ef7;color:var(--t1)}
 .rv-toolbar{display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;padding:3px 6px;margin-top:4px}
 .rv-tbtn{font-size:8px;color:var(--t2);padding:2px 5px;border-radius:2px;background:var(--bg3);cursor:pointer}
 
@@ -194,7 +192,7 @@ nav{position:fixed;top:0;left:0;right:0;height:52px;background:color-mix(in oklc
 
 /* CTA */
 .cta-wrap{padding:96px 48px;text-align:center;position:relative;overflow:hidden;max-width:100%}
-.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:300px;background:radial-gradient(ellipse,oklch(0.720 0.140 250 / 0.13) 0%,transparent 70%);pointer-events:none}
+.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:300px;background:radial-gradient(ellipse,rgba(124,110,247,.13) 0%,transparent 70%);pointer-events:none}
 .cta-h2{font-size:clamp(26px,4vw,52px);font-weight:700;color:var(--t1);letter-spacing:-.03em;margin-bottom:14px;line-height:1.2}
 .cta-sub{font-size:14px;color:var(--t2);margin-bottom:36px;max-width:460px;margin-left:auto;margin-right:auto;line-height:1.85}
 .cta-row{display:flex;gap:8px;max-width:400px;margin:0 auto 14px;justify-content:center}
@@ -236,7 +234,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 
 <nav>
   <a class="nav-logo" href="/landing">
-    <span class="nav-ring"><i></i></span><span class="nav-logo-name">braindot</span>
+    <span class="nav-logo-name">braindot<span class="nav-caret"></span></span>
   </a>
   <div class="nav-links">
     <a href="#features">features</a>
@@ -253,9 +251,11 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
 <div class="hero">
   <div class="hero-grid"></div>
   <div class="hero-glow"></div>
-  <div class="hero-eyebrow">local-first knowledge work</div>
-  <h1 class="hero-h1">A note is worth more for what it connects to.</h1>
-  <p class="hero-sub">braindot is a workspace for people who think in writing. Everything you type lands in local state instantly — the vault, the links, the graph, the search index. Sync happens behind you, never in front of you.</p>
+  <div class="hero-eyebrow"><span class="eyebrow-pulse"></span>now in private beta</div>
+  <h1 class="hero-h1"><span class="dim">your knowledge,</span></h1>
+  <div class="hero-typewriter"><span id="tw"></span><span class="tw-cursor"></span></div>
+  <p class="hero-sub">Braindot is a PKM workspace where notes, reading, tasks, and ideas
+    <em>connect</em> — and stay alive. Not a filing system. A thinking environment.</p>
   <div class="hero-actions">
     <a class="btn-acc" href="/demo"><i class="ti ti-player-play" aria-hidden="true"></i> try demo — no signup</a>
     <a class="btn-ghost" href="/auth?mode=signup">sign up free</a>
@@ -368,7 +368,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
       <div class="ficon"><i class="ti ti-notes" aria-hidden="true"></i></div>
       <div class="ftitle">VSCode-style editor</div>
       <div class="fdesc">Tabbed markdown editor with wiki-links, callout blocks, slash commands, and live backlink tracking. Writes like code, thinks like prose.</div>
-      <span class="fbadge" style="color:var(--acc2);background:var(--acc-bg);border-color:var(--acc-bd)">core</span>
+      <span class="fbadge" style="color:var(--acc2);background:var(--acc-bg);border-color:#3d378a">core</span>
     </div>
     <div class="feat-card">
       <div class="ficon" style="background:var(--grn-bg);border-color:#1a4a2a"><i class="ti ti-network" style="color:var(--grn)" aria-hidden="true"></i></div>
@@ -503,7 +503,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
       <span class="chip" style="color:var(--grn);border-color:#1a4a2a;background:var(--grn-bg)">epub support</span>
       <span class="chip" style="color:var(--blu);border-color:#0f3a50;background:var(--blu-bg)">PDF rendering</span>
       <span class="chip" style="color:var(--amb);border-color:#4a3010;background:var(--amb-bg)">RSS feeds</span>
-      <span class="chip" style="color:var(--acc2);border-color:var(--acc-bd);background:var(--acc-bg)">highlight → note</span>
+      <span class="chip" style="color:var(--acc2);border-color:#3d378a;background:var(--acc-bg)">highlight → note</span>
     </div>
   </div>
 </div>
@@ -515,8 +515,8 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
   <div class="split-visual">
     <div class="cv-wrap">
       <svg width="100%" viewBox="0 0 420 260" role="img" aria-label="Canvas view showing note cards arranged freeform with arrows connecting them">
-        <line x1="148" y1="97" x2="218" y2="118" stroke="var(--acc-bd)" stroke-width="1.2"/>
-        <line x1="148" y1="155" x2="218" y2="142" stroke="var(--acc-bd)" stroke-width="1.2"/>
+        <line x1="148" y1="97" x2="218" y2="118" stroke="#3d378a" stroke-width="1.2"/>
+        <line x1="148" y1="155" x2="218" y2="142" stroke="#3d378a" stroke-width="1.2"/>
         <line x1="328" y1="128" x2="358" y2="78" stroke="#252528" stroke-width="1" stroke-dasharray="4,3"/>
         <rect x="24" y="66" width="124" height="62" rx="6" fill="#171719" stroke="#333338"/>
         <text x="33" y="83" font-family="JetBrains Mono,monospace" font-size="7" fill="#444450">NOTE</text>
@@ -526,7 +526,7 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
         <text x="33" y="159" font-family="JetBrains Mono,monospace" font-size="7" fill="#444450">NOTE</text>
         <text x="33" y="172" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="#f0f0f2">PARA method</text>
         <text x="33" y="187" font-family="JetBrains Mono,monospace" font-size="8" fill="#888894">organise by action...</text>
-        <rect x="218" y="100" width="130" height="66" rx="6" fill="#1a1830" stroke="var(--acc)" stroke-width="1.5"/>
+        <rect x="218" y="100" width="130" height="66" rx="6" fill="#1a1830" stroke="#7c6ef7" stroke-width="1.5"/>
         <text x="227" y="117" font-family="JetBrains Mono,monospace" font-size="7" fill="#b0a8fb">SYNTHESIS</text>
         <text x="227" y="132" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="#f0f0f2">Unified workflow</text>
         <text x="227" y="148" font-family="JetBrains Mono,monospace" font-size="8" fill="#888894">draft — not yet a note</text>
@@ -609,5 +609,32 @@ footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items
   <span class="fcopy">© 2026 Braindot. all rights reserved.</span>
 </footer>
 
+<script>
+/* Hero typewriter — cycles the second line of the headline. */
+(function () {
+  const el = document.getElementById('tw');
+  if (!el) return;
+  const phrases = ['alive.', 'connected.', 'yours.', 'growing.', 'thinking.'];
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = phrases[0];
+    return;
+  }
+
+  let pi = 0, ci = 0, del = false;
+  function tick() {
+    const w = phrases[pi];
+    if (!del) {
+      el.textContent = w.slice(0, ++ci);
+      if (ci === w.length) { setTimeout(() => { del = true; tick(); }, 1900); return; }
+    } else {
+      el.textContent = w.slice(0, --ci);
+      if (ci === 0) { del = false; pi = (pi + 1) % phrases.length; }
+    }
+    setTimeout(tick, del ? 55 : 88);
+  }
+  tick();
+})();
+</script>
 </body>
 </html>

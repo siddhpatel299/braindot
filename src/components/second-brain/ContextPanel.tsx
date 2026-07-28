@@ -188,7 +188,7 @@ function AIPanel({
             height: 6,
             borderRadius: '50%',
             background: 'var(--acc)',
-            boxShadow: '0 0 6px var(--acc-a60)',
+            boxShadow: '0 0 6px rgba(124,110,247,0.6)',
           }}
         />
         <span style={{ fontSize: 11, color: 'var(--acc2)', letterSpacing: '0.04em' }}>live suggestions</span>
@@ -386,7 +386,7 @@ function MiniGraph({
           y1={cy}
           x2={p.x}
           y2={p.y}
-          stroke="var(--acc-bd)"
+          stroke="#3d378a"
           strokeWidth={1}
         />
       ))}
@@ -401,7 +401,7 @@ function MiniGraph({
             y1={p.y}
             x2={d.x}
             y2={d.y}
-            stroke="var(--acc-bd)"
+            stroke="#3d378a"
             strokeWidth={0.5}
             strokeDasharray="2 2"
           />
@@ -411,7 +411,7 @@ function MiniGraph({
       {/* Distant notes (small) */}
       {distantPositions.map((p) => (
         <g key={`dist-${p.note.id}`} style={{ cursor: 'pointer' }} onClick={() => onOpenNote(p.note.id)}>
-          <circle cx={p.x} cy={p.y} r={2.5} fill="var(--acc-bd)" />
+          <circle cx={p.x} cy={p.y} r={2.5} fill="#3d378a" />
           <text x={p.x + 4} y={p.y + 2} fontSize={6} fill="var(--t3)" fontFamily="JetBrains Mono">
             {p.note.title.slice(0, 8)}
           </text>
@@ -541,7 +541,7 @@ function GraphPanel({
               onClick={() => onOpenNote(n.id)}
             >
               {n.degree > 0 && !isCurrent && (
-                <circle cx={n.x} cy={n.y} r={r + 3} fill="none" stroke="var(--acc-bd)" strokeWidth={0.5} opacity={0.4} />
+                <circle cx={n.x} cy={n.y} r={r + 3} fill="none" stroke="#3d378a" strokeWidth={0.5} opacity={0.4} />
               )}
               <circle
                 cx={n.x}

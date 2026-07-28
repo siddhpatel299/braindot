@@ -327,7 +327,7 @@ export function WriterAI({ textareaRef, body, onBodyChange, noteTitle, noteTags 
             background: 'var(--bg2)',
             border: '1px solid var(--bd2)',
             borderRadius: 6,
-            boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px var(--acc-a10)',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,110,247,0.08)',
             zIndex: 300,
             display: 'flex',
             flexDirection: 'column',
@@ -351,7 +351,7 @@ export function WriterAI({ textareaRef, body, onBodyChange, noteTitle, noteTags 
             {selection && (
               <span style={{
                 fontSize: 9, color: 'var(--acc2)', background: 'var(--acc-bg)',
-                border: '1px solid var(--acc-bd)', padding: '2px 6px', borderRadius: 3,
+                border: '1px solid #3d378a', padding: '2px 6px', borderRadius: 3,
                 textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600,
               }} title={`${selection.text.length} chars selected`}>
                 {selection.text.length} chars

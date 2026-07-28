@@ -151,7 +151,7 @@ export function FileTree({
           onTogglePinned(n.id);
         }}
         style={{
-          height: 23,
+          height: 26,
           paddingLeft: 12 + depth * 14,
           paddingRight: 8,
           display: 'flex',
@@ -270,7 +270,7 @@ export function FileTree({
             setDragOverFolder(null);
           }}
           style={{
-            height: 23,
+            height: 26,
             paddingLeft: 6 + depth * 14,
             paddingRight: 8,
             display: 'flex',
@@ -475,8 +475,8 @@ export function FileTree({
   return (
     <div
       style={{
-        width: 216,
-        minWidth: 216,
+        width: 240,
+        minWidth: 240,
         height: '100%',
         background: 'var(--bg1)',
         borderRight: '1px solid var(--bd)',

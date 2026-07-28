@@ -200,7 +200,7 @@ export function AskAIModal({ open, onClose, note, allNotes, initialScope, onOpen
           background: 'var(--bg2)',
           border: '1px solid var(--bd2)',
           borderRadius: 8,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px var(--acc-a10)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,110,247,0.08)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',

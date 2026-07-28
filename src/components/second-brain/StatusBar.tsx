@@ -59,7 +59,7 @@ export function StatusBar({
               height: 6,
               borderRadius: '50%',
               background: 'var(--acc)',
-              boxShadow: '0 0 6px var(--acc-a60)',
+              boxShadow: '0 0 6px rgba(124,110,247,0.6)',
             }}
           />
           <Sparkles size={11} />

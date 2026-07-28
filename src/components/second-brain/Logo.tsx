@@ -1,44 +1,54 @@
 'use client';
 
-// Braindot identity: an open ring with a single dot sitting on its edge.
-// The ring is the vault, the dot is the note that connects to it — and the
-// name is right there in the mark.
+// Braindot identity — the terminal block cursor.
+// The mark is the thing that blinks when it's your turn to think, which is
+// the honest subject of a monospace writing app. It's a solid shape, so it
+// stays legible down to favicon size.
 
-export function LogoMark({ size = 16, color = 'var(--acc)', dot = 'var(--acc2)' }: {
-  size?: number; color?: string; dot?: string;
-}) {
+export function LogoMark({ size = 32, color = 'var(--acc)' }: { size?: number; color?: string }) {
   return (
-    <span
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
       aria-hidden="true"
-      style={{
-        width: size, height: size, borderRadius: '50%',
-        border: `${Math.max(1.5, size * 0.135)}px solid ${color}`,
-        position: 'relative', display: 'inline-block', flexShrink: 0,
-      }}
+      style={{ display: 'block', flexShrink: 0 }}
     >
-      <span style={{
-        position: 'absolute', right: -size * 0.13, bottom: -size * 0.13,
-        width: size * 0.34, height: size * 0.34,
-        borderRadius: '50%', background: dot,
-      }} />
-    </span>
+      <rect x="9.5" y="6.5" width="13" height="19" rx="2.2" fill={color} />
+    </svg>
   );
 }
 
-/** Mark + wordmark lock-up. */
-export function LogoWordmark({ size = 14, color = 'var(--t1)' }: { size?: number; color?: string }) {
+/**
+ * The wordmark lock-up: "braindot" followed by a blinking block cursor.
+ * The cursor IS the logo, so it sits after the name the way it would in the
+ * editor. Blink respects prefers-reduced-motion (see globals.css).
+ */
+export function LogoWordmark({
+  size = 17,
+  color = 'var(--t1)',
+  blink = true,
+}: {
+  size?: number;
+  color?: string;
+  blink?: boolean;
+}) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-      <LogoMark size={size + 1} />
-      <span style={{
-        fontFamily: 'var(--font-code)',
+    <span
+      style={{
+        fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
         fontWeight: 700,
         fontSize: size,
-        letterSpacing: '-0.2px',
+        letterSpacing: '-0.02em',
         color,
-      }}>
-        braindot
-      </span>
+        display: 'inline-flex',
+        alignItems: 'baseline',
+        userSelect: 'none',
+      }}
+    >
+      braindot
+      <span className={blink ? 'sb-caret sb-caret-blink' : 'sb-caret'} />
     </span>
   );
 }

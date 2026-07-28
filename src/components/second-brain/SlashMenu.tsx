@@ -135,7 +135,7 @@ export function SlashMenu({ open, position, commands, onSelect, onClose }: Slash
                     alignItems: 'center',
                     gap: 9,
                     background: isSelected ? 'var(--acc-bg)' : 'transparent',
-                    border: isSelected ? '1px solid var(--acc-bd)' : '1px solid transparent',
+                    border: isSelected ? '1px solid #3d378a' : '1px solid transparent',
                     borderRadius: 4,
                     cursor: 'pointer',
                   }}

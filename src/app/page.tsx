@@ -717,8 +717,6 @@ export default function Home() {
             }}
             onExportVault={handleExportVault}
             onImportVault={handleImportVault}
-            onOpenNotes={() => { setAppView('notes'); setIconView('notes'); }}
-            onOpenTag={() => { setAppView('notes'); setIconView('tags'); setFileTreeView('tags'); }}
           />
         ) : appView === 'search' ? (
           <SearchView
