@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Braindot — Kanban, Graph, Canvas, Reading (design review, round 2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Braindot — static mockups of the four views not covered in
+   round 1. Palette, metrics and structure copied verbatim from
+   KanbanTodoPage/KanbanBoard, GraphView, CanvasView, ReadingView.
+   Nothing is interactive.
+   ============================================================ */
+
+:root{
+  --bg:#0c0c0e; --bg1:#111113; --bg2:#171719; --bg3:#1e1e21; --bg4:#26262a;
+  --bd:#252528; --bd2:#333338;
+  --t1:#f0f0f2; --t2:#888894; --t3:#444450;
+  --acc:#7c6ef7; --acc2:#b0a8fb; --acc-bg:#1a1830; --acc-bd:#3d378a;
+  --grn:#34d399; --grn-bg:#0a1f16; --grn-bd:#1a4a2a;
+  --amb:#fbbf24; --amb-bg:#1c1608; --amb-bd:#4a3010;
+  --blu:#60a5fa; --blu-bg:#0c1f2e; --blu-bd:#0f3a50;
+  --red:#f87171; --red-bg:#2a0f0f;
+  --coral:#f0997b;
+  --canvas-dot:#18181b;
+  --mono:'JetBrains Mono','Fira Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#08080a;color:var(--t1);font-family:var(--mono);-webkit-font-smoothing:antialiased;padding:32px 24px 80px;font-feature-settings:"calt" 1,"liga" 1}
+svg{display:block}
+.icon{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i9{width:9px;height:9px}.i10{width:10px;height:10px}.i11{width:11px;height:11px}.i12{width:12px;height:12px}
+.i13{width:13px;height:13px}.i15{width:15px;height:15px}.i16{width:16px;height:16px}
+.i18{width:18px;height:18px;stroke-width:1.75}
+
+/* ---------- page furniture (not product) ---------- */
+.brief{max-width:1440px;margin:0 auto 34px;border:1px solid var(--bd2);border-radius:10px;padding:22px 24px;background:var(--bg1)}
+.brief h1{font-size:19px;font-weight:700;letter-spacing:-.01em;margin-bottom:8px}
+.brief p{font-size:12.5px;line-height:1.75;color:var(--t2);max-width:88ch;margin-bottom:9px}
+.brief b{color:var(--t1);font-weight:600}
+.brief ul{margin:6px 0 10px 18px}
+.brief li{font-size:12.5px;line-height:1.8;color:var(--t2)}
+.brief .sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc2);font-weight:700;margin:16px 0 8px}
+.locked{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;margin-top:4px}
+.locked div{font-size:11.5px;line-height:1.6;color:var(--t2);border-top:1px solid var(--bd);padding-top:8px}
+.tagrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.tag{font-size:10.5px;padding:3px 8px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd2);color:var(--t3)}
+.tag.warn{border-color:#4a2020;color:var(--red)}
+
+.screen{max-width:1440px;margin:0 auto 44px}
+.frame{overflow-x:auto;padding:6px;margin:-6px}
+.screen-label{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;padding-left:2px;flex-wrap:wrap}
+.screen-label .n{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--acc2)}
+.screen-label .d{font-size:11.5px;color:var(--t3)}
+.notes{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px}
+.notes span{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--bd2);color:var(--t2)}
+
+/* ---------- app shell ---------- */
+.app{background:var(--bg);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;height:760px;min-width:1240px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+.row{display:flex;flex:1;min-height:0}
+
+.cmdbar{height:48px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:14px;flex:none}
+.searchbox{flex:1;max-width:720px;height:34px;background:var(--bg3);border:1px solid var(--bd2);border-radius:4px;display:flex;align-items:center;padding:0 12px;gap:10px;color:var(--t3)}
+.searchbox .ph{flex:1;font-size:13px;color:var(--t3)}
+.kbd{height:22px;padding:0 8px;background:var(--bg4);border:1px solid var(--bd2);border-radius:3px;color:var(--t2);font-size:11px;display:flex;align-items:center}
+.cmdright{display:flex;align-items:center;gap:8px}
+.chip{height:28px;padding:0 10px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--t3);font-size:11px;display:flex;align-items:center;gap:5px}
+.chip.streak{background:var(--amb-bg);border-color:var(--amb-bd);color:var(--amb);font-size:12px;font-weight:600}
+.iconbtn{height:32px;width:32px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--t2);display:flex;align-items:center;justify-content:center}
+.btn-primary{height:32px;padding:0 14px;background:var(--acc);color:#fff;border-radius:4px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;box-shadow:0 0 0 1px rgba(124,110,247,.3)}
+
+.rail{width:50px;flex:none;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px}
+.logo{width:32px;height:32px;border-radius:7px;background:var(--acc-bg);border:1px solid var(--acc-bd);display:flex;align-items:center;justify-content:center}
+.logo .dot{width:9px;height:9px;border-radius:50%;background:var(--acc2)}
+.railbtn{width:36px;height:36px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--t2);border:1px solid transparent}
+.railbtn.on{background:var(--acc-bg);color:var(--acc2);border-color:var(--acc-bd)}
+.raildiv{width:22px;height:1px;background:var(--bd);margin:6px 0}
+.avatar{width:30px;height:30px;border-radius:50%;background:#1D9E75;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+
+.status{height:28px;background:var(--bg1);border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t3);flex:none}
+.status .grp{display:flex;align-items:center;gap:16px}
+.status .it{display:flex;align-items:center;gap:5px}
+
+/* ---------- shared view chrome ---------- */
+.viewbar{height:44px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex:none}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t3)}
+.crumb .cur{color:var(--t1);display:flex;align-items:center;gap:5px}
+.seg{display:flex;gap:2px;background:var(--bg3);border-radius:4px;padding:2px}
+.seg span{padding:4px 10px;border-radius:3px;color:var(--t3);font-size:11px}
+.seg span.on{background:var(--bg1);color:var(--t1);font-weight:600}
+.statbar{height:40px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 16px;gap:14px;font-size:11px;color:var(--t3);flex:none}
+.statbar .nm{color:var(--t2);font-weight:600}
+
+/* ---------- kanban ---------- */
+.board{flex:1.8;display:flex;gap:12px;padding:14px 16px;background:var(--bg);overflow:hidden;min-width:0}
+.col{width:240px;min-width:240px;display:flex;flex-direction:column;background:var(--bg1);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.col-h{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:7px;flex:none}
+.col-h u{width:7px;height:7px;border-radius:50%;flex:none;text-decoration:none}
+.col-h .lab{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--t2);font-weight:600;flex:1}
+.col-h .cnt{font-size:10px;background:var(--bg3);color:var(--t3);padding:1px 6px;border-radius:3px;min-width:18px;text-align:center}
+.col-b{flex:1;padding:8px;overflow:hidden}
+.kcard{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:10px 11px;margin-bottom:8px}
+.ktag{display:inline-block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;border-radius:3px;margin-bottom:6px;font-weight:600}
+.kcard .ti{font-size:12px;color:var(--t1);line-height:1.4;margin-bottom:6px}
+.kcard .ft{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--t3)}
+.klink{background:var(--bg3);border:1px solid var(--bd);border-radius:3px;padding:1px 6px;color:var(--acc2);font-size:10px;display:flex;align-items:center;gap:3px}
+.addcard{font-size:11px;color:var(--t3);padding:6px 4px;display:flex;align-items:center;gap:6px}
+.todorail{flex:1;min-width:260px;max-width:340px;border-left:1px solid var(--bd);background:var(--bg1);display:flex;flex-direction:column;overflow:hidden}
+.todorail .h{padding:12px 14px 8px;border-bottom:1px solid var(--bd);flex:none}
+.todorail .h .lab{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600}
+.todorail .h .sub{font-size:10px;color:var(--t3);margin-top:2px}
+.todorail .b{flex:1;padding:10px 14px;overflow:hidden}
+.tgroup{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600;margin:10px 0 6px}
+.titem{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px;color:var(--t2)}
+.titem u{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--t3);flex:none;text-decoration:none}
+.titem .txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.titem.done .txt{color:var(--t3);text-decoration:line-through}
+.titem .pr{font-size:9px;padding:1px 5px;border-radius:3px}
+
+/* ---------- graph ---------- */
+.gside{width:260px;min-width:260px;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden;padding:16px 14px}
+.backbtn{border:1px solid var(--bd2);border-radius:4px;padding:6px 10px;color:var(--t2);font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:18px;width:fit-content}
+.gtitle{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.gtitle h1{font-size:18px;font-weight:700}
+.glabel{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600;margin-bottom:7px}
+.gseg{display:flex;gap:3px;margin-bottom:16px}
+.gseg span{flex:1;padding:5px 0;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3);font-size:10px;display:flex;align-items:center;justify-content:center;gap:4px}
+.gseg span.on{background:var(--acc-bg);border-color:var(--acc-bd);color:var(--acc2);font-weight:600}
+.gstat{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11px;color:var(--t2)}
+.gstat u{border-radius:50%;flex:none;text-decoration:none}
+.gstat .n{margin-left:auto;color:var(--t1)}
+.gcanvas{flex:1;position:relative;background:var(--bg);overflow:hidden}
+.glegend{position:absolute;top:14px;left:14px;background:var(--bg1);border:1px solid var(--bd2);border-radius:6px;padding:10px 12px;font-size:10px;color:var(--t3);display:flex;flex-direction:column;gap:5px}
+.glegend .hd{font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:2px;color:var(--t2)}
+.glegend .r{display:flex;align-items:center;gap:6px}
+.glegend .r u{border-radius:50%;text-decoration:none;flex:none}
+.gcount{position:absolute;bottom:14px;right:14px;background:var(--bg1);border:1px solid var(--bd);border-radius:5px;padding:6px 10px;font-size:11px;color:var(--t3)}
+.gfeed{display:flex;align-items:center;gap:7px;padding:5px 0;font-size:11px;color:var(--t2)}
+.gfeed u{width:5px;height:5px;border-radius:50%;flex:none;text-decoration:none}
+.gfeed .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gfeed .ago{font-size:9.5px;color:var(--t3)}
+.mini14{display:flex;gap:3px;margin-top:6px}
+.mini14 u{flex:1;height:22px;border-radius:2px;text-decoration:none}
+
+/* ---------- canvas ---------- */
+.ctoolbar{height:44px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 16px;gap:10px;flex:none}
+.tool{width:30px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--t2);border:1px solid transparent}
+.tool.on{background:var(--acc-bg);border-color:var(--acc-bd);color:var(--acc2)}
+.tdiv{width:1px;height:20px;background:var(--bd)}
+.cside{width:200px;min-width:200px;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.cside .h{height:34px;padding:0 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd)}
+.cside .h span{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600}
+.brow{height:28px;padding:0 12px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);border-left:2px solid transparent}
+.brow.on{background:var(--acc-bg);border-left-color:var(--acc);color:var(--acc2)}
+.brow .n{margin-left:auto;font-size:9px;color:var(--t3);opacity:.5}
+.canvas-area{flex:1;position:relative;overflow:hidden;background:radial-gradient(circle,var(--canvas-dot) .6px,transparent .6px) 0 0/22px 22px}
+.ccard{position:absolute;border-radius:7px;padding:10px 12px}
+.ccard.note{background:var(--bg1);border:1px solid var(--bd2);width:190px}
+.ccard.note .ti{font-size:11.5px;color:var(--t1);font-weight:600;margin-bottom:5px}
+.ccard.note .pv{font-size:10px;line-height:1.55;color:var(--t3)}
+.ccard.sticky{width:150px;font-size:11px;line-height:1.5}
+.ccard.syn{background:var(--acc-bg);border:1px solid var(--acc-bd);width:220px}
+.ccard.syn .ti{font-size:11.5px;color:var(--acc2);font-weight:600;margin-bottom:5px}
+.ccard.syn .bd{font-size:10px;line-height:1.55;color:var(--t2)}
+.cgroup{position:absolute;border:1px dashed var(--bd2);border-radius:10px}
+.cgroup .lb{position:absolute;top:-9px;left:12px;background:var(--bg);padding:0 7px;font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3)}
+
+/* ---------- reading ---------- */
+.rlib{width:220px;min-width:220px;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.rsearch{margin:10px 10px 6px;display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--bd2);border-radius:4px;padding:0 10px;height:30px;font-size:11px;color:var(--t3)}
+.rtabs{display:flex;padding:0 10px 6px;gap:2px}
+.rtabs span{flex:1;padding:3px 4px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--t3);border-bottom:2px solid transparent}
+.rtabs span.on{color:var(--acc2);border-bottom-color:var(--acc)}
+.rsec{padding:6px 12px 4px;font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600}
+.ritem{height:52px;padding:0 12px;display:flex;align-items:center;gap:8px;border-left:2px solid transparent}
+.ritem.on{background:var(--acc-bg);border-left-color:var(--acc)}
+.ritem .badge{width:28px;height:36px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex:none}
+.ritem .m{flex:1;min-width:0}
+.ritem .m .ti{font-size:11px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ritem.on .m .ti{color:var(--acc2)}
+.ritem .m .au{font-size:9px;color:var(--t3)}
+.ritem .m .pb{height:2px;background:var(--bg3);border-radius:1px;margin-top:4px;overflow:hidden}
+.ritem .m .pb u{display:block;height:100%;background:var(--acc);border-radius:1px;text-decoration:none}
+.rtoolbar{height:42px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:10px;flex:none;font-size:11px;color:var(--t2)}
+.reader{flex:1;overflow:hidden;padding:40px 0;background:var(--bg)}
+.rdoc{max-width:680px;margin:0 auto;padding:0 40px}
+.rdoc h1{font-family:var(--serif);font-size:28px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;line-height:1.2}
+.rdoc .au{font-family:var(--serif);font-size:14px;color:var(--t2);font-style:italic;margin-bottom:26px}
+.rdoc p{font-family:var(--serif);font-size:16.5px;line-height:1.8;color:var(--t2);margin-bottom:18px}
+.hl-y{background:rgba(251,191,36,.15);border-bottom:1px solid rgba(251,191,36,.4);color:var(--t1)}
+.hl-p{background:rgba(124,110,247,.15);border-bottom:1px solid rgba(124,110,247,.4);color:var(--t1)}
+.rai{width:250px;min-width:250px;background:var(--bg1);border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden;padding:12px}
+.raicard{background:var(--bg2);border:1px solid var(--bd);border-radius:5px;padding:8px 10px;margin-bottom:8px}
+.raicard .k{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--acc2);font-weight:600;margin-bottom:4px}
+.raicard .v{font-size:11px;line-height:1.55;color:var(--t2);margin-bottom:5px}
+.raicard .a{font-size:10px;color:var(--acc2)}
+.hlrow{border-left:3px solid;padding:8px 10px;border-radius:0 4px 4px 0;margin-bottom:5px;font-size:10.5px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="i-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></g>
+<g id="i-plus"><path d="M5 12h14M12 5v14"/></g>
+<g id="i-flame"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/></g>
+<g id="i-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></g>
+<g id="i-cloudoff"><path d="M3 3l18 18M17.5 19H9a7 7 0 1 1 1.8-13.8"/><path d="M22 15a4 4 0 0 0-4-4h-1.3"/></g>
+<g id="i-dash"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>
+<g id="i-note"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2Z"/><path d="M14 21v-5a2 2 0 0 1 2-2h5"/></g>
+<g id="i-share"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></g>
+<g id="i-kanban"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 7v8M12 7v11M16 7v5"/></g>
+<g id="i-pen"><path d="m12 19 7-7 3 3-7 7-3-3Z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5Z"/><path d="m2 2 7.6 7.6"/><circle cx="11" cy="11" r="2"/></g>
+<g id="i-book"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></g>
+<g id="i-tags"><path d="M9 5H2v7l6.3 6.3a2.4 2.4 0 0 0 3.4 0l3.6-3.6a2.4 2.4 0 0 0 0-3.4L9 5Z"/><path d="M6 9.5h.01"/></g>
+<g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+<g id="i-link"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></g>
+<g id="i-align"><path d="M17 10H3M21 6H3M21 14H3M17 18H3"/></g>
+<g id="i-spark"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></g>
+<g id="i-arrowl"><path d="M19 12H5M12 19l-7-7 7-7"/></g>
+<g id="i-net"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="m6.5 6.5 3.2 3.2M17.5 6.5l-3.2 3.2M6.5 17.5l3.2-3.2M17.5 17.5l-3.2-3.2"/></g>
+<g id="i-activity"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></g>
+<g id="i-tag1"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2c0 .5.2 1 .6 1.4l8.8 8.8a2 2 0 0 0 2.8 0l7.2-7.2a2 2 0 0 0 0-2.8Z"/><path d="M7 7h.01"/></g>
+<g id="i-cursor"><path d="m3 3 7.1 17 2.5-7.4L20 10Z"/></g>
+<g id="i-sticky"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2Z"/><path d="M14 21v-5a2 2 0 0 1 2-2h5"/></g>
+<g id="i-conn"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.5 8.5 15.5 15.5"/></g>
+<g id="i-box"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5M12 13v8"/></g>
+<g id="i-zoomin"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/></g>
+<g id="i-zoomout"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/></g>
+<g id="i-max"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></g>
+<g id="i-list"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></g>
+<g id="i-file"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></g>
+<g id="i-news"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9h4"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8Z"/></g>
+<g id="i-hl"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-4.2-4.2a2 2 0 0 1 0-2.8L15 5Z"/></g>
+<g id="i-pencil"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></g>
+<g id="i-chevd"><path d="m6 9 6 6 6-6"/></g>
+</defs></svg>
+
+<!-- ============ brief ============ -->
+<div class="brief">
+  <h1>Braindot — round 2: the four views round 1 didn't cover</h1>
+  <p><b>Context.</b> Round 1 covered the editor and dashboard, and its critique was implemented. These are the four remaining full-screen views: <b>Kanban + Todos</b>, <b>Graph</b>, <b>Canvas</b>, and <b>Reading</b>. Same app, same constraints. All four predate the round-1 pass, so they still carry the habits that pass identified.</p>
+
+  <div class="sub">Already decided in round 1 — please stay consistent with these, don't re-open them</div>
+  <div class="locked">
+    <div><b>Panel headings</b> are sentence case, 12px/600, on <span style="color:#f0f0f2">--t1</span>. Not uppercase micro-labels.</div>
+    <div><b>Legends were replaced by sentences.</b> "Busiest in June — 9 events" beats a colour key nobody acts on.</div>
+    <div><b>Reading text is 16.5px/1.8 at ~66ch.</b> Chrome sits at 10–13px. The content must outrank the frame.</div>
+    <div><b>Chips are text + a 5px dot.</b> Filled backgrounds are reserved for the primary button and the active nav item.</div>
+    <div><b>Hierarchy over uniformity.</b> The dashboard went from 11 equal panels to 5 ranked ones. Same medicine likely applies here.</div>
+    <div><b>Contrast floor is 4.5:1.</b> <span style="color:#444450">--t3 (#444450)</span> on panel background is 1.97:1 and was a real bug. It is still used as text below.</div>
+  </div>
+
+  <div class="sub">What I'd like critiqued</div>
+  <ul>
+    <li><b>Kanban:</b> is a 4-column board plus a todo rail two task systems where there should be one? The columns are fixed and unconfigurable.</li>
+    <li><b>Graph:</b> the sidebar has three "color by" modes, a show filter, stats, an activity feed and a 14-day strip. Is any of it load-bearing, or is it a control panel for a toy?</li>
+    <li><b>Canvas:</b> an infinite board in a PKM app — does it earn its place next to the graph, or are they the same feature twice?</li>
+    <li><b>Reading:</b> three columns at once (library 220 / reader 915 / AI 250). The reader column is wide but the text measure inside is 680px, so ~235px of it is just margin — while both rails stay pinned open.</li>
+    <li><b>Across all four:</b> every view invents its own header. Kanban stacks a 44px breadcrumb row on a 40px stat row — 84px of view chrome before the board, on top of the 48px global bar. Reading stacks a toolbar on a toolbar. Should there be one shared view-header pattern?</li>
+    <li>Empty states — none of these four have one.</li>
+  </ul>
+
+  <div class="tagrow">
+    <span class="tag">1440×760 desktop</span>
+    <span class="tag">dark theme</span>
+    <span class="tag">JetBrains Mono</span>
+    <span class="tag">accent #7c6ef7</span>
+    <span class="tag warn">blue #60a5fa &amp; coral are slated for deletion — they appear below, treat as debt</span>
+  </div>
+</div>
+
+<!-- ============ SCREEN 1 — KANBAN ============ -->
+<div class="screen">
+  <div class="screen-label"><span class="n">Screen 1</span><span class="d">Kanban + Todos — a board and a list, side by side</span></div>
+  <div class="notes">
+    <span>84px of view chrome above the board (44 + 40)</span>
+    <span>columns are hardcoded, not configurable</span>
+    <span>todo rail is a second, unrelated task model</span>
+    <span>"In progress" uses blue — a hue we're deleting</span>
+  </div>
+  <div class="frame"><div class="app">
+
+    <div class="cmdbar">
+      <div class="searchbox"><svg class="icon i15" style="stroke-width:1.75"><use href="#i-search"/></svg><span class="ph">search notes, jump to, run command</span><span class="kbd">⌘K</span></div>
+      <div class="cmdright">
+        <div class="chip"><svg class="icon i12"><use href="#i-cloudoff"/></svg>local</div>
+        <div class="chip streak"><svg class="icon i13"><use href="#i-flame"/></svg>14d</div>
+        <div class="iconbtn"><svg class="icon i15"><use href="#i-sun"/></svg></div>
+        <div class="btn-primary"><svg class="icon" style="width:14px;height:14px;stroke-width:2.5"><use href="#i-plus"/></svg>new note</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="rail">
+        <div class="logo"><span class="dot"></span></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-dash"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-note"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-share"/></svg></div>
+        <div class="railbtn on"><svg class="icon i18"><use href="#i-kanban"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-pen"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-book"/></svg></div>
+        <div class="raildiv"></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-tags"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-search"/></svg></div>
+        <div style="flex:1"></div><div class="avatar">SP</div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+        <div class="viewbar">
+          <div class="crumb"><span>dashboard</span><span>/</span><span class="cur"><svg class="icon i13" style="color:var(--acc2)"><use href="#i-kanban"/></svg>kanban + todos</span></div>
+          <div class="seg"><span class="on">board + list</span><span>board only</span><span>list only</span></div>
+        </div>
+        <div class="statbar">
+          <span class="nm">my workspace</span><span>·</span><span>10 tasks</span><span>·</span><span>7 todos</span><span>·</span><span>4 linked to notes</span>
+        </div>
+
+        <div style="flex:1;display:flex;overflow:hidden;min-height:0">
+          <div class="board">
+            <div class="col">
+              <div class="col-h"><u style="background:var(--t3)"></u><span class="lab">Backlog</span><span class="cnt">3</span></div>
+              <div class="col-b">
+                <div class="kcard"><span class="ktag" style="color:#b0a8fb;background:rgba(124,110,247,.12);border:1px solid var(--acc-bd)">writing</span><div class="ti">Outline the attention essay</div><div class="ft"><span class="klink"><svg class="icon i9"><use href="#i-link"/></svg>3</span><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="kcard"><div class="ti">Collect quotes on slow media</div><div class="ft"><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="kcard"><span class="ktag" style="color:#fbbf24;background:rgba(251,191,36,.10);border:1px solid var(--amb-bd)">research</span><div class="ti">Read the Luhmann biography chapter</div><div class="ft"><span style="color:var(--t3)">Aug 4</span><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="addcard"><svg class="icon i11"><use href="#i-plus"/></svg>add card</div>
+              </div>
+            </div>
+
+            <div class="col">
+              <div class="col-h"><u style="background:#60a5fa"></u><span class="lab">In progress</span><span class="cnt">2</span></div>
+              <div class="col-b">
+                <div class="kcard"><span class="ktag" style="color:#b0a8fb;background:rgba(124,110,247,.12);border:1px solid var(--acc-bd)">writing</span><div class="ti">Draft "Writing is thinking"</div><div class="ft"><span class="klink"><svg class="icon i9"><use href="#i-link"/></svg>3</span><span style="color:var(--t3)">today</span><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="kcard"><span class="ktag" style="color:#60a5fa;background:rgba(96,165,250,.10);border:1px solid #1e3a5a">build</span><div class="ti">Wire the AI panel into the editor</div><div class="ft"><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="addcard"><svg class="icon i11"><use href="#i-plus"/></svg>add card</div>
+              </div>
+            </div>
+
+            <div class="col">
+              <div class="col-h"><u style="background:var(--amb)"></u><span class="lab">Review</span><span class="cnt">1</span></div>
+              <div class="col-b">
+                <div class="kcard"><div class="ti">Second pass on the PARA note</div><div class="ft"><span class="klink"><svg class="icon i9"><use href="#i-link"/></svg>4</span><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="addcard"><svg class="icon i11"><use href="#i-plus"/></svg>add card</div>
+              </div>
+            </div>
+
+            <div class="col">
+              <div class="col-h"><u style="background:var(--grn)"></u><span class="lab">Done</span><span class="cnt">4</span></div>
+              <div class="col-b">
+                <div class="kcard" style="opacity:.55"><div class="ti">Set up the vault structure</div><div class="ft"><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="kcard" style="opacity:.55"><span class="ktag" style="color:#34d399;background:rgba(52,211,153,.10);border:1px solid var(--grn-bd)">done</span><div class="ti">Import Obsidian notes</div><div class="ft"><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="kcard" style="opacity:.55"><div class="ti">Pick a reading font</div><div class="ft"><div style="flex:1"></div><svg class="icon i9" style="opacity:.5"><use href="#i-pencil"/></svg></div></div>
+                <div class="addcard"><svg class="icon i11"><use href="#i-plus"/></svg>add card</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="todorail">
+            <div class="h"><div class="lab">todos</div><div class="sub">5 pending · 2 done</div></div>
+            <div class="b">
+              <div class="tgroup">today</div>
+              <div class="titem"><u style="border-color:var(--red)"></u><span class="txt">Draft the Q3 synthesis note</span><span class="pr" style="color:var(--red);background:var(--red-bg)">urgent</span></div>
+              <div class="titem"><u style="border-color:var(--coral)"></u><span class="txt">Link decision fatigue to PARA</span><span class="pr" style="color:var(--coral)">high</span></div>
+              <div class="tgroup">this week</div>
+              <div class="titem"><u></u><span class="txt">Review spaced repetition deck</span></div>
+              <div class="titem"><u></u><span class="txt">Import Kindle highlights</span></div>
+              <div class="tgroup">someday</div>
+              <div class="titem"><u></u><span class="txt">Rewrite the Braindot readme</span></div>
+              <div class="tgroup">done</div>
+              <div class="titem done"><u style="border-color:var(--grn);background:var(--grn)"></u><span class="txt">Set up daily journal template</span></div>
+              <div class="titem done"><u style="border-color:var(--grn);background:var(--grn)"></u><span class="txt">Choose PARA over folders</span></div>
+              <div class="addcard" style="margin-top:10px"><svg class="icon i11"><use href="#i-plus"/></svg>add todo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="grp"><span class="it" style="color:var(--grn)"><svg class="icon i12" style="stroke-width:2.5"><use href="#i-check"/></svg>autosaved</span></div>
+      <div class="grp"><span style="color:var(--t2)">⌘K to command</span><span>20 notes · 36 connections</span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ SCREEN 2 — GRAPH ============ -->
+<div class="screen">
+  <div class="screen-label"><span class="n">Screen 2</span><span class="d">Graph — "living graph", node colour encodes edit recency</span></div>
+  <div class="notes">
+    <span>sidebar holds 6 separate control groups</span>
+    <span>legend duplicates the sidebar legend</span>
+    <span>node labels render at --t3 (1.97:1)</span>
+    <span>heat colours are a 5th and 6th hue outside the palette</span>
+  </div>
+  <div class="frame"><div class="app">
+
+    <div class="cmdbar">
+      <div class="searchbox"><svg class="icon i15" style="stroke-width:1.75"><use href="#i-search"/></svg><span class="ph">search notes, jump to, run command</span><span class="kbd">⌘K</span></div>
+      <div class="cmdright">
+        <div class="chip"><svg class="icon i12"><use href="#i-cloudoff"/></svg>local</div>
+        <div class="chip streak"><svg class="icon i13"><use href="#i-flame"/></svg>14d</div>
+        <div class="iconbtn"><svg class="icon i15"><use href="#i-sun"/></svg></div>
+        <div class="btn-primary"><svg class="icon" style="width:14px;height:14px;stroke-width:2.5"><use href="#i-plus"/></svg>new note</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="rail">
+        <div class="logo"><span class="dot"></span></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-dash"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-note"/></svg></div>
+        <div class="railbtn on"><svg class="icon i18"><use href="#i-share"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-kanban"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-pen"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-book"/></svg></div>
+        <div class="raildiv"></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-tags"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-search"/></svg></div>
+        <div style="flex:1"></div><div class="avatar">SP</div>
+      </div>
+
+      <div class="gside">
+        <div class="backbtn"><svg class="icon i12"><use href="#i-arrowl"/></svg>back</div>
+        <div class="gtitle"><svg class="icon i16" style="color:var(--acc2)"><use href="#i-net"/></svg><h1>living graph</h1></div>
+        <p style="font-size:12px;color:var(--t3);margin-bottom:18px">activity-aware knowledge map</p>
+
+        <div class="glabel">color by</div>
+        <div class="gseg">
+          <span class="on"><svg class="icon i10"><use href="#i-activity"/></svg>activity</span>
+          <span><svg class="icon i10"><use href="#i-tag1"/></svg>tag</span>
+          <span><svg class="icon i10"><use href="#i-net"/></svg>links</span>
+        </div>
+
+        <div class="glabel">show</div>
+        <div class="gseg">
+          <span class="on">all</span><span>linked</span><span>orphans</span>
+        </div>
+
+        <div class="glabel">activity</div>
+        <div style="margin-bottom:16px">
+          <div class="gstat"><u style="width:11px;height:11px;background:#fb923c"></u>today<span class="n">2</span></div>
+          <div class="gstat"><u style="width:9px;height:9px;background:#b0a8fb"></u>this week<span class="n">5</span></div>
+          <div class="gstat"><u style="width:8px;height:8px;background:#534AB7"></u>this month<span class="n">6</span></div>
+          <div class="gstat"><u style="width:6px;height:6px;background:#2e2e44"></u>older<span class="n">7</span></div>
+        </div>
+
+        <div class="glabel">last 14 days</div>
+        <div class="mini14">
+          <u style="background:#1e1e21"></u><u style="background:#2e2a5c"></u><u style="background:#1e1e21"></u>
+          <u style="background:#4a3fa8"></u><u style="background:#2e2a5c"></u><u style="background:#1e1e21"></u>
+          <u style="background:#1e1e21"></u><u style="background:#7c6ef7"></u><u style="background:#4a3fa8"></u>
+          <u style="background:#2e2a5c"></u><u style="background:#1e1e21"></u><u style="background:#4a3fa8"></u>
+          <u style="background:#7c6ef7"></u><u style="background:#fb923c"></u>
+        </div>
+
+        <div class="glabel" style="margin-top:18px">recently active</div>
+        <div class="gfeed"><u style="background:#fb923c"></u><span class="nm">Writing is thinking</span><span class="ago">2h</span></div>
+        <div class="gfeed"><u style="background:#fb923c"></u><span class="nm">Compression is under…</span><span class="ago">5h</span></div>
+        <div class="gfeed"><u style="background:#b0a8fb"></u><span class="nm">Morning pages, revis…</span><span class="ago">3d</span></div>
+        <div class="gfeed"><u style="background:#b0a8fb"></u><span class="nm">Zettelkasten, honestly</span><span class="ago">6d</span></div>
+      </div>
+
+      <div class="gcanvas">
+        <svg viewBox="0 0 900 620" style="width:100%;height:100%">
+          <g stroke="#3d378a" fill="none" opacity=".5">
+            <path d="M450 300 Q380 250 320 205"/><path d="M450 300 Q540 245 610 200"/>
+            <path d="M450 300 Q400 400 340 455"/><path d="M450 300 Q530 395 600 440"/>
+            <path d="M320 205 Q240 250 190 320"/><path d="M610 200 Q700 250 745 325"/>
+            <path d="M340 455 Q460 520 600 440"/><path d="M190 320 Q240 400 340 455"/>
+            <path d="M745 325 Q690 400 600 440"/><path d="M320 205 Q460 160 610 200"/>
+          </g>
+          <g stroke="#1e1e21" fill="none" stroke-dasharray="4 3">
+            <path d="M190 320 L110 210"/><path d="M745 325 L820 215"/><path d="M340 455 L250 540"/><path d="M600 440 L700 530"/>
+          </g>
+          <circle cx="450" cy="300" r="17" fill="#fb923c"/><text x="474" y="305" font-size="13" fill="#888894" font-family="monospace">Writing is thinking</text>
+          <circle cx="320" cy="205" r="14" fill="#fb923c"/><text x="340" y="210" font-size="12" fill="#888894" font-family="monospace">Compression is…</text>
+          <circle cx="610" cy="200" r="12" fill="#b0a8fb"/><text x="628" y="205" font-size="12" fill="#888894" font-family="monospace">Zettelkasten…</text>
+          <circle cx="340" cy="455" r="11" fill="#b0a8fb"/><text x="357" y="460" font-size="12" fill="#888894" font-family="monospace">Morning pages</text>
+          <circle cx="600" cy="440" r="11" fill="#534AB7"/><text x="617" y="445" font-size="12" fill="#888894" font-family="monospace">Deep work</text>
+          <circle cx="190" cy="320" r="9" fill="#534AB7"/><text x="204" y="325" font-size="11" fill="#444450" font-family="monospace">Slow media</text>
+          <circle cx="745" cy="325" r="9" fill="#534AB7"/><text x="759" y="330" font-size="11" fill="#444450" font-family="monospace">Tools for thought</text>
+          <circle cx="110" cy="210" r="6" fill="#2e2e44"/>
+          <circle cx="820" cy="215" r="6" fill="#2e2e44"/>
+          <circle cx="250" cy="540" r="6" fill="#2e2e44"/>
+          <circle cx="700" cy="530" r="6" fill="#2e2e44"/>
+        </svg>
+
+        <div class="glegend">
+          <div class="hd">Activity Heat</div>
+          <div class="r"><u style="width:11px;height:11px;background:#fb923c"></u>today</div>
+          <div class="r"><u style="width:9px;height:9px;background:#b0a8fb"></u>this week</div>
+          <div class="r"><u style="width:8px;height:8px;background:#534AB7"></u>this month</div>
+          <div class="r"><u style="width:6px;height:6px;background:#2e2e44"></u>older</div>
+          <div style="height:1px;background:var(--bd);margin:3px 0"></div>
+          <div class="r"><span style="width:20px;height:1px;background:var(--acc-bd);display:block"></span>strong link</div>
+          <div class="r"><span style="width:20px;border-top:1px dashed #2e2e33;display:block"></span>weak link</div>
+        </div>
+        <div class="gcount">2 hot · 5 warm · 7 fading</div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="grp"><span class="it" style="color:var(--grn)"><svg class="icon i12" style="stroke-width:2.5"><use href="#i-check"/></svg>autosaved</span></div>
+      <div class="grp"><span style="color:var(--t2)">⌘K to command</span><span>20 notes · 36 connections</span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ SCREEN 3 — CANVAS ============ -->
+<div class="screen">
+  <div class="screen-label"><span class="n">Screen 3</span><span class="d">Canvas — freeform board of note cards, stickies and synthesis cards</span></div>
+  <div class="notes">
+    <span>stickies use 4 hues, none of them semantic</span>
+    <span>toolbar + stat bar = 80px of chrome</span>
+    <span>overlaps the graph conceptually — both are "notes in space"</span>
+  </div>
+  <div class="frame"><div class="app">
+
+    <div class="cmdbar">
+      <div class="searchbox"><svg class="icon i15" style="stroke-width:1.75"><use href="#i-search"/></svg><span class="ph">search notes, jump to, run command</span><span class="kbd">⌘K</span></div>
+      <div class="cmdright">
+        <div class="chip"><svg class="icon i12"><use href="#i-cloudoff"/></svg>local</div>
+        <div class="chip streak"><svg class="icon i13"><use href="#i-flame"/></svg>14d</div>
+        <div class="iconbtn"><svg class="icon i15"><use href="#i-sun"/></svg></div>
+        <div class="btn-primary"><svg class="icon" style="width:14px;height:14px;stroke-width:2.5"><use href="#i-plus"/></svg>new note</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="rail">
+        <div class="logo"><span class="dot"></span></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-dash"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-note"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-share"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-kanban"/></svg></div>
+        <div class="railbtn on"><svg class="icon i18"><use href="#i-pen"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-book"/></svg></div>
+        <div class="raildiv"></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-tags"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-search"/></svg></div>
+        <div style="flex:1"></div><div class="avatar">SP</div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+        <div class="ctoolbar">
+          <div class="tool on"><svg class="icon i15"><use href="#i-cursor"/></svg></div>
+          <div class="tool"><svg class="icon i15"><use href="#i-note"/></svg></div>
+          <div class="tool"><svg class="icon i15"><use href="#i-sticky"/></svg></div>
+          <div class="tool"><svg class="icon i15"><use href="#i-conn"/></svg></div>
+          <div class="tool"><svg class="icon i15"><use href="#i-box"/></svg></div>
+          <div class="tdiv"></div>
+          <div class="tool"><svg class="icon i15"><use href="#i-spark"/></svg></div>
+          <div style="flex:1"></div>
+          <div class="tool"><svg class="icon i14"><use href="#i-zoomout"/></svg></div>
+          <span style="font-size:11px;color:var(--t2);min-width:42px;text-align:center">100%</span>
+          <div class="tool"><svg class="icon i14"><use href="#i-zoomin"/></svg></div>
+          <div class="tool"><svg class="icon i14"><use href="#i-max"/></svg></div>
+        </div>
+        <div class="statbar" style="height:36px">
+          <span class="nm">Essay — attention commons</span><span>·</span><span>7 cards</span><span>·</span><span>2 groups</span><span>·</span><span>4 connectors</span>
+        </div>
+
+        <div style="flex:1;display:flex;overflow:hidden;min-height:0">
+          <div class="cside">
+            <div class="h"><span>Boards</span><svg class="icon i13" style="color:var(--t2)"><use href="#i-plus"/></svg></div>
+            <div style="padding:4px 0">
+              <div class="brow on"><svg class="icon i11"><use href="#i-box"/></svg><span style="flex:1">Essay — attention</span><span class="n">7</span></div>
+              <div class="brow"><svg class="icon i11" style="opacity:.7"><use href="#i-box"/></svg><span style="flex:1">Book map</span><span class="n">12</span></div>
+              <div class="brow"><svg class="icon i11" style="opacity:.7"><use href="#i-box"/></svg><span style="flex:1">Q3 planning</span><span class="n">5</span></div>
+            </div>
+          </div>
+
+          <div class="canvas-area">
+            <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
+              <path d="M250 150 C330 150 330 235 405 235" stroke="#3d378a" fill="none" stroke-width="1.5"/>
+              <path d="M250 300 C330 300 340 250 405 250" stroke="#3d378a" fill="none" stroke-width="1.5"/>
+              <path d="M625 245 C700 245 700 150 760 150" stroke="#3d378a" fill="none" stroke-width="1.5" stroke-dasharray="5 4"/>
+              <path d="M470 330 C470 400 560 400 560 430" stroke="#3d378a" fill="none" stroke-width="1.5"/>
+            </svg>
+
+            <div class="cgroup" style="left:40px;top:96px;width:230px;height:250px"><span class="lb">source notes</span></div>
+
+            <div class="ccard note" style="left:60px;top:120px">
+              <div class="ti">Writing is thinking</div>
+              <div class="pv">The claim is not that writing helps you think. It's that the thinking does not fully exist…</div>
+            </div>
+            <div class="ccard note" style="left:60px;top:270px">
+              <div class="ti">Compression is understanding</div>
+              <div class="pv">If you can't compress it, you didn't have it. Compression is the test, not the technique.</div>
+            </div>
+
+            <div class="ccard syn" style="left:405px;top:196px">
+              <div class="ti">⟡ Synthesis — the common claim</div>
+              <div class="bd">Both notes argue that the artefact <em>is</em> the thought, not a record of it. That's one essay, not two.</div>
+            </div>
+
+            <div class="ccard sticky" style="left:760px;top:120px;background:rgba(251,191,36,.10);border:1px solid var(--amb-bd);color:#fbbf24">
+              Open question: does this hold for music?
+            </div>
+            <div class="ccard sticky" style="left:760px;top:230px;background:rgba(52,211,153,.10);border:1px solid var(--grn-bd);color:#34d399">
+              Ahrens agrees — ch. 4
+            </div>
+            <div class="ccard sticky" style="left:490px;top:430px;background:rgba(96,165,250,.10);border:1px solid #1e3a5a;color:#60a5fa">
+              Cut the Luhmann anecdote, it's tired
+            </div>
+            <div class="ccard sticky" style="left:280px;top:440px;background:rgba(124,110,247,.12);border:1px solid var(--acc-bd);color:#b0a8fb">
+              Title idea: "The artefact is the thought"
+            </div>
+
+            <div class="cgroup" style="left:740px;top:96px;width:190px;height:200px"><span class="lb">reactions</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="grp"><span class="it" style="color:var(--grn)"><svg class="icon i12" style="stroke-width:2.5"><use href="#i-check"/></svg>autosaved</span></div>
+      <div class="grp"><span style="color:var(--t2)">⌘K to command</span><span>20 notes · 36 connections</span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ SCREEN 4 — READING ============ -->
+<div class="screen">
+  <div class="screen-label"><span class="n">Screen 4</span><span class="d">Reading — library, reader, and an AI rail, all at once</span></div>
+  <div class="notes">
+    <span>915px reader column, but only a 680px measure inside it</span>
+    <span>two toolbars stack above the text</span>
+    <span>3 highlight colours + 4 type-badge colours</span>
+    <span>AI rail is always open, even mid-sentence</span>
+  </div>
+  <div class="frame"><div class="app">
+
+    <div class="cmdbar">
+      <div class="searchbox"><svg class="icon i15" style="stroke-width:1.75"><use href="#i-search"/></svg><span class="ph">search notes, jump to, run command</span><span class="kbd">⌘K</span></div>
+      <div class="cmdright">
+        <div class="chip"><svg class="icon i12"><use href="#i-cloudoff"/></svg>local</div>
+        <div class="chip streak"><svg class="icon i13"><use href="#i-flame"/></svg>14d</div>
+        <div class="iconbtn"><svg class="icon i15"><use href="#i-sun"/></svg></div>
+        <div class="btn-primary"><svg class="icon" style="width:14px;height:14px;stroke-width:2.5"><use href="#i-plus"/></svg>new note</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="rail">
+        <div class="logo"><span class="dot"></span></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-dash"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-note"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-share"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-kanban"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-pen"/></svg></div>
+        <div class="railbtn on"><svg class="icon i18"><use href="#i-book"/></svg></div>
+        <div class="raildiv"></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-tags"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-search"/></svg></div>
+        <div style="flex:1"></div><div class="avatar">SP</div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+        <div class="viewbar">
+          <div class="crumb"><span>dashboard</span><span>/</span><span class="cur"><svg class="icon i13" style="color:var(--acc2)"><use href="#i-book"/></svg>reading</span></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="height:28px;padding:0 12px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;font-size:11px;color:var(--t2);display:flex;align-items:center;gap:5px"><svg class="icon i12"><use href="#i-news"/></svg>news</span>
+            <span style="height:28px;padding:0 12px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;font-size:11px;color:var(--t2);display:flex;align-items:center;gap:5px"><svg class="icon i12"><use href="#i-file"/></svg>papers</span>
+            <span style="height:28px;padding:0 12px;background:var(--acc);color:#fff;border-radius:4px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:5px"><svg class="icon i12"><use href="#i-plus"/></svg>add source</span>
+          </div>
+        </div>
+
+        <div style="flex:1;display:flex;overflow:hidden;min-height:0">
+          <div class="rlib">
+            <div class="rsearch"><svg class="icon i13"><use href="#i-search"/></svg>search library…</div>
+            <div class="rtabs"><span class="on">all</span><span>books</span><span>papers</span><span>news</span></div>
+            <div style="flex:1;overflow:hidden;padding:4px 0">
+              <div class="rsec">currently reading</div>
+              <div class="ritem on">
+                <span class="badge" style="background:var(--acc-bg);color:var(--acc2)">EPUB</span>
+                <span class="m"><span class="ti">How to Take Smart Notes</span><span class="au">Sönke Ahrens · epub</span><span class="pb"><u style="width:42%"></u></span></span>
+              </div>
+              <div class="rsec">books</div>
+              <div class="ritem">
+                <span class="badge" style="background:var(--acc-bg);color:var(--acc2)">EPUB</span>
+                <span class="m"><span class="ti">Building a Second Brain</span><span class="au">Tiago Forte · epub</span></span>
+              </div>
+              <div class="ritem">
+                <span class="badge" style="background:var(--blu-bg);color:var(--blu)">PDF</span>
+                <span class="m"><span class="ti">The Timeless Way of Building</span><span class="au">C. Alexander · pdf</span></span>
+              </div>
+              <div class="rsec">research papers</div>
+              <div class="ritem">
+                <span class="badge" style="background:var(--grn-bg);color:var(--grn)">ARXV</span>
+                <span class="m"><span class="ti">Retrieval-augmented generation</span><span class="au">Lewis et al. · paper</span></span>
+              </div>
+              <div class="rsec">news &amp; articles</div>
+              <div class="ritem">
+                <span class="badge" style="background:var(--amb-bg);color:var(--amb)">RSS</span>
+                <span class="m"><span class="ti">Against productivity apps</span><span class="au">theatlantic.com · news</span></span>
+              </div>
+              <div class="rsec">read</div>
+              <div class="ritem" style="opacity:.5">
+                <span class="badge" style="background:var(--acc-bg);color:var(--acc2)">EPUB</span>
+                <span class="m"><span class="ti">Deep Work</span><span class="au">Cal Newport · epub</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+            <div class="rtoolbar">
+              <svg class="icon i14"><use href="#i-list"/></svg>
+              <span>ch. 4 — The four underlying principles</span>
+              <div class="tdiv"></div>
+              <span style="font-size:13px;font-weight:700">A</span><svg class="icon i9"><use href="#i-chevd"/></svg>
+              <span style="font-size:15px;font-weight:700">A</span>
+              <div class="tdiv"></div>
+              <span style="width:80px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;display:block"><span style="display:block;height:100%;width:42%;background:var(--acc);border-radius:2px"></span></span>
+              <div class="tdiv"></div>
+              <svg class="icon i13" style="color:#fbbf24"><use href="#i-hl"/></svg>
+              <svg class="icon i13" style="color:#7c6ef7"><use href="#i-hl"/></svg>
+              <svg class="icon i13" style="color:#34d399"><use href="#i-hl"/></svg>
+              <div style="flex:1"></div>
+              <span style="font-size:10.5px;color:var(--t3)">42% · 12 highlights</span>
+            </div>
+
+            <div class="reader">
+              <div class="rdoc">
+                <h1>The four underlying principles</h1>
+                <div class="au">How to Take Smart Notes · Sönke Ahrens</div>
+                <p>Writing is not what follows research, learning or studying, it is the medium of all this work. Seen this way, the question changes entirely.</p>
+                <p><span class="hl-y">Nobody ever starts from scratch.</span> The blank page is a myth, and a paralysing one. Every text you write begins in the middle of a conversation you have already been having with yourself, in notes.</p>
+                <p>The slip-box is not an encyclopaedia. It is a thinking partner, and like any partner it becomes more useful the more honestly you engage with it. <span class="hl-p">A note you cannot argue with is a note you did not need to write.</span></p>
+                <p>The consequence is uncomfortable: most note-taking advice optimises the wrong step. Capture is cheap. The expensive part — the part that produces understanding — is the reformulation.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="rai">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--acc2);margin-bottom:10px">
+              <span style="width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px rgba(124,110,247,.6)"></span>while you read
+            </div>
+            <div class="raicard"><div class="k">connection</div><div class="v">This chapter maps onto your notes on <em>PARA Method</em> and <em>Zettelkasten</em> — same idea, different framing.</div><div class="a">explore connections ↗</div></div>
+            <div class="raicard"><div class="k">capture ready</div><div class="v">12 highlighted passages ready to become atomic notes.</div><div class="a">capture all ↗</div></div>
+            <div class="raicard"><div class="k">reflection</div><div class="v">You've read 42% of this. What surprised you most?</div><div class="a">reflect ↗</div></div>
+
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600;margin:14px 0 8px">highlights</div>
+            <div class="hlrow" style="border-color:#fbbf24;background:rgba(251,191,36,.10);color:var(--t2)">Nobody ever starts from scratch.</div>
+            <div class="hlrow" style="border-color:#7c6ef7;background:rgba(124,110,247,.12);color:var(--t2)">A note you cannot argue with is a note you did not need to write.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="grp"><span class="it" style="color:var(--grn)"><svg class="icon i12" style="stroke-width:2.5"><use href="#i-check"/></svg>autosaved</span></div>
+      <div class="grp"><span style="color:var(--t2)">⌘K to command</span><span>20 notes · 36 connections</span></div>
+    </div>
+  </div></div>
+</div>
+
+</body>
+</html>

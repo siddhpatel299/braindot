@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Braindot — UI mockup for design review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Braindot — static UI mockup, pixel-faithful to the live app.
+   Palette, type scale and box metrics are copied verbatim from
+   src/app/globals.css and the React components. Nothing here is
+   interactive; it exists purely to be critiqued.
+   ============================================================ */
+
+:root{
+  --bg:#0c0c0e; --bg1:#111113; --bg2:#171719; --bg3:#1e1e21; --bg4:#26262a;
+  --bd:#252528; --bd2:#333338;
+  --t1:#f0f0f2; --t2:#888894; --t3:#444450;
+  --acc:#7c6ef7; --acc2:#b0a8fb; --acc-bg:#1a1830; --acc-bd:#3d378a;
+  --grn:#34d399; --grn-bg:#0a1f16; --grn-bd:#1a4a2a;
+  --amb:#fbbf24; --amb-bg:#1c1608; --amb-bd:#4a3010;
+  --blu:#60a5fa; --blu-bg:#0c1f2e; --blu-bd:#0f3a50;
+  --red:#f87171; --red-bg:#2a0f0f;
+  --coral:#f0997b;
+  --callout-text:#9994cc;
+  --mono:'JetBrains Mono','Fira Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#08080a; color:var(--t1); font-family:var(--mono);
+  -webkit-font-smoothing:antialiased; padding:32px 24px 80px;
+  font-feature-settings:"calt" 1,"liga" 1;
+}
+svg{display:block}
+.icon{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i11{width:11px;height:11px}.i12{width:12px;height:12px}.i13{width:13px;height:13px}
+.i15{width:15px;height:15px}.i16{width:16px;height:16px}.i18{width:18px;height:18px;stroke-width:1.75}
+
+/* ---------- page furniture (NOT part of the product) ---------- */
+.brief{max-width:1440px;margin:0 auto 34px;border:1px solid var(--bd2);border-radius:10px;padding:22px 24px;background:var(--bg1)}
+.brief h1{font-size:19px;font-weight:700;letter-spacing:-.01em;margin-bottom:8px}
+.brief p{font-size:12.5px;line-height:1.75;color:var(--t2);max-width:88ch;margin-bottom:9px}
+.brief ul{margin:6px 0 0 18px}
+.brief li{font-size:12.5px;line-height:1.8;color:var(--t2)}
+.brief b{color:var(--t1);font-weight:600}
+.brief .tagrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.brief .tag{font-size:10.5px;padding:3px 8px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd2);color:var(--t3)}
+
+.screen{max-width:1440px;margin:0 auto 44px}
+/* The mockup is authored for a 1440 desktop. In a narrower window the frame
+   scrolls sideways on its own rather than breaking the page layout. */
+.frame{overflow-x:auto;padding:6px;margin:-6px}
+.screen-label{display:flex;align-items:baseline;gap:10px;margin-bottom:11px;padding-left:2px}
+.screen-label .n{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--acc2)}
+.screen-label .d{font-size:11.5px;color:var(--t3)}
+
+/* ---------- app shell ---------- */
+.app{
+  background:var(--bg); border:1px solid var(--bd2); border-radius:10px;
+  overflow:hidden; display:flex; flex-direction:column; height:812px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+  min-width:1240px;
+}
+.app.tall{height:1560px}
+.row{display:flex;flex:1;min-height:0}
+
+/* ---------- command bar ---------- */
+.cmdbar{height:48px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:14px;flex:none}
+.searchbox{flex:1;max-width:720px;height:34px;background:var(--bg3);border:1px solid var(--bd2);border-radius:4px;display:flex;align-items:center;padding:0 12px;gap:10px;color:var(--t3)}
+.searchbox .ph{flex:1;font-size:13px;color:var(--t3)}
+.kbd{height:22px;padding:0 8px;background:var(--bg4);border:1px solid var(--bd2);border-radius:3px;color:var(--t2);font-size:11px;display:flex;align-items:center}
+.cmdright{display:flex;align-items:center;gap:8px}
+.chip{height:28px;padding:0 10px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--t3);font-size:11px;display:flex;align-items:center;gap:5px}
+.chip.streak{background:var(--amb-bg);border-color:var(--amb-bd);color:var(--amb);font-size:12px;font-weight:600}
+.iconbtn{height:32px;width:32px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--t2);display:flex;align-items:center;justify-content:center}
+.btn-primary{height:32px;padding:0 14px;background:var(--acc);color:#fff;border-radius:4px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;box-shadow:0 0 0 1px rgba(124,110,247,.3)}
+
+/* ---------- icon rail ---------- */
+.rail{width:50px;flex:none;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px}
+.logo{width:32px;height:32px;border-radius:7px;background:var(--acc-bg);border:1px solid var(--acc-bd);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.logo .dot{width:9px;height:9px;border-radius:50%;background:var(--acc2)}
+.railbtn{width:36px;height:36px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--t2);border:1px solid transparent}
+.railbtn.on{background:var(--acc-bg);color:var(--acc2);border-color:var(--acc-bd)}
+.raildiv{width:22px;height:1px;background:var(--bd);margin:6px 0}
+.avatar{width:30px;height:30px;border-radius:50%;background:#1D9E75;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.04em}
+
+/* ---------- file tree ---------- */
+.tree{width:230px;flex:none;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.tree-head{height:34px;border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 8px;gap:4px;flex:none}
+.seg{display:flex;background:var(--bg2);border-radius:4px;padding:2px;gap:2px}
+.seg span{font-size:10px;padding:3px 8px;border-radius:3px;color:var(--t3);display:flex;align-items:center;gap:4px}
+.seg span.on{background:var(--bg4);color:var(--t1);font-weight:600}
+.tree-body{flex:1;overflow:hidden;padding:8px 6px}
+.sec{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);font-weight:600;padding:8px 8px 5px;display:flex;justify-content:space-between}
+.trow{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:4px;font-size:12px;color:var(--t2)}
+.trow.on{background:var(--acc-bg);color:var(--t1)}
+.trow .sq{width:5px;height:5px;border-radius:1px;background:var(--grn);flex:none}
+.trow .sq.draft{background:var(--t3)}
+.trow .cnt{margin-left:auto;font-size:10px;color:var(--t3)}
+.trow.folder{color:var(--t1);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+.ind1{padding-left:20px}.ind2{padding-left:32px}
+
+/* ---------- editor ---------- */
+.editor{flex:1;min-width:0;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.tabs{height:36px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:stretch;flex:none;overflow:hidden}
+.tab{display:flex;align-items:center;gap:8px;padding:0 13px;font-size:11.5px;color:var(--t3);border-right:1px solid var(--bd);white-space:nowrap}
+.tab.on{background:var(--bg);color:var(--t1);border-bottom:2px solid var(--acc)}
+.tab .x{color:var(--t3);font-size:13px}
+.toolbar{display:flex;align-items:center;border-bottom:1px solid var(--bd);background:var(--bg1);flex:none;height:34px}
+.modes{display:flex;padding:0 4px;gap:1px}
+.mode{display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:3px;font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
+.mode.on{background:var(--bg3);color:var(--t1);font-weight:600}
+.fmt{display:flex;align-items:center;gap:1px;padding:0 6px;border-left:1px solid var(--bd);margin-left:4px;flex:1;overflow:hidden}
+.fmt b,.fmt i,.fmt u,.fmt s,.fmt span{width:26px;height:26px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--t2);font-weight:500}
+.fontpick{display:flex;background:var(--bg2);border-radius:4px;padding:2px;margin-right:8px;flex:none}
+.fontpick span{font-size:10px;padding:3px 7px;border-radius:3px;color:var(--t3)}
+.fontpick span.on{background:var(--bg4);color:var(--t1);font-weight:600}
+
+.canvas{flex:1;overflow:hidden;padding:34px 0}
+.doc{max-width:720px;margin:0 auto;padding:0 32px}
+.doc .meta{font-size:10.5px;color:var(--t3);display:flex;align-items:center;gap:9px;margin-bottom:16px}
+.doc .meta .badge{border:1px solid var(--bd2);border-radius:3px;padding:2px 7px;color:var(--t2);display:flex;align-items:center;gap:4px}
+.doc h1{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;font-family:var(--serif)}
+.doc .sub{font-size:13.5px;color:var(--t2);font-style:italic;margin-bottom:13px;font-family:var(--serif)}
+.tagline{display:flex;align-items:center;gap:6px;margin-bottom:26px}
+.tagchip{font-size:10.5px;padding:2px 7px;border-radius:4px;border:1px solid var(--acc-bd);background:var(--acc-bg);color:var(--acc2)}
+.tagchip.g{border-color:var(--grn-bd);background:var(--grn-bg);color:var(--grn)}
+.tagchip.add{border-color:var(--bd2);background:transparent;color:var(--t3)}
+.evergreen{margin-left:auto;font-size:10px;letter-spacing:.09em;padding:3px 9px;border-radius:11px;border:1px solid var(--grn-bd);color:var(--grn)}
+.prose{font-size:14px;line-height:1.85;color:var(--t2);font-family:var(--serif)}
+.prose p{margin-bottom:18px}
+.prose .wiki{color:var(--acc2);text-decoration:underline;text-underline-offset:2px}
+.prose strong{color:var(--t1);font-weight:700}
+
+/* ---------- context panel ---------- */
+.ctx{width:300px;flex:none;background:var(--bg1);border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.ctx-tabs{height:34px;display:flex;border-bottom:1px solid var(--bd);flex:none}
+.ctx-tabs span{flex:1;display:flex;align-items:center;justify-content:center;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);border-bottom:2px solid transparent}
+.ctx-tabs span.on{color:var(--t1);font-weight:600;border-bottom-color:var(--acc)}
+.ctx-body{flex:1;min-height:0;padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.subtabs{display:flex;gap:2px;background:var(--bg2);border-radius:5px;padding:2px;flex:none}
+.subtabs span{flex:1;height:24px;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:4px;font-size:10px;color:var(--t3);white-space:nowrap}
+.subtabs span.on{background:var(--bg4);color:var(--t1);font-weight:600}
+.thread{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.intro{font-size:11.5px;line-height:1.65;color:var(--t2)}
+.studying{font-size:10px;color:var(--t3)}
+.studying b{color:var(--acc2);font-weight:400}
+.bubble{align-self:flex-end;max-width:92%;padding:7px 10px;background:var(--acc-bg);border:1px solid var(--acc-bd);border-radius:6px;color:var(--t1);font-size:11.5px;line-height:1.55}
+.answer{font-size:13px;line-height:1.65;color:var(--t1)}
+.answer p{margin-bottom:9px}
+.answer strong{font-weight:700}
+.answer h4{font-size:14px;font-weight:700;margin:12px 0 5px}
+.diagram{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:11px;margin:10px 0}
+.saverow{display:flex;justify-content:flex-end;margin-top:4px}
+.savebtn{display:flex;align-items:center;gap:5px;font-size:9.5px;padding:3px 7px;border-radius:4px;border:1px solid var(--bd);color:var(--t3)}
+.sources{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.sources span{font-size:9.5px;padding:2px 6px;border-radius:4px;background:var(--bg3);border:1px solid var(--bd);color:var(--t3)}
+.starters{display:flex;flex-wrap:wrap;gap:5px;padding-top:10px;flex:none}
+.starters span{padding:5px 9px;background:var(--bg2);border:1px solid var(--bd);border-radius:5px;color:var(--t2);font-size:10.5px}
+.composer{display:flex;gap:6px;align-items:flex-end;padding-top:10px;flex:none}
+.composer .ta{flex:1;min-height:32px;background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;padding:8px 9px;color:var(--t3);font-size:11.5px}
+.composer .send{width:32px;height:32px;border-radius:5px;background:var(--bg2);border:1px solid var(--bd2);color:var(--t3);display:flex;align-items:center;justify-content:center}
+.composer .send.hot{background:var(--acc);border-color:var(--acc);color:#fff}
+
+.ctx-scroll{flex:1;min-height:0;padding:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.livehead{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--acc2);letter-spacing:.04em}
+.livehead .pulse{width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px rgba(124,110,247,.6)}
+.sugg{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:7px 10px}
+.sugg .k{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--acc2);font-weight:600;margin-bottom:4px}
+.sugg .v{font-size:11px;line-height:1.5;color:var(--t2);margin-bottom:5px}
+.sugg .a{font-size:10px;color:var(--acc2);display:flex;align-items:center;gap:3px}
+.ctxlabel{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600}
+
+/* ---------- status bar ---------- */
+.status{height:28px;background:var(--bg1);border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:var(--t3);flex:none}
+.status .grp{display:flex;align-items:center;gap:16px}
+.status .it{display:flex;align-items:center;gap:5px}
+
+/* ---------- dashboard ---------- */
+.dash{flex:1;overflow:hidden;background:var(--bg);padding:28px 40px}
+.dashwrap{max-width:1440px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.hero{position:relative;overflow:hidden;background:var(--bg1);border:1px solid var(--bd);border-radius:10px;padding:26px 28px;display:flex;align-items:center;justify-content:space-between;gap:32px}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(560px 220px at 0% 0%,var(--acc-bg),transparent 70%),radial-gradient(420px 200px at 100% 100%,var(--acc-bg),transparent 72%);pointer-events:none}
+.hero>*{position:relative}
+.hero .date{font-size:12px;color:var(--acc2);letter-spacing:.06em;margin-bottom:10px;display:flex;gap:8px}
+.hero .date .g{color:var(--t2)}
+.hero h1{font-size:34px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+.facts{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--t3);flex-wrap:wrap}
+.facts b{color:var(--t1);font-weight:600}
+.streakbox{flex:none;background:var(--bg2);border:1px solid var(--bd2);border-radius:8px;padding:14px 18px;min-width:210px}
+.streakbox .top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.streakbox .num{font-size:22px;font-weight:700;line-height:1}
+.streakbox .num s{font-size:12px;color:var(--t3);font-weight:500;text-decoration:none}
+.week{display:flex;gap:5px}
+.week i{display:flex;flex-direction:column;align-items:center;gap:5px;font-style:normal}
+.week i u{width:20px;height:20px;border-radius:4px;background:var(--bg3);border:1px solid transparent;text-decoration:none}
+.week i.on u{background:var(--acc)}
+.week i.today u{border-color:var(--acc2)}
+.week i em{font-size:9px;color:var(--t3);font-style:normal}
+.week i.today em{color:var(--acc2)}
+
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-r{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
+
+.stat{position:relative;overflow:hidden;background:var(--bg1);border:1px solid var(--bd);border-radius:8px;padding:15px 17px 0;display:flex;flex-direction:column;gap:5px}
+.stat .h{display:flex;align-items:center;justify-content:space-between}
+.stat .lab{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);font-weight:600}
+.stat .ic{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center}
+.stat .val{display:flex;align-items:baseline;gap:8px}
+.stat .val b{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.delta{display:inline-flex;align-items:center;gap:2px;font-size:10px;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.stat .sub{font-size:10.5px;color:var(--t3)}
+
+.qa{display:flex;gap:10px;flex-wrap:wrap}
+.qa span{height:36px;padding:0 15px;background:var(--bg1);border:1px solid var(--bd);border-radius:6px;color:var(--t2);font-size:12.5px;display:flex;align-items:center;gap:7px;font-weight:600}
+.qa span.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.qa .sp{flex:1;background:none;border:none;height:0;padding:0}
+
+.panel{background:var(--bg1);border:1px solid var(--bd);border-radius:8px;padding:15px 17px 17px;display:flex;flex-direction:column;min-width:0}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--bd)}
+.panel-h h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--t2);font-weight:700;white-space:nowrap}
+.panel-h .r{display:flex;align-items:center;gap:10px;font-size:10.5px;color:var(--t3);white-space:nowrap}
+.panel-h .r .act{color:var(--acc2);display:flex;align-items:center;gap:3px}
+.panel-b{flex:1;min-width:0}
+
+.legend{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:10px;font-size:10px;color:var(--t3)}
+.legend u{width:10px;height:10px;border-radius:2.5px;background:var(--acc);text-decoration:none}
+
+.resume{border:1px solid var(--bd);border-left:2px solid var(--acc);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;height:100%}
+.resume .t{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.resume .t b{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.resume .t .s{font-size:11.5px;color:var(--t2);margin-top:3px}
+.resume .go{font-size:11px;color:var(--acc2);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.resume p{font-size:12px;line-height:1.7;color:var(--t2)}
+.resume .foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto}
+.mchip{font-size:10px;border:1px solid var(--bd2);background:var(--bg2);border-radius:4px;padding:2px 6px;color:var(--t2);white-space:nowrap}
+.mchip.g{color:var(--grn)}.mchip.a{color:var(--acc2)}
+.resume .when{margin-left:auto;font-size:10px;color:var(--t3)}
+
+.todo{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px}
+.todo .c{width:13px;height:13px;border-radius:50%;border:2px solid;flex:none}
+.todo .txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo .fl{font-size:9.5px;flex:none}
+.blocklab{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin-bottom:7px}
+.stack{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px;margin-bottom:8px}
+.stack u{border-radius:2px;text-decoration:none}
+.keys{display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;color:var(--t3)}
+.keys i{display:inline-flex;align-items:center;gap:5px;font-style:normal}
+.keys i u{width:6px;height:6px;border-radius:2px;text-decoration:none}
+.keys i b{color:var(--t1);font-weight:400}
+.bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.bar u{display:block;height:100%;border-radius:2px;text-decoration:none}
+
+.nrow{display:flex;align-items:center;gap:9px;padding:7px 0}
+.nrow .dot{width:5px;height:5px;border-radius:50%;flex:none}
+.nrow .m{flex:1;min-width:0}
+.nrow .m .ti{font-size:12.5px;font-weight:500;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nrow .m .mt{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--t3);flex-wrap:wrap}
+.nrow .m .mt .lk{color:var(--acc2)}
+.nrow .ago{font-size:10px;color:var(--t3);flex:none}
+.ntag{font-size:10px;padding:1px 6px;border-radius:4px;white-space:nowrap}
+.ntag.s{color:#b0a8fb;background:rgba(124,110,247,.12);border:1px solid #3d378a}
+.ntag.l{color:#34d399;background:rgba(52,211,153,.10);border:1px solid #1a4a2a}
+.ntag.r{color:#fbbf24;background:rgba(251,191,36,.10);border:1px solid #4a3010}
+.ntag.q{color:#7dd3fc;background:rgba(125,211,252,.10);border:1px solid #1e3a5a}
+
+.tagrow2{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.tagrow2 .nm{font-size:12px;color:var(--t2);min-width:76px}
+.tagrow2 .tr{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.tagrow2 .tr u{display:block;height:100%;border-radius:3px;text-decoration:none}
+.tagrow2 .n{font-size:11px;color:var(--t3);min-width:18px;text-align:right}
+
+.donutwrap{display:flex;align-items:center;gap:18px}
+.donutkey{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.donutkey .k{display:flex;align-items:center;gap:8px}
+.donutkey .k u{width:7px;height:7px;border-radius:2px;flex:none;text-decoration:none}
+.donutkey .k .nm{flex:1;font-size:11.5px;color:var(--t2);letter-spacing:.03em}
+.donutkey .k .pc{font-size:10px;color:var(--t3)}
+.donutkey .k .n{font-size:11.5px;font-weight:600;min-width:16px;text-align:right}
+
+.attn{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:12px}
+.attn .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.attn .why{font-size:10px;flex:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+
+.hub{display:flex;flex-direction:column;gap:5px;padding:6px 0}
+.hub .l{display:flex;align-items:center;gap:8px}
+.hub .l .r{font-size:10px;color:var(--t3);width:14px}
+.hub .l .nm{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hub .l .d{font-size:10px;color:var(--acc2)}
+
+.panelstrip{display:grid;grid-template-columns:repeat(3,300px);gap:20px;justify-content:start;overflow-x:auto;padding-bottom:8px}
+.panelstrip .ctx{height:560px;border:1px solid var(--bd2);border-radius:8px}
+.pcap{font-size:10.5px;color:var(--t3);margin-bottom:8px;letter-spacing:.04em}
+
+@media (max-width:1500px){
+  body{padding:24px 14px 60px}
+  .app{height:auto;min-height:760px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ icon sprite ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="i-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></g>
+<g id="i-plus"><path d="M5 12h14M12 5v14"/></g>
+<g id="i-flame"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/></g>
+<g id="i-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></g>
+<g id="i-cloudoff"><path d="M3 3l18 18M17.5 19H9a7 7 0 1 1 1.8-13.8"/><path d="M22 15a4 4 0 0 0-4-4h-1.3"/></g>
+<g id="i-dash"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>
+<g id="i-note"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2Z"/><path d="M14 21v-5a2 2 0 0 1 2-2h5"/></g>
+<g id="i-share"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></g>
+<g id="i-kanban"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 7v8M12 7v11M16 7v5"/></g>
+<g id="i-pen"><path d="m12 19 7-7 3 3-7 7-3-3Z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5Z"/><path d="m2 2 7.6 7.6"/><circle cx="11" cy="11" r="2"/></g>
+<g id="i-book"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></g>
+<g id="i-tags"><path d="M9 5H2v7l6.3 6.3a2.4 2.4 0 0 0 3.4 0l3.6-3.6a2.4 2.4 0 0 0 0-3.4L9 5Z"/><path d="M6 9.5h.01"/></g>
+<g id="i-pencil"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></g>
+<g id="i-eye"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></g>
+<g id="i-diff"><circle cx="5" cy="6" r="3"/><path d="M5 9v12"/><circle cx="19" cy="18" r="3"/><path d="M19 15V9a4 4 0 0 0-4-4h-2"/></g>
+<g id="i-type"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></g>
+<g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+<g id="i-link"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></g>
+<g id="i-align"><path d="M17 10H3M21 6H3M21 14H3M17 18H3"/></g>
+<g id="i-spark"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></g>
+<g id="i-file"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></g>
+<g id="i-library"><path d="M16 6l4 14M12 6v14M8 8v12M4 4v16"/></g>
+<g id="i-grad"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></g>
+<g id="i-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></g>
+<g id="i-upright"><path d="M7 17 17 7M7 7h10v10"/></g>
+<g id="i-bookmark"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2"/><path d="M16 6h6M19 3v6"/></g>
+<g id="i-send"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></g>
+<g id="i-cdl"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></g>
+<g id="i-cal"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></g>
+<g id="i-down"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></g>
+<g id="i-up"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></g>
+<g id="i-trend"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></g>
+<g id="i-activity"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></g>
+<g id="i-unlink"><path d="M18.8 13.6 21 11.4a4.5 4.5 0 0 0-6.4-6.4l-2.2 2.2M5.2 10.4 3 12.6a4.5 4.5 0 0 0 6.4 6.4l2.2-2.2M2 2l20 20"/></g>
+<g id="i-clock"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<g id="i-circle"><circle cx="12" cy="12" r="9"/></g>
+<g id="i-checkcirc"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></g>
+<g id="i-zap"><path d="M13 2 3 14h9l-1 8 10-12h-9Z"/></g>
+<g id="i-hash"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></g>
+<g id="i-tag1"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2c0 .5.2 1 .6 1.4l8.8 8.8a2 2 0 0 0 2.8 0l7.2-7.2a2 2 0 0 0 0-2.8Z"/><path d="M7 7h.01"/></g>
+<g id="i-folder"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<g id="i-chev"><path d="m9 18 6-6-6-6"/></g>
+</defs></svg>
+
+<!-- ============ brief ============ -->
+<div class="brief">
+  <h1>Braindot — UI mockup for a design pass</h1>
+  <p><b>What this is.</b> A static, pixel-faithful mockup of a personal knowledge-management app (local-first markdown notes, wiki-links, a knowledge graph, and an AI panel). Colours, spacing, type sizes and box metrics are copied verbatim from the live app — this is what it actually looks like today, not an idealised version.</p>
+  <p><b>The house style.</b> Everything in the chrome is JetBrains Mono, lowercase labels, dark by default, 1px hairline borders, 4–8px radii, a single violet accent. Only the note body itself is serif. That constraint is deliberate and should stay — the ask is polish <i>within</i> it, not a restyle.</p>
+  <p><b>What I'd like critiqued:</b></p>
+  <ul>
+    <li>Visual hierarchy — everything is currently the same weight; nothing draws the eye first.</li>
+    <li>Density and rhythm — is the 300px right panel too cramped for a chat? Is the dashboard too many panels of equal importance?</li>
+    <li>The dashboard specifically: it reads as a wall of cards. What should be hero, what should be secondary, what should be cut?</li>
+    <li>Colour discipline — violet/green/amber/blue/red all appear as semantic accents. Too many?</li>
+    <li>Empty and first-run states.</li>
+    <li>Anything that looks like a developer built it rather than a designer.</li>
+  </ul>
+  <div class="tagrow">
+    <span class="tag">1440×812 desktop</span>
+    <span class="tag">dark theme (a light theme also exists)</span>
+    <span class="tag">JetBrains Mono</span>
+    <span class="tag">accent #7c6ef7</span>
+    <span class="tag">static — nothing is interactive</span>
+  </div>
+</div>
+
+<!-- ============ SCREEN 1 — EDITOR ============ -->
+<div class="screen">
+  <div class="screen-label"><span class="n">Screen 1</span><span class="d">Editor · right panel on AI → study, mid-conversation</span></div>
+  <div class="frame">
+  <div class="app">
+
+    <div class="cmdbar">
+      <div class="searchbox">
+        <svg class="icon i15" style="stroke-width:1.75"><use href="#i-search"/></svg>
+        <span class="ph">search notes, jump to, run command</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="cmdright">
+        <div class="chip"><svg class="icon i12"><use href="#i-cloudoff"/></svg>local</div>
+        <div class="chip streak"><svg class="icon i13"><use href="#i-flame"/></svg>14d</div>
+        <div class="iconbtn"><svg class="icon i15"><use href="#i-sun"/></svg></div>
+        <div class="btn-primary"><svg class="icon i14" style="width:14px;height:14px;stroke-width:2.5"><use href="#i-plus"/></svg>new note</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- rail -->
+      <div class="rail">
+        <div class="logo"><span class="dot"></span></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-dash"/></svg></div>
+        <div class="railbtn on"><svg class="icon i18"><use href="#i-note"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-share"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-kanban"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-pen"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-book"/></svg></div>
+        <div class="raildiv"></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-tags"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-search"/></svg></div>
+        <div style="flex:1"></div>
+        <div class="avatar">SP</div>
+      </div>
+
+      <!-- file tree -->
+      <div class="tree">
+        <div class="tree-head">
+          <div class="seg">
+            <span class="on"><svg class="icon i11"><use href="#i-folder"/></svg>folders</span>
+            <span><svg class="icon i11"><use href="#i-tag1"/></svg>tags</span>
+          </div>
+          <div style="margin-left:auto;color:var(--t3)"><svg class="icon i14"><use href="#i-plus"/></svg></div>
+        </div>
+        <div class="tree-body">
+          <div class="sec"><span>◆ pinned</span><span>1</span></div>
+          <div class="trow ind1"><span class="sq"></span>Welcome to Braindot</div>
+
+          <div class="sec"><span>projects</span><span>2</span></div>
+          <div class="trow folder ind1"><svg class="icon i12"><use href="#i-chev"/></svg>Essays<span class="cnt">1</span></div>
+          <div class="trow ind2"><span class="sq draft"></span>The Attention Comm…</div>
+
+          <div class="sec"><span>areas</span><span>5</span></div>
+          <div class="trow folder ind1"><svg class="icon i12"><use href="#i-chev"/></svg>Writing<span class="cnt">2</span></div>
+          <div class="trow ind2"><span class="sq draft"></span>Deep work, unroman…</div>
+          <div class="trow ind2"><span class="sq draft"></span>Morning pages, revi…</div>
+          <div class="trow folder ind1"><svg class="icon i12"><use href="#i-chev"/></svg>Journal<span class="cnt">2</span></div>
+          <div class="trow ind2"><span class="sq draft"></span>2026-07-28</div>
+
+          <div class="sec"><span>resources</span><span>12</span></div>
+          <div class="trow folder ind1"><svg class="icon i12" style="transform:rotate(90deg)"><use href="#i-chev"/></svg>Notes<span class="cnt">11</span></div>
+          <div class="trow ind2 on"><span class="sq"></span>Writing is thinking</div>
+          <div class="trow ind2"><span class="sq"></span>Compression is unde…</div>
+          <div class="trow ind2"><span class="sq"></span>Zettelkasten, honestly</div>
+          <div class="trow ind2"><span class="sq draft"></span>In praise of forgetting</div>
+          <div class="trow ind2"><span class="sq draft"></span>Slow media</div>
+          <div class="trow ind2"><span class="sq draft"></span>Tools for thought</div>
+
+          <div class="sec"><span>archives</span><span>1</span></div>
+          <div class="trow ind1"><span class="sq draft"></span>Newsletter plan (aba…</div>
+        </div>
+      </div>
+
+      <!-- editor -->
+      <div class="editor">
+        <div class="tabs">
+          <div class="tab">The Attention Commons <span class="x">×</span></div>
+          <div class="tab">Build log — braindot <span class="x">×</span></div>
+          <div class="tab on">Writing is thinking <span class="x">×</span></div>
+          <div class="tab">Study mode notes <span class="x">×</span></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="modes">
+            <div class="mode on"><svg class="icon i12"><use href="#i-pencil"/></svg>edit</div>
+            <div class="mode"><svg class="icon i12"><use href="#i-eye"/></svg>preview</div>
+            <div class="mode"><svg class="icon i12"><use href="#i-diff"/></svg>diff</div>
+          </div>
+          <div class="fmt">
+            <span>H1</span><span>H2</span><span>H3</span>
+            <span style="color:var(--t3)">│</span>
+            <b style="font-weight:700">B</b><i style="font-style:italic">I</i><u>U</u><s>S</s>
+            <span style="color:var(--t3)">│</span>
+            <span>&lt;/&gt;</span><span>•</span><span>1.</span><span>"</span><span>[[</span><span>↗</span>
+          </div>
+          <div class="fontpick">
+            <span>mono</span><span class="on">serif</span><span>sans</span>
+          </div>
+          <div style="padding:0 8px 0 0;color:var(--t2)"><svg class="icon i14"><use href="#i-type"/></svg></div>
+        </div>
+
+        <div class="canvas">
+          <div class="doc">
+            <div class="meta">
+              <span>Jul 28, 2026</span><span>·</span><span>412 words</span><span>·</span><span>3 backlinks</span>
+              <span class="badge"><svg class="icon i11"><use href="#i-check"/></svg>saved</span>
+            </div>
+            <h1>Writing is thinking</h1>
+            <div class="sub">Not a metaphor</div>
+            <div class="tagline">
+              <span class="tagchip">#craft</span>
+              <span class="tagchip g">#core</span>
+              <span class="tagchip add">+tag</span>
+              <span class="evergreen">EVERGREEN</span>
+            </div>
+            <div class="prose">
+              <p>The claim is not that writing helps you think. It's that the thinking does not fully exist until it is written.</p>
+              <p>Evidence, weak but persuasive: everyone has had the experience of believing they understood something until they tried to write it down. The gap is not in the transcription. It is in the <strong>thought</strong>.</p>
+              <p>This is why <span class="wiki">[[Compression is understanding]]</span> matters — if you can't compress it, you didn't have it. And it is why <span class="wiki">[[Zettelkasten, honestly]]</span> is more useful as a writing practice than as a filing system.</p>
+              <p>Corollary: notes you never revisit are still worth writing. The value was extracted at the moment of writing. Everything after is interest.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- context panel -->
+      <div class="ctx">
+        <div class="ctx-tabs">
+          <span>info</span><span class="on">ai</span><span>graph</span><span>history</span>
+        </div>
+        <div class="ctx-body">
+          <div class="subtabs">
+            <span><svg class="icon i11"><use href="#i-file"/></svg>this note</span>
+            <span><svg class="icon i11"><use href="#i-library"/></svg>vault</span>
+            <span class="on"><svg class="icon i11"><use href="#i-grad"/></svg>study</span>
+          </div>
+
+          <div class="thread">
+            <div class="bubble">Teach me this note</div>
+            <div>
+              <div class="answer">
+                <p>Let's start from the claim itself. You're arguing that thought is <strong>constituted</strong> by writing, not merely expressed by it. That's a strong position — it rules out wordless insight.</p>
+                <h4>Where it holds</h4>
+                <p>Best in analytic domains, where precision is the work.</p>
+                <div class="diagram">
+                  <svg viewBox="0 0 250 92" style="width:100%;height:auto">
+                    <line x1="14" y1="18" x2="236" y2="18" stroke="#3d378a" stroke-width="1"/>
+                    <circle cx="30" cy="18" r="4" fill="#7c6ef7"/><circle cx="125" cy="18" r="4" fill="#7c6ef7"/><circle cx="220" cy="18" r="4" fill="#7c6ef7"/>
+                    <text x="30" y="38" font-size="7" fill="#888894" font-family="monospace" text-anchor="middle">vague sense</text>
+                    <text x="125" y="38" font-size="7" fill="#888894" font-family="monospace" text-anchor="middle">first draft</text>
+                    <text x="220" y="38" font-size="7" fill="#888894" font-family="monospace" text-anchor="middle">the claim</text>
+                    <rect x="16" y="52" width="94" height="17" rx="3" fill="#1a1830" stroke="#3d378a"/>
+                    <text x="63" y="63.5" font-size="7" fill="#b0a8fb" font-family="monospace" text-anchor="middle">felt, unshareable</text>
+                    <rect x="130" y="52" width="104" height="17" rx="3" fill="#0a1f16" stroke="#1a4a2a"/>
+                    <text x="182" y="63.5" font-size="7" fill="#34d399" font-family="monospace" text-anchor="middle">testable, linkable</text>
+                  </svg>
+                </div>
+                <p>Before we go on — can you name one thing you understood <strong>only</strong> after writing it?</p>
+              </div>
+              <div class="saverow"><span class="savebtn"><svg class="icon" style="width:10px;height:10px"><use href="#i-bookmark"/></svg>save to note</span></div>
+            </div>
+          </div>
+
+          <div class="composer">
+            <div class="ta">answer, or ask the tutor…</div>
+            <div class="send"><svg class="icon i12"><use href="#i-cdl"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="grp">
+        <span class="it" style="color:var(--grn)"><svg class="icon i12" style="stroke-width:2.5"><use href="#i-check"/></svg>autosaved</span>
+        <span class="it"><svg class="icon i12"><use href="#i-link"/></svg>2 links</span>
+        <span class="it"><svg class="icon i12"><use href="#i-align"/></svg>412 words</span>
+      </div>
+      <div class="grp">
+        <span class="it" style="color:var(--acc2)"><span style="width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px rgba(124,110,247,.6)"></span><svg class="icon i11"><use href="#i-spark"/></svg>AI active</span>
+        <span style="color:var(--t2)">⌘K to command</span>
+        <span>20 notes · 36 connections</span>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2 — DASHBOARD ============ -->
+<div class="screen">
+  <div class="screen-label"><span class="n">Screen 2</span><span class="d">Dashboard — the landing surface. This is the one I most suspect is over-built.</span></div>
+  <div class="frame">
+  <div class="app tall">
+    <div class="cmdbar">
+      <div class="searchbox">
+        <svg class="icon i15" style="stroke-width:1.75"><use href="#i-search"/></svg>
+        <span class="ph">search notes, jump to, run command</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="cmdright">
+        <div class="chip"><svg class="icon i12"><use href="#i-cloudoff"/></svg>local</div>
+        <div class="chip streak"><svg class="icon i13"><use href="#i-flame"/></svg>14d</div>
+        <div class="iconbtn"><svg class="icon i15"><use href="#i-sun"/></svg></div>
+        <div class="btn-primary"><svg class="icon" style="width:14px;height:14px;stroke-width:2.5"><use href="#i-plus"/></svg>new note</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="rail">
+        <div class="logo"><span class="dot"></span></div>
+        <div class="railbtn on"><svg class="icon i18"><use href="#i-dash"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-note"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-share"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-kanban"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-pen"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-book"/></svg></div>
+        <div class="raildiv"></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-tags"/></svg></div>
+        <div class="railbtn"><svg class="icon i18"><use href="#i-search"/></svg></div>
+        <div style="flex:1"></div>
+        <div class="avatar">SP</div>
+      </div>
+
+      <div class="dash">
+        <div class="dashwrap">
+
+          <!-- hero -->
+          <div class="hero">
+            <div>
+              <div class="date">Tuesday, July 28 <span style="color:var(--t3)">·</span> <span class="g">good evening</span></div>
+              <h1>your second brain</h1>
+              <div class="facts">
+                <span><b>20</b> notes</span><span>·</span>
+                <span><b>36</b> connections</span><span>·</span>
+                <span><b>8,412</b> words</span><span>·</span>
+                <span><b>146</b> events this year</span>
+              </div>
+            </div>
+            <div class="streakbox">
+              <div class="top">
+                <svg class="icon i18" style="color:var(--red)"><use href="#i-flame"/></svg>
+                <div class="num">14<s> day streak</s></div>
+              </div>
+              <div class="week">
+                <i class="on"><u></u><em>w</em></i><i class="on"><u></u><em>t</em></i><i><u></u><em>f</em></i>
+                <i class="on"><u></u><em>s</em></i><i><u></u><em>s</em></i><i class="on"><u></u><em>m</em></i>
+                <i class="on today"><u></u><em>t</em></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- stats -->
+          <div class="grid4">
+            <div class="stat">
+              <div class="h"><span class="lab">total notes</span>
+                <span class="ic" style="background:var(--acc-bg);border:1px solid var(--acc-bd);color:var(--acc2)"><svg class="icon i13"><use href="#i-file"/></svg></span></div>
+              <div class="val"><b>20</b><span class="delta" style="color:var(--acc2);background:var(--acc-bg);border:1px solid var(--acc-bd)"><svg class="icon" style="width:10px;height:10px;stroke-width:2.5"><use href="#i-upright"/></svg>3 this week</span></div>
+              <div class="sub">7 evergreen · 13 draft</div>
+              <svg class="spark" data-c="#b0a8fb" data-s="4,5,5,6,6,7,8,8,9,10,11,11,12,13,13,14,15,16,16,17,17,18,18,19,19,19,20,20,20,20" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%;height:34px"></svg>
+            </div>
+            <div class="stat">
+              <div class="h"><span class="lab">connections</span>
+                <span class="ic" style="background:var(--grn-bg);border:1px solid var(--grn-bd);color:var(--grn)"><svg class="icon i13"><use href="#i-link"/></svg></span></div>
+              <div class="val"><b>36</b><span class="delta" style="color:var(--grn);background:var(--grn-bg);border:1px solid var(--grn-bd)"><svg class="icon" style="width:10px;height:10px;stroke-width:2.5"><use href="#i-upright"/></svg>6 this week</span></div>
+              <div class="sub">1.8 links per note</div>
+              <svg class="spark" data-c="#34d399" data-s="2,3,4,6,7,9,11,12,14,16,17,19,20,22,23,24,26,27,28,29,30,31,32,33,34,34,35,35,36,36" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%;height:34px"></svg>
+            </div>
+            <div class="stat">
+              <div class="h"><span class="lab">words written</span>
+                <span class="ic" style="background:var(--amb-bg);border:1px solid var(--amb-bd);color:var(--amb)"><svg class="icon i13"><use href="#i-align"/></svg></span></div>
+              <div class="val"><b>8,412</b><span class="delta" style="color:var(--amb);background:var(--amb-bg);border:1px solid var(--amb-bd)"><svg class="icon" style="width:10px;height:10px;stroke-width:2.5"><use href="#i-upright"/></svg>1,204 this week</span></div>
+              <div class="sub">421 avg per note</div>
+              <svg class="spark" data-c="#fbbf24" data-s="1,2,2,3,4,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,23,24,25,26,27,28,30" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%;height:34px"></svg>
+            </div>
+            <div class="stat">
+              <div class="h"><span class="lab">active days</span>
+                <span class="ic" style="background:var(--blu-bg);border:1px solid var(--blu-bd);color:var(--blu)"><svg class="icon i13"><use href="#i-activity"/></svg></span></div>
+              <div class="val"><b>68</b></div>
+              <div class="sub">7 events on your best day</div>
+              <svg class="spark" data-c="#60a5fa" data-s="1,1,0,1,0,1,1" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%;height:34px"></svg>
+            </div>
+          </div>
+
+          <!-- quick actions -->
+          <div class="qa">
+            <span class="pri"><svg class="icon i13"><use href="#i-plus"/></svg>new note</span>
+            <span><svg class="icon i13"><use href="#i-cal"/></svg>daily journal</span>
+            <span><svg class="icon i13"><use href="#i-spark"/></svg>ask AI</span>
+            <span><svg class="icon i13"><use href="#i-trend"/></svg>view graph</span>
+            <span><svg class="icon i13"><use href="#i-kanban"/></svg>tasks</span>
+            <span><svg class="icon i13"><use href="#i-book"/></svg>reading</span>
+            <span class="sp"></span>
+            <span><svg class="icon i13"><use href="#i-down"/></svg>export</span>
+            <span><svg class="icon i13"><use href="#i-up"/></svg>import</span>
+          </div>
+
+          <!-- heatmap -->
+          <div class="panel">
+            <div class="panel-h"><h2>activity</h2><div class="r">146 events · 68 active days · past year</div></div>
+            <div class="panel-b">
+              <svg id="heatmap" viewBox="0 0 763 109" style="width:100%;height:auto"></svg>
+              <div class="legend">
+                less <u style="background:var(--bg3)"></u><u style="opacity:.28"></u><u style="opacity:.5"></u><u style="opacity:.75"></u><u></u> more
+              </div>
+            </div>
+          </div>
+
+          <!-- resume + today -->
+          <div class="grid-r">
+            <div class="panel">
+              <div class="panel-h"><h2>pick up where you left off</h2><div class="r">2h ago</div></div>
+              <div class="panel-b">
+                <div class="resume">
+                  <div class="t">
+                    <div>
+                      <b>Writing is thinking</b>
+                      <div class="s">Not a metaphor</div>
+                    </div>
+                    <span class="go">resume <svg class="icon i12"><use href="#i-arrow"/></svg></span>
+                  </div>
+                  <p>The claim is not that writing helps you think. It's that the thinking does not fully exist until it is written. Evidence, weak but persuasive: everyone has had the experience of believing they understood something until they tried…</p>
+                  <div class="foot">
+                    <span class="mchip g">evergreen</span>
+                    <span class="mchip">412 words</span>
+                    <span class="mchip a">3 links</span>
+                    <span class="ntag s">#craft</span>
+                    <span class="ntag l">#core</span>
+                    <span class="when">edited 2h ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-h"><h2>today</h2><div class="r">6 open</div></div>
+              <div class="panel-b" style="display:flex;flex-direction:column;gap:14px;height:100%">
+                <div>
+                  <div class="todo"><span class="c" style="border-color:var(--red)"></span><span class="txt">Draft the Q3 synthesis note</span><span class="fl" style="color:var(--red)">overdue</span></div>
+                  <div class="todo"><span class="c" style="border-color:var(--coral)"></span><span class="txt">Link decision fatigue to PARA</span><span class="fl" style="color:var(--amb)">today</span></div>
+                  <div class="todo"><span class="c" style="border-color:var(--amb)"></span><span class="txt">Review spaced repetition deck</span></div>
+                  <div class="todo"><span class="c" style="border-color:var(--amb)"></span><span class="txt">Import Kindle highlights</span></div>
+                  <div class="todo"><span class="c" style="border-color:var(--t3)"></span><span class="txt">Archive old project notes</span></div>
+                  <div style="font-size:10.5px;color:var(--t3);padding-top:4px">+1 more →</div>
+                </div>
+                <div>
+                  <div class="blocklab">board</div>
+                  <div class="stack">
+                    <u style="flex:3;background:var(--t3)"></u><u style="flex:2;background:var(--acc)"></u><u style="flex:1;background:var(--amb)"></u><u style="flex:4;background:var(--grn)"></u>
+                  </div>
+                  <div class="keys">
+                    <i><u style="background:var(--t3)"></u>backlog <b>3</b></i>
+                    <i><u style="background:var(--acc)"></u>doing <b>2</b></i>
+                    <i><u style="background:var(--amb)"></u>review <b>1</b></i>
+                    <i><u style="background:var(--grn)"></u>done <b>4</b></i>
+                  </div>
+                </div>
+                <div style="margin-top:auto">
+                  <div class="blocklab">reading</div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+                    <svg class="icon i12" style="color:var(--blu)"><use href="#i-book"/></svg>
+                    <span style="flex:1;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">How to Take Smart Notes</span>
+                    <span style="font-size:10px;color:var(--t3)">42%</span>
+                  </div>
+                  <div class="bar"><u style="width:42%;background:var(--blu)"></u></div>
+                  <div style="font-size:10px;color:var(--t3);margin-top:6px;display:flex;align-items:center;gap:5px">
+                    <svg class="icon" style="width:10px;height:10px;color:var(--amb)"><use href="#i-zap"/></svg>12 highlights captured
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- recent + graph -->
+          <div class="grid2">
+            <div class="panel">
+              <div class="panel-h"><h2>recently edited</h2><div class="r">6 of 20</div></div>
+              <div class="panel-b">
+                <div class="nrow"><span class="dot" style="background:var(--grn)"></span><div class="m"><div class="ti">Writing is thinking</div><div class="mt">412 words<span>·</span><span class="lk">3 links</span><span class="ntag s">#craft</span><span class="ntag l">#core</span></div></div><span class="ago">2h ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--grn)"></span><div class="m"><div class="ti">Compression is understanding</div><div class="mt">380 words<span>·</span><span class="lk">4 links</span><span class="ntag q">#core</span></div></div><span class="ago">1d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--t3)"></span><div class="m"><div class="ti">Morning pages, revisited</div><div class="mt">294 words<span>·</span><span class="lk">2 links</span><span class="ntag r">#craft</span></div></div><span class="ago">3d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--grn)"></span><div class="m"><div class="ti">Zettelkasten, honestly</div><div class="mt">515 words<span>·</span><span class="lk">5 links</span><span class="ntag s">#method</span></div></div><span class="ago">6d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--t3)"></span><div class="m"><div class="ti">Against the second brain</div><div class="mt">602 words<span>·</span><span class="lk">3 links</span></div></div><span class="ago">12d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--t3)"></span><div class="m"><div class="ti">In praise of forgetting</div><div class="mt">248 words<span>·</span><span class="lk">1 links</span></div></div><span class="ago">20d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-h"><h2>knowledge graph</h2><div class="r">20 nodes · 36 edges <span class="act">open graph <svg class="icon" style="width:10px;height:10px"><use href="#i-arrow"/></svg></span></div></div>
+              <div class="panel-b">
+                <svg viewBox="0 0 600 260" style="width:100%;display:block">
+                  <g stroke="#3d378a" fill="none" opacity=".45">
+                    <path d="M300 130 Q250 100 210 78"/><path d="M300 130 Q365 105 402 84"/><path d="M300 130 Q268 175 232 198"/>
+                    <path d="M300 130 Q350 170 386 190"/><path d="M210 78 Q160 110 128 140"/><path d="M402 84 Q455 110 486 140"/>
+                    <path d="M232 198 Q300 220 386 190"/><path d="M128 140 Q170 180 232 198"/><path d="M486 140 Q440 175 386 190"/>
+                    <path d="M210 78 Q305 60 402 84"/><path d="M128 140 Q90 90 132 62"/><path d="M486 140 Q530 96 496 58"/>
+                  </g>
+                  <g>
+                    <circle cx="300" cy="130" r="10" fill="#34d399" opacity=".9"/><text x="315" y="133" font-size="9" fill="#f0f0f2" font-family="monospace">Writing is thinking</text>
+                    <circle cx="210" cy="78" r="7" fill="#7c6ef7" opacity=".85"/><text x="222" y="81" font-size="9" fill="#444450" font-family="monospace">Compression is…</text>
+                    <circle cx="402" cy="84" r="7" fill="#34d399" opacity=".85"/><text x="414" y="87" font-size="9" fill="#444450" font-family="monospace">Zettelkasten…</text>
+                    <circle cx="232" cy="198" r="6" fill="#7c6ef7" opacity=".85"/><text x="243" y="201" font-size="9" fill="#444450" font-family="monospace">Morning pages</text>
+                    <circle cx="386" cy="190" r="6" fill="#7c6ef7" opacity=".85"/><text x="397" y="193" font-size="9" fill="#444450" font-family="monospace">Deep work</text>
+                    <circle cx="128" cy="140" r="5" fill="#7c6ef7" opacity=".85"/>
+                    <circle cx="486" cy="140" r="5" fill="#7c6ef7" opacity=".85"/>
+                    <circle cx="132" cy="62" r="4" fill="#444450" opacity=".85"/>
+                    <circle cx="496" cy="58" r="4" fill="#444450" opacity=".85"/>
+                    <circle cx="72" cy="196" r="3.5" fill="#444450" opacity=".85"/>
+                    <circle cx="548" cy="204" r="3.5" fill="#444450" opacity=".85"/>
+                    <circle cx="300" cy="238" r="3.5" fill="#444450" opacity=".85"/>
+                  </g>
+                </svg>
+                <div style="display:flex;gap:14px;margin-top:8px;font-size:10px;color:var(--t3);justify-content:center">
+                  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:var(--grn)"></span>evergreen</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:var(--acc)"></span>linked</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:var(--t3)"></span>orphan</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- tags / para / health -->
+          <div class="grid3">
+            <div class="panel">
+              <div class="panel-h"><h2>tags</h2><div class="r">6 in use</div></div>
+              <div class="panel-b">
+                <div class="tagrow2"><svg class="icon i12" style="color:#b0a8fb"><use href="#i-tag1"/></svg><span class="nm">#craft</span><span class="tr"><u style="width:100%;background:#b0a8fb"></u></span><span class="n">7</span></div>
+                <div class="tagrow2"><svg class="icon i12" style="color:#34d399"><use href="#i-tag1"/></svg><span class="nm">#core</span><span class="tr"><u style="width:71%;background:#34d399"></u></span><span class="n">5</span></div>
+                <div class="tagrow2"><svg class="icon i12" style="color:#fbbf24"><use href="#i-tag1"/></svg><span class="nm">#method</span><span class="tr"><u style="width:57%;background:#fbbf24"></u></span><span class="n">4</span></div>
+                <div class="tagrow2"><svg class="icon i12" style="color:#7dd3fc"><use href="#i-tag1"/></svg><span class="nm">#reading</span><span class="tr"><u style="width:43%;background:#7dd3fc"></u></span><span class="n">3</span></div>
+                <div class="tagrow2"><svg class="icon i12" style="color:var(--t3)"><use href="#i-hash"/></svg><span class="nm">untagged</span><span class="tr"><u style="width:29%;background:var(--t3)"></u></span><span class="n">2</span></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-h"><h2>para folders</h2><div class="r">by actionability</div></div>
+              <div class="panel-b">
+                <div class="donutwrap">
+                  <svg width="96" height="96" viewBox="0 0 96 96" style="flex:none">
+                    <g transform="rotate(-90 48 48)">
+                      <circle cx="48" cy="48" r="38" fill="none" stroke="#1e1e21" stroke-width="11"/>
+                      <circle cx="48" cy="48" r="38" fill="none" stroke="#7c6ef7" stroke-width="11" stroke-dasharray="23.9 214.8" stroke-dashoffset="0"/>
+                      <circle cx="48" cy="48" r="38" fill="none" stroke="#34d399" stroke-width="11" stroke-dasharray="59.7 179" stroke-dashoffset="-23.9"/>
+                      <circle cx="48" cy="48" r="38" fill="none" stroke="#fbbf24" stroke-width="11" stroke-dasharray="143.3 95.4" stroke-dashoffset="-83.6"/>
+                      <circle cx="48" cy="48" r="38" fill="none" stroke="#60a5fa" stroke-width="11" stroke-dasharray="11.9 226.8" stroke-dashoffset="-226.9"/>
+                    </g>
+                    <text x="48" y="46" text-anchor="middle" font-size="19" font-weight="700" fill="#f0f0f2" font-family="monospace">20</text>
+                    <text x="48" y="60" text-anchor="middle" font-size="8" fill="#444450" font-family="monospace">notes</text>
+                  </svg>
+                  <div class="donutkey">
+                    <div class="k"><u style="background:#7c6ef7"></u><span class="nm">projects</span><span class="pc">10%</span><span class="n">2</span></div>
+                    <div class="k"><u style="background:#34d399"></u><span class="nm">areas</span><span class="pc">25%</span><span class="n">5</span></div>
+                    <div class="k"><u style="background:#fbbf24"></u><span class="nm">resources</span><span class="pc">60%</span><span class="n">12</span></div>
+                    <div class="k"><u style="background:#60a5fa"></u><span class="nm">archives</span><span class="pc">5%</span><span class="n">1</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-h"><h2>needs attention</h2><div class="r">85% connected <span class="act">search <svg class="icon" style="width:10px;height:10px"><use href="#i-arrow"/></svg></span></div></div>
+              <div class="panel-b">
+                <div class="chips">
+                  <span class="mchip" style="color:var(--red)">3 orphan</span>
+                  <span class="mchip" style="color:var(--amb)">2 stale</span>
+                  <span class="mchip" style="color:var(--amb)">4 aging</span>
+                  <span class="mchip">2 untagged</span>
+                </div>
+                <div class="attn"><svg class="icon i12" style="color:var(--red)"><use href="#i-unlink"/></svg><span class="nm">Slow media</span><span class="why" style="color:var(--red)">no links</span></div>
+                <div class="attn"><svg class="icon i12" style="color:var(--red)"><use href="#i-unlink"/></svg><span class="nm">Tools for thought</span><span class="why" style="color:var(--red)">no links</span></div>
+                <div class="attn"><svg class="icon i12" style="color:var(--amb)"><use href="#i-clock"/></svg><span class="nm">The attention economy</span><span class="why" style="color:var(--amb)">stale evergreen</span></div>
+                <div class="attn"><svg class="icon i12" style="color:var(--amb)"><use href="#i-clock"/></svg><span class="nm">Newsletter plan</span><span class="why" style="color:var(--amb)">draft aging</span></div>
+                <div class="attn"><svg class="icon i12" style="color:var(--t3)"><use href="#i-hash"/></svg><span class="nm">Marginalia</span><span class="why" style="color:var(--t3)">untagged</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- hubs + created -->
+          <div class="grid2">
+            <div class="panel">
+              <div class="panel-h"><h2>most connected</h2><div class="r">hub notes</div></div>
+              <div class="panel-b">
+                <div class="hub"><div class="l"><span class="r">1.</span><span class="nm">Zettelkasten, honestly</span><span class="d">9</span></div><div class="bar"><u style="width:100%;background:var(--acc)"></u></div></div>
+                <div class="hub"><div class="l"><span class="r">2.</span><span class="nm">Writing is thinking</span><span class="d">7</span></div><div class="bar"><u style="width:78%;background:var(--acc)"></u></div></div>
+                <div class="hub"><div class="l"><span class="r">3.</span><span class="nm">Compression is understanding</span><span class="d">6</span></div><div class="bar"><u style="width:67%;background:var(--acc)"></u></div></div>
+                <div class="hub"><div class="l"><span class="r">4.</span><span class="nm">Deep work, unromanticised</span><span class="d">4</span></div><div class="bar"><u style="width:44%;background:var(--acc)"></u></div></div>
+                <div class="hub"><div class="l"><span class="r">5.</span><span class="nm">Morning pages, revisited</span><span class="d">3</span></div><div class="bar"><u style="width:33%;background:var(--acc)"></u></div></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-h"><h2>recently created</h2><div class="r">newest first</div></div>
+              <div class="panel-b">
+                <div class="nrow"><span class="dot" style="background:var(--t3)"></span><div class="m"><div class="ti">Study mode notes</div><div class="mt">86 words<span>·</span><span class="lk">0 links</span></div></div><span class="ago">2d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--t3)"></span><div class="m"><div class="ti">2026-07-28</div><div class="mt">20 words<span>·</span><span class="lk">0 links</span></div></div><span class="ago">2d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--t3)"></span><div class="m"><div class="ti">Marginalia</div><div class="mt">140 words<span>·</span><span class="lk">1 links</span></div></div><span class="ago">5d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--grn)"></span><div class="m"><div class="ti">The Attention Commons</div><div class="mt">1,140 words<span>·</span><span class="lk">2 links</span><span class="ntag s">#essay</span></div></div><span class="ago">9d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+                <div class="nrow"><span class="dot" style="background:var(--t3)"></span><div class="m"><div class="ti">Slow media</div><div class="mt">210 words<span>·</span><span class="lk">0 links</span></div></div><span class="ago">14d ago</span><svg class="icon i12" style="color:var(--t3);opacity:.5"><use href="#i-arrow"/></svg></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3 — PANEL STATES ============ -->
+<div class="screen">
+  <div class="screen-label"><span class="n">Screen 3</span><span class="d">The 300px right panel in its other states — these are the ones that feel thinnest to me</span></div>
+  <div class="panelstrip">
+
+    <div>
+      <div class="pcap">info tab — the default</div>
+      <div class="ctx">
+        <div class="ctx-tabs"><span class="on">info</span><span>ai</span><span>graph</span><span>history</span></div>
+        <div class="ctx-scroll">
+          <div class="livehead"><span class="pulse"></span>live suggestions</div>
+          <div class="sugg"><div class="k">missing link</div><div class="v">"Deep work" appears 3× but is never linked.</div><div class="a">insert link <svg class="icon" style="width:10px;height:10px"><use href="#i-upright"/></svg></div></div>
+          <div class="sugg"><div class="k">synthesis ready</div><div class="v">4 notes share #craft. Merge their core claims?</div><div class="a">draft synthesis <svg class="icon" style="width:10px;height:10px"><use href="#i-upright"/></svg></div></div>
+          <div class="sugg"><div class="k">review due</div><div class="v">Last edited 2h ago. Spaced repetition: on schedule.</div><div class="a">schedule review <svg class="icon" style="width:10px;height:10px"><use href="#i-upright"/></svg></div></div>
+          <div>
+            <div class="ctxlabel" style="margin-bottom:6px">local graph</div>
+            <svg viewBox="0 0 250 120" style="width:100%;background:var(--bg);border-radius:4px">
+              <line x1="125" y1="60" x2="60" y2="32" stroke="#3d378a" stroke-width=".8"/>
+              <line x1="125" y1="60" x2="196" y2="36" stroke="#3d378a" stroke-width=".8"/>
+              <line x1="125" y1="60" x2="72" y2="96" stroke="#3d378a" stroke-width=".8"/>
+              <line x1="125" y1="60" x2="190" y2="98" stroke="#3d378a" stroke-width=".8"/>
+              <line x1="60" y1="32" x2="26" y2="70" stroke="#3d378a" stroke-width=".5" stroke-dasharray="2 2"/>
+              <line x1="196" y1="36" x2="232" y2="74" stroke="#3d378a" stroke-width=".5" stroke-dasharray="2 2"/>
+              <circle cx="26" cy="70" r="2.5" fill="#3d378a"/><circle cx="232" cy="74" r="2.5" fill="#3d378a"/>
+              <circle cx="60" cy="32" r="4" fill="#534AB7"/><text x="66" y="34" font-size="7" fill="#888894" font-family="monospace">Compressi</text>
+              <circle cx="196" cy="36" r="4" fill="#534AB7"/><text x="202" y="38" font-size="7" fill="#888894" font-family="monospace">Zettelkas</text>
+              <circle cx="72" cy="96" r="4" fill="#534AB7"/><text x="78" y="98" font-size="7" fill="#888894" font-family="monospace">Morning p</text>
+              <circle cx="190" cy="98" r="4" fill="#534AB7"/><text x="196" y="100" font-size="7" fill="#888894" font-family="monospace">Deep work</text>
+              <circle cx="125" cy="60" r="6" fill="#7c6ef7"/><text x="134" y="63" font-size="7" fill="#b0a8fb" font-weight="600" font-family="monospace">Writing is t</text>
+            </svg>
+          </div>
+          <div style="border:1px solid var(--bd);border-radius:4px;padding:7px 10px;font-size:11px;color:var(--t2);text-align:center">export as essay</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pcap">ai → this note — empty state</div>
+      <div class="ctx">
+        <div class="ctx-tabs"><span>info</span><span class="on">ai</span><span>graph</span><span>history</span></div>
+        <div class="ctx-body">
+          <div class="subtabs">
+            <span class="on"><svg class="icon i11"><use href="#i-file"/></svg>this note</span>
+            <span><svg class="icon i11"><use href="#i-library"/></svg>vault</span>
+            <span><svg class="icon i11"><use href="#i-grad"/></svg>study</span>
+          </div>
+          <div class="thread">
+            <div class="intro">Ask about the open note. It can see the full text — pressure-test a claim, find the gap, suggest a connection.</div>
+          </div>
+          <div class="starters">
+            <span>What's the weakest claim here?</span>
+            <span>What am I missing?</span>
+            <span>Which notes should this link to?</span>
+          </div>
+          <div class="composer">
+            <div class="ta">Ask…</div>
+            <div class="send"><svg class="icon i12"><use href="#i-cdl"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pcap">ai → vault — with cited sources</div>
+      <div class="ctx">
+        <div class="ctx-tabs"><span>info</span><span class="on">ai</span><span>graph</span><span>history</span></div>
+        <div class="ctx-body">
+          <div class="subtabs">
+            <span><svg class="icon i11"><use href="#i-file"/></svg>this note</span>
+            <span class="on"><svg class="icon i11"><use href="#i-library"/></svg>vault</span>
+            <span><svg class="icon i11"><use href="#i-grad"/></svg>study</span>
+          </div>
+          <div class="thread">
+            <div class="bubble">What themes keep showing up?</div>
+            <div>
+              <div class="answer">
+                <p>Three recur across your 20 notes:</p>
+                <p><strong>1. Compression as a test of understanding.</strong> It appears in four notes, always as a check rather than a technique.</p>
+                <p><strong>2. Suspicion of capture.</strong> You repeatedly argue that collecting is a displacement activity for thinking.</p>
+                <p><strong>3. Forgetting as a feature.</strong> Newer and least developed — only two notes touch it.</p>
+              </div>
+              <div class="sources">
+                <span>Compression is understanding</span><span>Against the second brain</span><span>In praise of forgetting</span>
+              </div>
+              <div class="saverow"><span class="savebtn"><svg class="icon" style="width:10px;height:10px"><use href="#i-bookmark"/></svg>save to note</span></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="ta">Ask…</div>
+            <div class="send hot"><svg class="icon i12"><use href="#i-send"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* Deterministic filler so the mockup renders identically every time. */
+(function(){
+  var seed = 20260728;
+  function rnd(){ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed/0x7fffffff; }
+
+  /* ---- contribution heatmap: 53 cols x 7 rows ---- */
+  var svg = document.getElementById('heatmap');
+  if (svg){
+    var CELL=11, GAP=3, P=CELL+GAP, LEFT=24, TOP=14, ns='http://www.w3.org/2000/svg';
+    var months=['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'];
+    months.forEach(function(m,i){
+      var t=document.createElementNS(ns,'text');
+      t.setAttribute('x', LEFT + Math.round(i*4.42)*P); t.setAttribute('y',9);
+      t.setAttribute('font-size',8); t.setAttribute('fill','#444450'); t.setAttribute('font-family','monospace');
+      t.textContent=m; svg.appendChild(t);
+    });
+    [['mon',1],['wed',3],['fri',5]].forEach(function(d){
+      var t=document.createElementNS(ns,'text');
+      t.setAttribute('x',0); t.setAttribute('y',TOP+d[1]*P+CELL-2);
+      t.setAttribute('font-size',8); t.setAttribute('fill','#444450'); t.setAttribute('font-family','monospace');
+      t.textContent=d[0]; svg.appendChild(t);
+    });
+    var ops=[0,.28,.5,.75,1];
+    for(var w=0;w<53;w++){
+      for(var d=0;d<7;d++){
+        // busier in recent weeks and on weekdays — reads like a real vault
+        var recency = w/53, weekday = (d===0||d===6)?0.35:1;
+        var r = rnd();
+        var lvl = 0;
+        var p = (0.18 + recency*0.42) * weekday;
+        if (r < p) lvl = 1 + Math.floor(rnd()*4);
+        var rect=document.createElementNS(ns,'rect');
+        rect.setAttribute('x',LEFT+w*P); rect.setAttribute('y',TOP+d*P);
+        rect.setAttribute('width',CELL); rect.setAttribute('height',CELL); rect.setAttribute('rx',2.5);
+        rect.setAttribute('fill', lvl===0 ? '#1e1e21' : '#7c6ef7');
+        rect.setAttribute('fill-opacity', lvl===0 ? 1 : ops[lvl]);
+        svg.appendChild(rect);
+      }
+    }
+  }
+
+  /* ---- stat-card sparklines ---- */
+  document.querySelectorAll('svg.spark').forEach(function(el,idx){
+    var data = el.dataset.s.split(',').map(Number), color = el.dataset.c;
+    var W=200,H=34, max=Math.max.apply(null,data), min=Math.min.apply(null,data), range=Math.max(max-min,1);
+    var pts = data.map(function(v,i){
+      return [ (i/(data.length-1))*W, H-3-((v-min)/range)*(H-9) ];
+    });
+    var line = pts.map(function(p,i){ return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1); }).join(' ');
+    var ns='http://www.w3.org/2000/svg';
+    var defs=document.createElementNS(ns,'defs');
+    defs.innerHTML='<linearGradient id="g'+idx+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+color+'" stop-opacity=".28"/><stop offset="100%" stop-color="'+color+'" stop-opacity="0"/></linearGradient>';
+    el.appendChild(defs);
+    var area=document.createElementNS(ns,'path');
+    area.setAttribute('d', line+' L'+W+' '+H+' L0 '+H+' Z'); area.setAttribute('fill','url(#g'+idx+')');
+    el.appendChild(area);
+    var path=document.createElementNS(ns,'path');
+    path.setAttribute('d',line); path.setAttribute('fill','none'); path.setAttribute('stroke',color);
+    path.setAttribute('stroke-width','1.4'); path.setAttribute('vector-effect','non-scaling-stroke');
+    path.setAttribute('stroke-linejoin','round'); path.setAttribute('stroke-linecap','round');
+    el.appendChild(path);
+    var last=pts[pts.length-1];
+    var c=document.createElementNS(ns,'circle');
+    c.setAttribute('cx',last[0]); c.setAttribute('cy',last[1]); c.setAttribute('r',2); c.setAttribute('fill',color);
+    el.appendChild(c);
+  });
+})();
+</script>
+</body>
+</html>
