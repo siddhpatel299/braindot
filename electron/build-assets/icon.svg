@@ -1,0 +1,25 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c1a33"/>
+      <stop offset="55%" stop-color="#141418"/>
+      <stop offset="100%" stop-color="#0c0c0e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.5">
+      <stop offset="0%" stop-color="#7c6ef7" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#7c6ef7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9b90ff"/>
+      <stop offset="100%" stop-color="#6f5ff5"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="220.16" fill="url(#tile)"/>
+  <rect width="1024" height="1024" rx="220.16" fill="url(#glow)"/>
+  <rect x="1" y="1" width="1022" height="1022" rx="219.16"
+        fill="none" stroke="#3d378a" stroke-opacity="0.55" stroke-width="2"/>
+
+  <rect x="350.85473684210524" y="276.48" width="322.2905263157895" height="471.04"
+        rx="54.789389473684224" fill="url(#mark)"/>
+</svg>

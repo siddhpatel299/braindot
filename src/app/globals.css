@@ -492,3 +492,135 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
 [data-theme="light"] .canvas-area {
   background: radial-gradient(circle, var(--canvas-dot) 0.6px, transparent 0.6px) 0 0/22px 22px;
 }
+
+/* ===== Desktop shell (Electron) =====
+
+   `is-desktop` is set on <html> by the inline script in layout.tsx, before
+   first paint. The desktop window is frameless: inside the app the CommandBar
+   doubles as the title bar, but the sign-in screen has no such bar, so it gets
+   a drag strip of its own. Without it the window could not be moved before you
+   sign in. Both `.auth-aside` and `.auth-main` centre their content, so the top
+   48px is empty and nothing interactive ends up underneath. */
+.is-desktop .auth-page::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  z-index: 50;
+  -webkit-app-region: drag;
+}
+
+/* Chrome-level surfaces should feel like an app, not a document: no caret
+   selection when dragging across the title bar or the icon rail. The editor and
+   note bodies opt back in below. */
+.is-desktop .sb-editor-textarea,
+.is-desktop input,
+.is-desktop textarea,
+.is-desktop [contenteditable='true'] {
+  -webkit-app-region: no-drag;
+}
+
+/* ===== Liquid glass (macOS) =====
+
+   `is-glass` is set on <html> when the shell reports a native blur material
+   behind the window — today that means macOS vibrancy (see MAC_VIBRANCY in
+   electron/main.js). The blur itself is done by the compositor, not by CSS;
+   all the page has to do is stop painting over it.
+
+   Because every surface in Braindot already reads its colour from a variable,
+   making the app translucent is a matter of restating the tokens rather than
+   touching a single component.
+
+   One catch: `html`, `body` and the app's root container all paint var(--bg),
+   so three translucent layers would stack and cancel the effect. The document
+   background is dropped here and the root container is left as the only pane. */
+html.is-glass,
+html.is-glass body {
+  background: transparent;
+}
+
+/* Borders and accents stay fully opaque; only the surfaces let light through,
+   and the ones that carry text (--bg3 wells and inputs) stay the most solid.
+
+   These alphas are deliberately restrained. Composited over a light desktop,
+   62% dropped secondary text (--t2) to about 1.6:1 against its background —
+   unreadable. At the values below the same case holds around 3.4:1, and
+   secondary and faint text are lifted a step to buy back what the translucency
+   costs. Legibility is the first thing a frosted background takes, and it is
+   not worth trading for a stronger effect. */
+html.is-glass[data-theme='dark'] {
+  --bg:  rgba(12, 12, 14, 0.78);
+  --bg1: rgba(17, 17, 19, 0.82);
+  --bg2: rgba(23, 23, 25, 0.85);
+  --bg3: rgba(30, 30, 33, 0.90);
+  --bg4: rgba(38, 38, 42, 0.93);
+  --t2:  #9a9aa6;
+  --t3:  #5c5c6a;
+}
+
+html.is-glass[data-theme='light'] {
+  --bg:  rgba(245, 245, 243, 0.78);
+  --bg1: rgba(255, 255, 255, 0.82);
+  --bg2: rgba(240, 239, 237, 0.85);
+  --bg3: rgba(232, 231, 228, 0.90);
+  --bg4: rgba(221, 220, 218, 0.93);
+  --t2:  #4a4a46;
+  --t3:  #7d7c78;
+}
+
+/* macOS has a system-wide "Reduce transparency" accessibility setting, and
+   Chromium surfaces it as this media query. Honour it: fall back to the opaque
+   palette, which hides the material behind an ordinary solid window. */
+@media (prefers-reduced-transparency: reduce) {
+  html.is-glass[data-theme='dark'] {
+    --bg:  #0c0c0e;
+    --bg1: #111113;
+    --bg2: #171719;
+    --bg3: #1e1e21;
+    --bg4: #26262a;
+    --t2:  #888894;
+    --t3:  #444450;
+  }
+  html.is-glass[data-theme='light'] {
+    --bg:  #f5f5f3;
+    --bg1: #ffffff;
+    --bg2: #f0efed;
+    --bg3: #e8e7e4;
+    --bg4: #dddcda;
+    --t2:  #5a5a56;
+    --t3:  #9a9994;
+  }
+  html.is-glass,
+  html.is-glass body {
+    background: var(--bg);
+  }
+  html.is-glass .auth-page {
+    background: #0a0a0c;
+  }
+  html.is-glass .auth-aside {
+    background:
+      radial-gradient(900px 520px at 12% 8%, rgba(124, 110, 247, 0.13), transparent 68%),
+      #0d0d10;
+  }
+}
+
+/* The sign-in screen predates the token system and hard-codes its colours, so
+   it needs restating by hand to match. */
+html.is-glass .auth-page {
+  background: transparent;
+}
+html.is-glass .auth-aside {
+  background:
+    radial-gradient(900px 520px at 12% 8%, rgba(124, 110, 247, 0.13), transparent 68%),
+    rgba(13, 13, 16, 0.55);
+}
+
+/* Vibrancy already dims behind the window; a second scrim on top of it turns
+   modals muddy. */
+html.is-glass .sb-overlay,
+html.is-glass [data-overlay] {
+  backdrop-filter: saturate(140%) blur(6px);
+}
+

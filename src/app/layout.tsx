@@ -26,6 +26,15 @@ const themeScript = `
     if (ef === 'serif' || ef === 'sans') {
       document.documentElement.setAttribute('data-editor-font', ef);
     }
+    // The Electron preload runs before this script, so window.braindot is
+    // already there. Marking the document now means the frameless-window and
+    // glass styles apply on first paint instead of after hydration.
+    if (window.braindot) {
+      var root = document.documentElement;
+      root.classList.add('is-desktop');
+      if (window.braindot.platform === 'darwin') root.classList.add('is-mac');
+      if (window.braindot.hasVibrancy) root.classList.add('is-glass');
+    }
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'dark');
   }

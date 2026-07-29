@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;" />
+    <title>braindot</title>
+    <style>
+      /* Palette lifted from src/app/globals.css so the splash and the app agree. */
+      :root {
+        --bg: #0c0c0e;
+        --bg2: #171719;
+        --bd: #252528;
+        --t1: #f0f0f2;
+        --t3: #444450;
+        --acc: #7c6ef7;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f5f5f3;
+          --bg2: #f0efed;
+          --bd: #e0dedd;
+          --t1: #1a1a18;
+          --t3: #9a9994;
+          --acc: #5b4fe8;
+        }
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        height: 100%;
+        overflow: hidden;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--t1);
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        /* The whole surface drags — there is no titlebar to grab. */
+        -webkit-app-region: drag;
+      }
+
+      .mark {
+        width: 44px;
+        height: 44px;
+        animation: blink 1.15s steps(1, end) infinite;
+      }
+
+      @keyframes blink {
+        0%, 55% { opacity: 1; }
+        56%, 100% { opacity: 0.18; }
+      }
+
+      .wordmark {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .status {
+        font-size: 11px;
+        color: var(--t3);
+        min-height: 14px;
+        text-align: center;
+        padding: 0 24px;
+        line-height: 1.5;
+      }
+
+      .track {
+        width: 168px;
+        height: 2px;
+        background: var(--bg2);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+
+      .track i {
+        display: block;
+        height: 100%;
+        width: 40%;
+        background: var(--acc);
+        border-radius: 2px;
+        animation: slide 1.4s ease-in-out infinite;
+      }
+
+      @keyframes slide {
+        0%   { transform: translateX(-110%); }
+        100% { transform: translateX(310%); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .mark, .track i { animation: none; }
+        .track i { width: 100%; opacity: 0.5; }
+      }
+    </style>
+  </head>
+  <body>
+    <svg class="mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="9.5" y="6.5" width="13" height="19" rx="2.2" fill="var(--acc)" />
+    </svg>
+
+    <div class="wordmark">braindot</div>
+    <div class="track"><i></i></div>
+    <div class="status" id="status">starting…</div>
+  </body>
+</html>

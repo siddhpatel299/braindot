@@ -52,3 +52,8 @@ prompt
 server.log
 # Skills directory
 /skills/.commitmsg.tmp
+
+# desktop (Electron)
+/desktop-build
+/dist-desktop
+/.next-desktop

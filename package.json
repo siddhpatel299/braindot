@@ -2,13 +2,25 @@
   "name": "braindot",
   "version": "0.2.0",
   "private": true,
+  "description": "A personal knowledge management workspace where notes connect, reading flows in, and an AI tutor teaches you.",
+  "author": "Siddh Patel",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "eslint .",
-    "convex:deploy": "convex deploy --preview-name dev --typecheck disable -y"
+    "convex:deploy": "convex deploy --preview-name dev --typecheck disable -y",
+    "desktop:dev": "node scripts/dev-desktop.mjs",
+    "desktop:icon": "node scripts/make-icon.mjs",
+    "desktop:build": "node scripts/build-desktop.mjs",
+    "desktop:pack": "node scripts/build-desktop.mjs && electron-builder --dir",
+    "desktop:dist": "node scripts/build-desktop.mjs && electron-builder --win",
+    "desktop:dist:mac": "node scripts/build-desktop.mjs && electron-builder --mac"
   },
+  "trustedDependencies": [
+    "electron"
+  ],
   "dependencies": {
     "@auth/core": "^0.41.2",
     "@convex-dev/auth": "^0.0.94",
@@ -90,6 +102,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4",

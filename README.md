@@ -54,6 +54,7 @@ the background, so writing never waits on a network round trip.
 - Light and dark themes
 - Knowledge graph with a force-directed layout
 - Command palette (`⌘K`)
+- Runs as a native Windows and macOS app as well as in the browser — [DESKTOP.md](DESKTOP.md)
 
 <table>
 <tr>
@@ -71,6 +72,7 @@ the background, so writing never waits on a network round trip.
 | **AI** | OpenAI, streamed |
 | **Diagrams** | Mermaid |
 | **Styling** | Tailwind v4 plus a hand-rolled CSS variable design system |
+| **Desktop** | Electron, packaged with electron-builder |
 
 ## Running it locally
 
@@ -114,6 +116,37 @@ npx convex env set SITE_URL https://your-app-url
 ```
 
 Full deployment walkthrough: [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## The desktop app
+
+Braindot also runs as a real application on Windows and macOS. The whole Next.js
+app ships inside the installer and runs on a local port — it is not a browser
+pointed at a website, and it works with no network beyond what Convex and OpenAI
+need. Sync is unchanged, so the same vault follows you between the desktop app
+and the web. On macOS the window sits on a native vibrancy material, so the app
+is genuinely translucent rather than faking a blur.
+
+```bash
+bun run desktop:dist
+```
+
+On a Mac, [`build-mac.sh`](build-mac.sh) does the whole thing — clone,
+dependencies, environment, build:
+
+```bash
+bash build-mac.sh
+```
+
+Those write installers to `dist-desktop/` — an installer plus a portable `.exe`
+on Windows, `.dmg`s for Apple silicon and Intel on macOS. Each platform has to be
+built on itself. For the dev loop (`next dev` with Electron attached, fast
+refresh intact):
+
+```bash
+bun run desktop:dev
+```
+
+Architecture, configuration and the packaging decisions: [DESKTOP.md](DESKTOP.md).
 
 ## How the sync works
 

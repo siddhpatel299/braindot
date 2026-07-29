@@ -27,6 +27,8 @@ import { KanbanTodoPage } from '@/components/second-brain/KanbanTodoPage';
 import { CanvasView } from '@/components/second-brain/CanvasView';
 import { ReadingView } from '@/components/second-brain/ReadingView';
 import { useKanbanTodos, useCanvas, useReading } from '@/hooks/useVaultData';
+import { useDesktop } from '@/hooks/useDesktop';
+import { useTheme } from '@/hooks/useTheme';
 
 interface HistoryEntry {
   id: string;
@@ -98,6 +100,7 @@ export default function Home() {
   const kanbanTodos = useKanbanTodos();
   const canvas = useCanvas();
   const reading = useReading();
+  const { toggle: toggleTheme } = useTheme();
 
   const [iconView, setIconView] = useState<IconRailView>('dashboard');
   const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search' | 'graph' | 'kanban' | 'canvas' | 'reading'>('dashboard');
@@ -552,6 +555,27 @@ export default function Home() {
       setFileTreeView('folders');
     }
   }, [showToast]);
+
+  // ---------- Desktop shell ----------
+  // Menu items in the Electron build land here. The keyboard shortcuts that
+  // Braindot already owns are deliberately not registered as menu accelerators
+  // (see electron/menu.js), so they keep flowing through the handler below.
+  useDesktop({
+    onNewNote: () => handleCreateNote(),
+    onNewJournal: handleCreateJournal,
+    onSave: () => { editor.flushSave(); showToast('saved'); },
+    onCloseTab: () => { if (activeNote) handleCloseTab(activeNote.id); },
+    onCommandPalette: () => setPaletteOpen((o) => !o),
+    onToggleTheme: toggleTheme,
+    onExportNote: handleExportNote,
+    onExportVault: handleExportVault,
+    onImportFile: handleImportVault,
+    // The editor keeps its own undo stack, so the menu drives that rather than
+    // Chromium's DOM-level undo, which would desync it.
+    onUndo: editor.undo,
+    onRedo: editor.redo,
+    onNavigate: (view) => handleIconSelect(view as IconRailView),
+  });
 
   // ---------- Keyboard shortcuts ----------
   useEffect(() => {
