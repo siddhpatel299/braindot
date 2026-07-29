@@ -1,0 +1,104 @@
+# Packaging for the Braindot desktop app.
+#
+# Two things get packed:
+#   1. the Electron shell  — electron/*.js, tiny, goes inside app.asar
+#   2. the Next.js server  — desktop-build/server, produced by
+#      `bun run desktop:build`, shipped as an extraResource
+#
+# The server has to stay OUTSIDE the asar archive. electron/next-server.js
+# spawns it with ELECTRON_RUN_AS_NODE, and in that mode Electron is a plain
+# Node process with no idea how to read from an asar.
+
+appId: com.braindot.desktop
+productName: braindot
+copyright: Copyright © 2026 Siddh Patel
+
+directories:
+  output: dist-desktop
+  buildResources: electron/build-assets
+
+# The shell only ever requires Electron and Node built-ins, so the app's own
+# node_modules (Next, React, every Radix package) are excluded outright. They
+# are already inside desktop-build/server, traced down to what is actually
+# reachable.
+files:
+  - electron/**/*
+  - package.json
+  - '!node_modules/**/*'
+  - '!**/*.map'
+
+# The server bundle is copied by this hook rather than by `extraResources`,
+# because electron-builder's file matcher strips node_modules out of extra
+# resources — see scripts/after-pack.js.
+afterPack: scripts/after-pack.js
+
+# The shell requires nothing but Electron and Node built-ins, and the excluded
+# node_modules above are never packaged — so there is nothing to rebuild against
+# Electron's ABI. Leaving this on makes electron-builder try to compile
+# transitive native deps (@parcel/watcher and friends) with node-gyp, which
+# needs a Visual Studio toolchain for no benefit at all.
+npmRebuild: false
+
+asar: true
+# Compression is what keeps the installer near 100MB rather than ~250MB; it
+# costs a little build time and nothing at runtime.
+compression: maximum
+
+win:
+  icon: electron/build-assets/icon.png
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  # A real installer with a directory choice, not a one-click drop. Per-user by
+  # default so it never needs an admin prompt.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: braindot
+  # Leave the vault, config and logs in %APPDATA%\braindot on uninstall — the
+  # user can delete them deliberately, but an uninstall should never be the
+  # thing that loses local notes.
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+# --- macOS -------------------------------------------------------------------
+# Must be built ON a Mac: electron-builder cannot produce a .app or .dmg from
+# Windows, and `desktop:build` traces platform-specific optional dependencies
+# into the server bundle, so that step has to run there too.
+mac:
+  icon: electron/build-assets/icon.png
+  category: public.app-category.productivity
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # darkModeSupport lets the system serve the dark vibrancy material; without it
+  # the window would stay on the light material in dark mode.
+  darkModeSupport: true
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
+  # Unsigned. With no Developer ID this keeps the build from failing, at the
+  # cost of Gatekeeper warning on first open (right-click ▸ Open, once).
+  # To sign: remove this line, set CSC_LINK/CSC_KEY_PASSWORD, and add
+  # hardenedRuntime plus a notarize block.
+  identity: null
+
+dmg:
+  title: ${productName} ${version}
+  artifactName: ${productName}-${version}-${arch}.${ext}

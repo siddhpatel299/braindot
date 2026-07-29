@@ -44,7 +44,29 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  // The Electron shell and the electron-builder hook run in Node, outside the
+  // bundler: Electron loads the main process and preloads as CommonJS, and
+  // electron-builder requires its hooks the same way. `require()` is the only
+  // thing that works there, so the project-wide ESM rule does not apply.
+  files: ["electron/**/*.js", "scripts/**/*.js"],
+  rules: {
+    "@typescript-eslint/no-require-imports": "off",
+  },
+}, {
+  ignores: [
+    "node_modules/**",
+    ".next/**",
+    // Desktop build artefacts: the standalone Next server, the packaged app and
+    // the installers. Hundreds of MB of generated code — linting it is pure cost.
+    ".next-desktop/**",
+    "desktop-build/**",
+    "dist-desktop/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "examples/**",
+    "skills",
+  ]
 }];
 
 export default eslintConfig;

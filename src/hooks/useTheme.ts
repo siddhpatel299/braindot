@@ -30,6 +30,18 @@ export function useTheme() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
+  // Stay in step with any other consumer of this hook. The desktop menu's
+  // "Toggle Theme" toggles through a second instance, and without this the
+  // CommandBar's sun/moon icon would keep showing the old theme.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      const next = (e as CustomEvent<Theme>).detail;
+      if (next === 'dark' || next === 'light') setTheme(next);
+    };
+    window.addEventListener('theme-changed', onChanged);
+    return () => window.removeEventListener('theme-changed', onChanged);
+  }, []);
+
   // Apply theme whenever it changes
   const applyTheme = useCallback((next: Theme) => {
     document.documentElement.setAttribute('data-theme', next);
