@@ -27,6 +27,64 @@ import { KanbanTodoPage } from '@/components/second-brain/KanbanTodoPage';
 import { CanvasView } from '@/components/second-brain/CanvasView';
 import { ReadingView } from '@/components/second-brain/ReadingView';
 import { useKanbanTodos, useCanvas, useReading } from '@/hooks/useVaultData';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
+
+const TREE_COLLAPSED_KEY = 'second-brain-tree-collapsed';
+const PANEL_COLLAPSED_KEY = 'second-brain-panel-collapsed';
+
+/**
+ * Edge toggle for the file tree / context panel. Sits in the editor tab row so
+ * it stays reachable when the panel it controls is hidden — a control that
+ * disappears with its panel leaves no way back.
+ */
+function PanelToggle({
+  side,
+  collapsed,
+  onClick,
+}: {
+  side: 'left' | 'right';
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  const Icon = side === 'left'
+    ? (collapsed ? PanelLeftOpen : PanelLeftClose)
+    : (collapsed ? PanelRightOpen : PanelRightClose);
+  const what = side === 'left' ? 'folder tree' : 'context panel';
+  const label = `${collapsed ? 'Show' : 'Hide'} ${what}`;
+
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={!collapsed}
+      title={`${label}  ${side === 'left' ? '⌘\\' : '⌘⇧\\'}`}
+      style={{
+        width: 34,
+        height: 38,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg1)',
+        border: 'none',
+        borderBottom: '1px solid var(--bd)',
+        color: collapsed ? 'var(--t3)' : 'var(--t2)',
+        cursor: 'pointer',
+        transition: 'color 140ms, background 140ms',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'var(--bg3)';
+        e.currentTarget.style.color = 'var(--t1)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'var(--bg1)';
+        e.currentTarget.style.color = collapsed ? 'var(--t3)' : 'var(--t2)';
+      }}
+    >
+      <Icon size={15} />
+    </button>
+  );
+}
 
 interface HistoryEntry {
   id: string;
@@ -107,6 +165,8 @@ export default function Home() {
   const [aiMode, setAiMode] = useState<AIMode>('note');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [fileTreeView, setFileTreeView] = useState<'folders' | 'tags'>('folders');
+  const [treeCollapsed, setTreeCollapsed] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [askAIOpen, setAskAIOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -522,11 +582,21 @@ export default function Home() {
 
   // Study is a tab in the editor's context panel now, so "open study" means
   // "put me in the editor with that tab showing".
+  // Anything that targets a context-panel tab must also reveal the panel —
+  // otherwise the action silently does nothing while it's hidden.
+  const revealContext = useCallback((tab: ContextTab) => {
+    setContextTab(tab);
+    setPanelCollapsed((c) => {
+      if (c) localStorage.setItem(PANEL_COLLAPSED_KEY, 'false');
+      return false;
+    });
+  }, []);
+
   const openStudy = useCallback(() => {
     setAppView('notes');
-    setContextTab('ai');
+    revealContext('ai');
     setAiMode('study');
-  }, []);
+  }, [revealContext]);
 
   // ---------- Icon rail actions ----------
   const handleIconSelect = useCallback((v: IconRailView) => {
@@ -553,11 +623,41 @@ export default function Home() {
     }
   }, [showToast]);
 
+  // ---------- Panel visibility ----------
+  // Restored from localStorage after mount so the server and first client
+  // render agree (reading storage during render would desync hydration).
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setTreeCollapsed(localStorage.getItem(TREE_COLLAPSED_KEY) === 'true');
+    setPanelCollapsed(localStorage.getItem(PANEL_COLLAPSED_KEY) === 'true');
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  const toggleTree = useCallback(() => {
+    setTreeCollapsed((c) => {
+      localStorage.setItem(TREE_COLLAPSED_KEY, String(!c));
+      return !c;
+    });
+  }, []);
+
+  const togglePanel = useCallback(() => {
+    setPanelCollapsed((c) => {
+      localStorage.setItem(PANEL_COLLAPSED_KEY, String(!c));
+      return !c;
+    });
+  }, []);
+
   // ---------- Keyboard shortcuts ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;
-      if (meta && e.key.toLowerCase() === 'k') {
+      if (meta && e.key === '\\') {
+        // ⌘\ tree, ⌘⇧\ context panel — VS Code muscle memory, and the only
+        // meta combos still free (B/I/U/K/T/W/P/S/J are all taken).
+        e.preventDefault();
+        if (e.shiftKey) togglePanel();
+        else toggleTree();
+      } else if (meta && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen((o) => !o);
       } else if (meta && e.key.toLowerCase() === 't') {
@@ -580,7 +680,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeNote, editor, handleCreateNote, handleCloseTab, handleCreateJournal, showToast]);
+  }, [activeNote, editor, handleCreateNote, handleCloseTab, handleCreateJournal, showToast, toggleTree, togglePanel]);
 
   // Listen for journal event from command palette
   useEffect(() => {
@@ -819,36 +919,47 @@ export default function Home() {
           />
         ) : (
           <>
-            <FileTree
-              notes={state.notes}
-              folders={state.folders}
-              activeId={activeNote?.id || ''}
-              filter={search}
-              view={fileTreeView}
-              onViewChange={setFileTreeView}
-              onSelect={handleOpenNote}
-              onCreateNote={(folderId) => handleCreateNote(folderId)}
-              onCreateFolder={handleCreateFolder}
-              onRenameFolder={renameFolder}
-              onDeleteFolder={handleDeleteFolder}
-              onToggleFolder={toggleFolderExpanded}
-              onMoveNote={moveNote}
-              onTogglePinned={togglePinned}
-              onDeleteNote={handleDeleteNote}
-            />
+            {/* Hidden with display:none rather than unmounted — keeps panel
+                state (AI thread, scroll, rename-in-progress) alive across a
+                toggle, and takes the subtree out of the a11y tree for free. */}
+            <div style={{ display: treeCollapsed ? 'none' : 'flex', flexShrink: 0 }}>
+              <FileTree
+                notes={state.notes}
+                folders={state.folders}
+                activeId={activeNote?.id || ''}
+                filter={search}
+                view={fileTreeView}
+                onViewChange={setFileTreeView}
+                onSelect={handleOpenNote}
+                onCreateNote={(folderId) => handleCreateNote(folderId)}
+                onCreateFolder={handleCreateFolder}
+                onRenameFolder={renameFolder}
+                onDeleteFolder={handleDeleteFolder}
+                onToggleFolder={toggleFolderExpanded}
+                onMoveNote={moveNote}
+                onTogglePinned={togglePinned}
+                onDeleteNote={handleDeleteNote}
+              />
+            </div>
 
             {/* Editor area: tabs + canvas */}
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-              <EditorTabs
-                notes={state.notes}
-                openTabs={state.openTabs}
-                activeTab={state.activeTab}
-                dirtyIds={dirtyIds}
-                onSelect={setActiveTab}
-                onClose={handleCloseTab}
-                onCreate={() => handleCreateNote()}
-                onReorder={reorderTabs}
-              />
+              <div style={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
+                <PanelToggle side="left" collapsed={treeCollapsed} onClick={toggleTree} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <EditorTabs
+                    notes={state.notes}
+                    openTabs={state.openTabs}
+                    activeTab={state.activeTab}
+                    dirtyIds={dirtyIds}
+                    onSelect={setActiveTab}
+                    onClose={handleCloseTab}
+                    onCreate={() => handleCreateNote()}
+                    onReorder={reorderTabs}
+                  />
+                </div>
+                <PanelToggle side="right" collapsed={panelCollapsed} onClick={togglePanel} />
+              </div>
               {activeNote && (
                 <EditorCanvas
                   note={activeNote}
@@ -864,23 +975,25 @@ export default function Home() {
               )}
             </div>
 
-            <ContextPanel
-              note={activeNote}
-              allNotes={state.notes}
-              activeTab={contextTab}
-              onTabChange={setContextTab}
-              aiMode={aiMode}
-              onAiModeChange={setAiMode}
-              onOpenNote={handleOpenNote}
-              onOpenNoteByTitle={handleOpenNoteByTitle}
-              onSaveToNote={handleSaveToNote}
-              onExportEssay={handleExportEssay}
-              onInsertLink={handleInsertLink}
-              onDraftSynthesis={handleDraftSynthesis}
-              onAnswerInNewNote={handleAnswerInNewNote}
-              onScheduleReview={handleScheduleReview}
-              history={history}
-            />
+            <div style={{ display: panelCollapsed ? 'none' : 'flex', flexShrink: 0 }}>
+              <ContextPanel
+                note={activeNote}
+                allNotes={state.notes}
+                activeTab={contextTab}
+                onTabChange={setContextTab}
+                aiMode={aiMode}
+                onAiModeChange={setAiMode}
+                onOpenNote={handleOpenNote}
+                onOpenNoteByTitle={handleOpenNoteByTitle}
+                onSaveToNote={handleSaveToNote}
+                onExportEssay={handleExportEssay}
+                onInsertLink={handleInsertLink}
+                onDraftSynthesis={handleDraftSynthesis}
+                onAnswerInNewNote={handleAnswerInNewNote}
+                onScheduleReview={handleScheduleReview}
+                history={history}
+              />
+            </div>
           </>
         )}
       </div>
@@ -902,7 +1015,7 @@ export default function Home() {
         folders={state.folders}
         onOpenNote={handleOpenNote}
         onCreateNote={() => handleCreateNote()}
-        onOpenGraph={() => setContextTab('graph')}
+        onOpenGraph={() => revealContext('graph')}
         onExport={handleExportNote}
         onCreateFolder={() => handleCreateFolder(null)}
         onAskAI={() => setAskAIOpen(true)}
