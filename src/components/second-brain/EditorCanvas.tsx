@@ -5,6 +5,8 @@ import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords, plural } from '@/utils/markdown';
 import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
 import { htmlToMarkdown, looksLikeRichHtml } from '@/utils/htmlToMarkdown';
+import { putImage, idToRef, getImageObjectUrl, isImageRef, refToId } from '@/utils/imageStore';
+import { safeUrl } from '@/utils/markdownHtml';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
 import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2, Type, Check } from 'lucide-react';
@@ -151,6 +153,16 @@ function renderMarkdownHtml(body: string): string {
 // markers (** * ~~ ` [[ ]]) and shows only the formatted result.
 function renderInline(s: string): string {
   let out = escapeHtml(s);
+  // images ![alt](src). Locally stored images carry a data-img-id and get their
+  // src filled in after mount, once IndexedDB resolves the blob. Unsafe schemes
+  // fall through to plain text rather than reaching the DOM.
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt: string, src: string) => {
+    const safe = safeUrl(src);
+    if (!safe) return match;
+    return isImageRef(safe)
+      ? `<img class="md-image" data-img-id="${refToId(safe)}" alt="${alt}" />`
+      : `<img class="md-image" src="${safe}" alt="${alt}" loading="lazy" />`;
+  });
   // wiki-links: show the title only, clickable (title kept in data-wiki)
   out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1) => `<a data-wiki="${escapeHtml(p1)}" style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px;cursor:pointer">${escapeHtml(p1)}</a>`);
   // inline code
@@ -206,6 +218,28 @@ export function EditorCanvas({
 
   // Preview: split into prose + mermaid-diagram segments
   const previewSegments = useMemo(() => splitMermaidBlocks(editor.body), [editor.body]);
+
+  // Locally stored images render with a data-img-id and no src — the renderer
+  // is synchronous and IndexedDB is not. Fill them in once the markup is live.
+  const previewRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (viewMode !== 'preview') return;
+    let cancelled = false;
+    const pending = previewRef.current?.querySelectorAll<HTMLImageElement>('img[data-img-id]:not([src])');
+    pending?.forEach((el) => {
+      const id = el.getAttribute('data-img-id');
+      if (!id) return;
+      void getImageObjectUrl(id).then((url) => {
+        if (cancelled) return;
+        if (url) el.src = url;
+        else el.replaceWith(Object.assign(document.createElement('span'), {
+          className: 'md-image-missing',
+          textContent: `⚠ image not found on this device${el.alt ? ` — ${el.alt}` : ''}`,
+        }));
+      });
+    });
+    return () => { cancelled = true; };
+  }, [viewMode, previewSegments]);
 
   // Diff: compare saved body (note.body) with working body (editor.body)
   const diffLines = useMemo(() => computeLineDiff(note.body, editor.body), [note.body, editor.body]);
@@ -324,6 +358,10 @@ export function EditorCanvas({
     [editor],
   );
 
+  // Declared above the slash menu because that menu calls it.
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const pickImage = useCallback(() => imageInputRef.current?.click(), []);
+
   // Slash commands for the / menu
   const slashCommands: SlashCommand[] = useMemo(() => {
     const insertAtCursor = (text: string) => {
@@ -379,6 +417,11 @@ export function EditorCanvas({
         action: () => insertAtCursor('\n1. '),
       },
       {
+        id: 'image', label: 'Image', description: 'Insert a picture from your device',
+        icon: ({ size }) => <span style={{ fontSize: size || 14 }}>🖼</span>,
+        action: () => pickImage(),
+      },
+      {
         id: 'hr', label: 'Divider', description: 'Horizontal rule',
         icon: ({ size }) => <span style={{ fontSize: size || 14 }}>―</span>,
         action: () => insertAtCursor('\n---\n'),
@@ -399,7 +442,7 @@ export function EditorCanvas({
         action: () => insertAtCursor('\n- [ ] '),
       },
     ];
-  }, [editor]);
+  }, [editor, pickImage]);
 
   // ---- Wiki-link autocomplete ----
   const linkMatches = useMemo(() => {
@@ -454,10 +497,70 @@ export function EditorCanvas({
     closeLinkAuto();
   }, [editor, linkAuto, closeLinkAuto]);
 
+  // Insert text at the caret, padded so it does not fuse with its surroundings.
+  const insertBlockAtCaret = useCallback(
+    (text: string) => {
+      const ta = textareaRef.current;
+      const start = ta ? ta.selectionStart : editor.body.length;
+      const end = ta ? ta.selectionEnd : editor.body.length;
+      const before = editor.body.slice(0, start);
+      const after = editor.body.slice(end);
+      const lead = before && !before.endsWith('\n\n') ? (before.endsWith('\n') ? '\n' : '\n\n') : '';
+      const trail = after && !after.startsWith('\n') ? '\n' : '';
+      editor.updateBody(before + lead + text + trail + after);
+      const pos = start + lead.length + text.length;
+      setTimeout(() => {
+        ta?.focus();
+        if (ta) ta.selectionStart = ta.selectionEnd = pos;
+      }, 0);
+    },
+    [editor],
+  );
+
+  // Store dropped/pasted/picked images and write references into the note.
+  // Sequential rather than parallel: each one is decoded and re-encoded on a
+  // canvas, and several large screenshots at once will jank the editor.
+  const insertImageFiles = useCallback(
+    async (files: File[]) => {
+      const images = files.filter((f) => f.type.startsWith('image/'));
+      if (!images.length) return;
+      const refs: string[] = [];
+      for (const file of images) {
+        try {
+          const id = await putImage(file);
+          const alt = file.name.replace(/\.[^.]+$/, '').trim() || 'image';
+          refs.push(`![${alt}](${idToRef(id)})`);
+        } catch {
+          // A single unreadable file should not discard the rest of the drop.
+        }
+      }
+      if (refs.length) insertBlockAtCaret(refs.join('\n\n'));
+    },
+    [insertBlockAtCaret],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLTextAreaElement>) => {
+      const files = Array.from(e.dataTransfer.files);
+      if (!files.some((f) => f.type.startsWith('image/'))) return; // let text drops through
+      e.preventDefault();
+      void insertImageFiles(files);
+    },
+    [insertImageFiles],
+  );
+
   // Paste rich web content as Markdown. When the clipboard carries HTML with
   // real structure, convert it; otherwise let the browser paste plain text.
   const handlePaste = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      // Image bytes take priority: a screenshot on the clipboard also carries a
+      // junk text/html wrapper that would otherwise be converted instead.
+      const files = Array.from(e.clipboardData.files);
+      if (files.some((f) => f.type.startsWith('image/'))) {
+        e.preventDefault();
+        void insertImageFiles(files);
+        return;
+      }
       const html = e.clipboardData.getData('text/html');
       if (!html || !looksLikeRichHtml(html)) return; // plain text / copied markdown → default
       const md = htmlToMarkdown(html);
@@ -479,7 +582,7 @@ export function EditorCanvas({
         ta.selectionStart = ta.selectionEnd = pos;
       }, 0);
     },
-    [editor],
+    [editor, insertImageFiles],
   );
 
   const handleKeyDown = useCallback(
@@ -652,6 +755,21 @@ export function EditorCanvas({
         overflow: 'hidden',
       }}
     >
+      {/* Shared by the toolbar button and the /image slash command. Reset after
+          each pick so choosing the same file twice still fires a change. */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          e.target.value = '';
+          void insertImageFiles(files);
+        }}
+      />
+
       {/* Mode switcher + formatting toolbar */}
       <div style={{
         display: 'flex', alignItems: 'center',
@@ -668,6 +786,7 @@ export function EditorCanvas({
               textareaRef={textareaRef}
               body={editor.body}
               onBodyChange={editor.updateBody}
+              onInsertImage={pickImage}
             />
           </div>
         )}
@@ -960,6 +1079,11 @@ export function EditorCanvas({
               onChange={handleBodyChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
+              onDrop={handleDrop}
+              onDragOver={(e) => {
+                // Without this the browser navigates away to the dropped file.
+                if (Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault();
+              }}
               onBlur={() => setTimeout(closeLinkAuto, 150)}
               placeholder="# Start writing your note…"
               spellCheck={false}
@@ -1015,7 +1139,7 @@ export function EditorCanvas({
         )}
 
         {viewMode === 'preview' && (
-          <div style={{ minHeight: 200 }}>
+          <div style={{ minHeight: 200 }} ref={previewRef}>
             {previewSegments.map((seg, i) =>
               seg.type === 'mermaid' ? (
                 <Mermaid key={i} chart={seg.content} />

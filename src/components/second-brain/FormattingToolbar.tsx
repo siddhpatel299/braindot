@@ -2,17 +2,19 @@
 
 import { useCallback } from 'react';
 import {
-  Bold, Italic, Strikethrough, Code, Code2,
+  Bold, Italic, Strikethrough, Code, Code2, ImagePlus,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Link as LinkIcon, Brackets,
 } from 'lucide-react';
 
 interface FormattingToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   body: string;
+  /** Opens the file picker. Insertion is async, so it lives in EditorCanvas. */
+  onInsertImage?: () => void;
   onBodyChange: (next: string) => void;
 }
 
-export function FormattingToolbar({ textareaRef, body, onBodyChange }: FormattingToolbarProps) {
+export function FormattingToolbar({ textareaRef, body, onBodyChange, onInsertImage }: FormattingToolbarProps) {
   // Wrap selected text with prefix/suffix, or insert placeholder if no selection.
   const wrapSelection = useCallback(
     (prefix: string, suffix: string, placeholder: string = 'text') => {
@@ -250,6 +252,11 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
       <button style={btnStyle} title="Link [text](url)" onClick={insertLink} {...hoverHandlers}>
         <LinkIcon size={15} strokeWidth={2} />
       </button>
+      {onInsertImage && (
+        <button style={btnStyle} title="Insert image" aria-label="Insert image" onClick={onInsertImage} {...hoverHandlers}>
+          <ImagePlus size={15} strokeWidth={2} />
+        </button>
+      )}
 
       <div style={{ flex: 1 }} />
       <span style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', marginLeft: 8, whiteSpace: 'nowrap' }}>

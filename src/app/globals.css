@@ -369,6 +369,32 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .sb-mark {
   opacity: 0.3;
 }
+/* Image syntax in the edit overlay — alt text readable, the rest recedes. */
+.sb-tok-image {
+  color: var(--acc2);
+}
+
+/* ===== Images in preview ===== */
+.md-figure {
+  margin: 18px 0;
+}
+.md-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--bd);
+  /* A transparent PNG on a dark page is unreadable without a backdrop. */
+  background: var(--bg2);
+}
+.md-image-missing {
+  display: block;
+  padding: 10px 12px;
+  border: 1px dashed var(--bd2);
+  border-radius: 6px;
+  color: var(--t3);
+  font-size: 12px;
+}
 
 /* ===== Auth page: split layout (product left, form right) ===== */
 .auth-page {

@@ -1,6 +1,8 @@
 // Markdown-to-HTML renderer for Preview mode.
 // This produces clean semantic HTML that we style via CSS classes.
 
+import { IMAGE_SCHEME, isImageRef, refToId } from './imageStore';
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -10,8 +12,40 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Note bodies routinely arrive from pasted web pages, and this HTML is handed
+ * to dangerouslySetInnerHTML — so a URL is only emitted if its scheme cannot
+ * execute. `javascript:` and friends fall through to null and render as text.
+ */
+export function safeUrl(raw: string): string | null {
+  const url = raw.trim();
+  if (url.startsWith(IMAGE_SCHEME)) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (/^mailto:/i.test(url)) return url;
+  if (/^[#/]/.test(url)) return url; // in-page anchor or site-relative
+  if (/^data:image\/(png|jpe?g|gif|webp|avif|svg\+xml);/i.test(url)) return url;
+  return null;
+}
+
+/** `![alt](src)` → an <img>, or the literal text if the URL is not safe. */
+function renderImage(match: string, alt: string, src: string): string {
+  const safe = safeUrl(src);
+  if (!safe) return match;
+  if (isImageRef(safe)) {
+    // src is filled in after mount, once IndexedDB resolves the blob.
+    return `<img class="md-image" data-img-id="${refToId(safe)}" alt="${alt}" />`;
+  }
+  return `<img class="md-image" src="${safe}" alt="${alt}" loading="lazy" />`;
+}
+
+// An image alone on its own line is a block, not a word inside a paragraph.
+const LONE_IMAGE = /^!\[([^\]]*)\]\(([^)]+)\)\s*$/;
+
 function renderInline(s: string): string {
   let out = escapeHtml(s);
+  // images ![alt](src) — must run before the link rule below, which would
+  // otherwise match the [alt](src) part and leave a stray "!" behind.
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, renderImage);
   // wiki-links  [[Title]]
   out = out.replace(
     /\[\[([^\]]+)\]\]/g,
@@ -28,10 +62,15 @@ function renderInline(s: string): string {
   // italic  *text* or _text_
   out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
   out = out.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
-  // markdown links  [text](url)
+  // markdown links  [text](url). The leading-character capture keeps this off
+  // any "![" that renderImage declined to convert.
   out = out.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a class="md-link" href="$2" target="_blank" rel="noopener">$1</a>',
+    /(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g,
+    (match, pre: string, text: string, url: string) => {
+      const safe = safeUrl(url);
+      if (!safe) return match;
+      return `${pre}<a class="md-link" href="${safe}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    },
   );
   return out;
 }
@@ -97,6 +136,16 @@ export function renderMarkdownHtml(body: string): string {
       const level = hMatch[1].length;
       const text = renderInline(hMatch[2]);
       blocks.push(`<h${level} class="md-h md-h${level}">${text}</h${level}>`);
+      i++;
+      continue;
+    }
+
+    // A lone image on its own line renders as a figure rather than a word
+    // inside a paragraph, so it can size and centre itself.
+    const imgOnly = line.match(LONE_IMAGE);
+    if (imgOnly) {
+      const html = renderInline(line.trim());
+      blocks.push(`<figure class="md-figure">${html}</figure>`);
       i++;
       continue;
     }

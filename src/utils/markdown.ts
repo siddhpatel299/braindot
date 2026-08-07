@@ -100,6 +100,13 @@ export function renderMarkdownOverlay(body: string): string {
 
   const renderInline = (line: string): string => {
     let s = escapeHtml(line);
+    // images ![alt](src) — first, so the wiki/link rules never see the inside.
+    // Only the alt text stays at full strength; a stored image reference is a
+    // uuid nobody needs to read.
+    s = s.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      (_m, alt, src) => `<span class="sb-tok-image">${mark('![')}${alt}${mark(`](${src})`)}</span>`,
+    );
     // wiki-links  [[Title]] — the visible title is already escaped by the line
     // pass above; escaping it twice would render "&amp;" literally and push
     // the overlay out of alignment with the textarea.
