@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import {
-  Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code, Code2,
+  Bold, Italic, Strikethrough, Code, Code2,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Link as LinkIcon, Brackets,
 } from 'lucide-react';
 
@@ -214,9 +214,10 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange }: Formattin
       <button style={btnStyle} title="Italic (⌘I)" onClick={() => wrapSelection('*', '*', 'italic text')} {...hoverHandlers}>
         <Italic size={15} strokeWidth={2} />
       </button>
-      <button style={btnStyle} title="Underline (⌘U)" onClick={() => wrapSelection('<u>', '</u>', 'underlined')} {...hoverHandlers}>
-        <UnderlineIcon size={15} strokeWidth={2} />
-      </button>
+      {/* No underline: markdown has no syntax for it, so the button wrote raw
+          <u> tags into the file. That leaks HTML into notes that are meant to
+          stay portable plain text, and it is the readers who do not know
+          markdown who would see the tags. Existing <u> still renders. */}
       <button style={btnStyle} title="Strikethrough" onClick={() => wrapSelection('~~', '~~', 'strikethrough')} {...hoverHandlers}>
         <Strikethrough size={15} strokeWidth={2} />
       </button>

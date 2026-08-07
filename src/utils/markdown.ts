@@ -92,25 +92,43 @@ export function renderMarkdownOverlay(body: string): string {
 
   let i = 0;
 
+  // Syntax markers (**, #, `, [[ ]]) must stay in the text — the overlay is
+  // aligned to the textarea character for character — but they are dimmed so
+  // the eye reads the formatting rather than the punctuation. Opacity is the
+  // only safe lever here: it never changes layout or advance width.
+  const mark = (s: string) => `<span class="sb-mark">${s}</span>`;
+
   const renderInline = (line: string): string => {
     let s = escapeHtml(line);
-    // wiki-links  [[Title]]
+    // wiki-links  [[Title]] — the visible title is already escaped by the line
+    // pass above; escaping it twice would render "&amp;" literally and push
+    // the overlay out of alignment with the textarea.
     s = s.replace(
       /\[\[([^\]]+)\]\]/g,
-      (_m, p1) => `<span class="sb-tok-wiki" data-wiki="${escapeHtml(p1)}">[[${escapeHtml(p1)}]]</span>`,
+      (_m, p1) => `<span class="sb-tok-wiki" data-wiki="${escapeHtml(p1)}">${mark('[[')}${p1}${mark(']]')}</span>`,
     );
     // inline code  `text`  — must be before bold/italic so they don't clash
-    s = s.replace(/`([^`\n]+)`/g, '<span class="sb-tok-code">`$1`</span>');
+    s = s.replace(/`([^`\n]+)`/g, (_m, p1) => `<span class="sb-tok-code">${mark('`')}${p1}${mark('`')}</span>`);
     // bold  **text**
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<span class="sb-tok-bold">**$1**</span>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, (_m, p1) => `<span class="sb-tok-bold">${mark('**')}${p1}${mark('**')}</span>`);
     // strikethrough  ~~text~~
-    s = s.replace(/~~([^~\n]+)~~/g, '<span class="sb-tok-strike">~~$1~~</span>');
-    // underline  <u>text</u>  (HTML-style; we don't use _underline_ to avoid clashing with italic)
-    s = s.replace(/&lt;u&gt;([^&\n]+)&lt;\/u&gt;/g, '<span class="sb-tok-underline">&lt;u&gt;$1&lt;/u&gt;</span>');
+    s = s.replace(/~~([^~\n]+)~~/g, (_m, p1) => `<span class="sb-tok-strike">${mark('~~')}${p1}${mark('~~')}</span>`);
+    // underline  <u>text</u> — no longer authorable, but old notes still have it
+    s = s.replace(
+      /&lt;u&gt;([^&\n]+)&lt;\/u&gt;/g,
+      (_m, p1) => `<span class="sb-tok-underline">${mark('&lt;u&gt;')}${p1}${mark('&lt;/u&gt;')}</span>`,
+    );
     // italic _text_ or *text*  (single underscores or single asterisks, not double)
-    s = s.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<span class="sb-tok-italic">*$2*</span>');
-    s = s.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<span class="sb-tok-italic">_$2_</span>');
-    // bullets: lines starting with "- " → render dash in muted color
+    s = s.replace(
+      /(^|[^*_])\*([^*\n]+)\*(?!\*)/g,
+      (_m, pre, p2) => `${pre}<span class="sb-tok-italic">${mark('*')}${p2}${mark('*')}</span>`,
+    );
+    s = s.replace(
+      /(^|[^*_])_([^_\n]+)_(?!_)/g,
+      (_m, pre, p2) => `${pre}<span class="sb-tok-italic">${mark('_')}${p2}${mark('_')}</span>`,
+    );
+    // bullets: the dash reads as a bullet point rather than syntax, so it stays
+    // at full strength — fading it would make lists look broken.
     s = s.replace(/^(\s*)(-) /, '$1<span class="sb-tok-bullet">$2</span> ');
     return s;
   };
@@ -146,10 +164,11 @@ export function renderMarkdownOverlay(body: string): string {
       continue;
     }
 
-    // Heading  ## Title  (also # and ###)
-    const hMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    // Heading  ## Title  (also # and ###). The whitespace run is captured and
+    // replayed verbatim — collapsing it to one space would shift the caret.
+    const hMatch = line.match(/^(#{1,6})(\s+)(.*)$/);
     if (hMatch) {
-      out.push(`<span class="sb-tok-h">${escapeHtml(line)}</span>`);
+      out.push(`<span class="sb-tok-h">${mark(hMatch[1])}${hMatch[2]}${escapeHtml(hMatch[3])}</span>`);
       i++;
       continue;
     }

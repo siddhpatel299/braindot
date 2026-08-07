@@ -195,7 +195,7 @@ export function EditorCanvas({
   const preRef = useRef<HTMLPreElement>(null);
   const { font: editorFont, setFont: setEditorFont } = useEditorFont();
   const [fontMenuOpen, setFontMenuOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('edit');
+  const [viewMode, setViewMode] = useState<ViewMode>('preview');
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -211,12 +211,31 @@ export function EditorCanvas({
   const diffLines = useMemo(() => computeLineDiff(note.body, editor.body), [note.body, editor.body]);
   const stats = useMemo(() => diffStats(note.body, editor.body), [note.body, editor.body]);
 
-  // This is a writing-first app: every session starts in edit mode. Switching
-  // to preview/diff sticks while you move between notes (this component is not
-  // remounted per note) but is never restored across reloads — landing in a
-  // read-only view you set days ago is not what "open my notes" should mean.
+  // A note opens as a finished document, not as source. Someone who does not
+  // know markdown should never have to read their own note through "## " and
+  // "**" — they click the text to start editing, the way a document app works.
+  // A note with an empty body has nothing to preview, so it opens ready to type.
+  // Kept out of localStorage: the mode is per-note, not a saved preference.
+  // Adjusted during render rather than in an effect — this is React's
+  // documented way to reset state when a prop changes, and it avoids the
+  // extra commit (and visible flash of the wrong mode) an effect would cause.
+  // Comparing ids, not bodies: the body changes on every autosave and would
+  // throw the writer back into preview mid-sentence.
+  const [lastNoteId, setLastNoteId] = useState(note.id);
+  if (note.id !== lastNoteId) {
+    setLastNoteId(note.id);
+    setViewMode(note.body.trim() ? 'preview' : 'edit');
+  }
+
   const changeViewMode = useCallback((mode: ViewMode) => {
     setViewMode(mode);
+  }, []);
+
+  // Clicking the rendered document drops into editing and puts the caret in
+  // the textarea, so the click that starts a thought does not need a second one.
+  const editFromPreview = useCallback(() => {
+    setViewMode('edit');
+    setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
 
   // Auto-resize textarea to match content height
@@ -582,9 +601,6 @@ export function EditorCanvas({
       } else if (meta && e.key.toLowerCase() === 'i') {
         e.preventDefault();
         wrapSelection('*', '*', 'italic text');
-      } else if (meta && e.key.toLowerCase() === 'u') {
-        e.preventDefault();
-        wrapSelection('<u>', '</u>', 'underlined');
       } else if (meta && e.shiftKey && e.key.toLowerCase() === 'k') {
         // Cmd+Shift+K — inline code (Cmd+K alone is the command palette)
         e.preventDefault();
@@ -1014,9 +1030,14 @@ export function EditorCanvas({
                     if (wikiEl) {
                       e.preventDefault();
                       onOpenNoteByTitle(wikiEl.getAttribute('data-wiki') || '');
+                      return;
                     }
+                    // A drag that ends here is someone selecting text to copy,
+                    // not asking to edit — leave the selection intact.
+                    if (window.getSelection()?.toString()) return;
+                    editFromPreview();
                   }}
-                  style={{ cursor: 'default' }}
+                  style={{ cursor: 'text' }}
                 />
               ),
             )}

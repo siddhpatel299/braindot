@@ -362,6 +362,13 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .sb-tok-meta {
   color: var(--t3);
 }
+/* Markdown punctuation in the edit overlay. Present (the overlay is aligned to
+   the textarea character for character) but faded, so a reader who does not
+   know markdown sees formatted text rather than syntax. Opacity only — any
+   property that changes advance width would drift the caret. */
+.sb-mark {
+  opacity: 0.3;
+}
 
 /* ===== Auth page: split layout (product left, form right) ===== */
 .auth-page {
