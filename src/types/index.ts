@@ -56,12 +56,14 @@ export interface HistoryEntry {
   timestamp: number;
 }
 
-// Tag → color mapping for visual chips
+// Tag → color mapping for visual chips. Written as theme tokens rather than
+// fixed hexes: these were light-on-dark values that stayed light-on-dark in
+// light mode, which left tag chips barely readable there.
 export const TAG_COLORS: Record<string, { color: string; bg: string; border: string }> = {
-  strategy:  { color: '#b0a8fb', bg: 'rgba(124,110,247,0.12)', border: '#3d378a' },
-  learning:  { color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: '#1a4a2a' },
-  reading:   { color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: '#4a3010' },
-  research:  { color: '#7dd3fc', bg: 'rgba(125,211,252,0.10)', border: '#1e3a5a' },
+  strategy:  { color: 'var(--acc2)', bg: 'var(--acc-bg)',   border: 'var(--acc-bd)' },
+  learning:  { color: 'var(--grn)',  bg: 'var(--grn-bg)',   border: 'var(--grn-bd)' },
+  reading:   { color: 'var(--amb)',  bg: 'var(--amb-bg)',   border: 'var(--amb-bd)' },
+  research:  { color: 'var(--blu)',  bg: 'var(--blu-bg)',   border: 'var(--blu-bd)' },
 };
 
 // Legacy collection labels (used during migration only)

@@ -22,8 +22,10 @@ const themeScript = `
     var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     var theme = (saved === 'dark' || saved === 'light') ? saved : system;
     document.documentElement.setAttribute('data-theme', theme);
+    // Prose reads in serif unless the user picked otherwise; the attribute is
+    // only set for a non-default choice, so the CSS default does the rest.
     var ef = localStorage.getItem('sb-editor-font');
-    if (ef === 'serif' || ef === 'sans') {
+    if (ef === 'sans' || ef === 'mono') {
       document.documentElement.setAttribute('data-editor-font', ef);
     }
   } catch (e) {

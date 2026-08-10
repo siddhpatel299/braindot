@@ -6,14 +6,22 @@ import { generateSuggestions, relativeTime, formatDate, extractWikiLinks } from 
 import { forceDirectedLayout } from '@/utils/graph';
 import { ArrowUpRight, FileText, Library, GraduationCap, LucideIcon } from 'lucide-react';
 import { AIChat, AIMode } from './AIChat';
+import { FormatPanel } from './FormatPanel';
 
-export type ContextTab = 'info' | 'ai' | 'graph' | 'history';
+export type ContextTab = 'info' | 'format' | 'ai' | 'graph' | 'history';
 
 interface ContextPanelProps {
   note: Note;
   allNotes: Note[];
   activeTab: ContextTab;
   onTabChange: (t: ContextTab) => void;
+  /** Format tab: the working copy of the body, and how to change it. */
+  body: string;
+  onBodyChange: (next: string) => void;
+  /** True while the note is shown as a document rather than as editable text. */
+  readingMode: boolean;
+  onRequestEdit: () => void;
+  onInsertImage: () => void;
   /** Which AI sub-tab is showing. Lifted so the palette can jump straight to study. */
   aiMode: AIMode;
   onAiModeChange: (m: AIMode) => void;
@@ -39,6 +47,11 @@ export function ContextPanel({
   allNotes,
   activeTab,
   onTabChange,
+  body,
+  onBodyChange,
+  readingMode,
+  onRequestEdit,
+  onInsertImage,
   aiMode,
   onAiModeChange,
   onOpenNote,
@@ -114,7 +127,7 @@ export function ContextPanel({
           flexShrink: 0,
         }}
       >
-        {(['info', 'ai', 'graph', 'history'] as const).map((t) => {
+        {(['info', 'format', 'ai', 'graph', 'history'] as const).map((t) => {
           const isActive = activeTab === t;
           return (
             <button
@@ -122,13 +135,15 @@ export function ContextPanel({
               onClick={() => onTabChange(t)}
               style={{
                 flex: 1,
+                minWidth: 0,
+                padding: '0 2px',
                 background: 'transparent',
                 border: 'none',
                 borderBottom: isActive ? '2px solid var(--acc)' : '2px solid transparent',
                 color: isActive ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 10.5,
+                fontSize: 10,
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                letterSpacing: '0.04em',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 fontWeight: isActive ? 600 : 400,
@@ -211,6 +226,15 @@ export function ContextPanel({
               onDraftSynthesis={onDraftSynthesis}
               onAnswerInNewNote={onAnswerInNewNote}
               onScheduleReview={onScheduleReview}
+            />
+          )}
+          {activeTab === 'format' && (
+            <FormatPanel
+              body={body}
+              onBodyChange={onBodyChange}
+              readingMode={readingMode}
+              onRequestEdit={onRequestEdit}
+              onInsertImage={onInsertImage}
             />
           )}
           {activeTab === 'graph' && <GraphPanel note={note} allNotes={allNotes} onOpenNote={onOpenNote} />}
@@ -452,7 +476,7 @@ function MiniGraph({
           y1={cy}
           x2={p.x}
           y2={p.y}
-          stroke="#3d378a"
+          stroke="var(--acc-bd)"
           strokeWidth={1}
         />
       ))}
@@ -467,7 +491,7 @@ function MiniGraph({
             y1={p.y}
             x2={d.x}
             y2={d.y}
-            stroke="#3d378a"
+            stroke="var(--acc-bd)"
             strokeWidth={0.5}
             strokeDasharray="2 2"
           />
@@ -477,7 +501,7 @@ function MiniGraph({
       {/* Distant notes (small) */}
       {distantPositions.map((p) => (
         <g key={`dist-${p.note.id}`} style={{ cursor: 'pointer' }} onClick={() => onOpenNote(p.note.id)}>
-          <circle cx={p.x} cy={p.y} r={2.5} fill="#3d378a" />
+          <circle cx={p.x} cy={p.y} r={2.5} fill="var(--acc-bd)" />
           <text x={p.x + 4} y={p.y + 2} fontSize={7} fill="var(--t2)" fontFamily="JetBrains Mono">
             {p.note.title.slice(0, 8)}
           </text>
@@ -607,7 +631,7 @@ function GraphPanel({
               onClick={() => onOpenNote(n.id)}
             >
               {n.degree > 0 && !isCurrent && (
-                <circle cx={n.x} cy={n.y} r={r + 3} fill="none" stroke="#3d378a" strokeWidth={0.5} opacity={0.4} />
+                <circle cx={n.x} cy={n.y} r={r + 3} fill="none" stroke="var(--acc-bd)" strokeWidth={0.5} opacity={0.4} />
               )}
               <circle
                 cx={n.x}

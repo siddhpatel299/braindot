@@ -44,6 +44,103 @@ export function computeBacklinks(notes: Note[]): Record<string, string[]> {
   return result;
 }
 
+export interface Heading {
+  /** 1–6 */
+  level: number;
+  text: string;
+}
+
+/**
+ * The note's headings in document order — the source for the editor's spine.
+ *
+ * Both markdown renderers consume a fenced code block whole before they look
+ * for headings, so a "# " inside ``` is not a heading anywhere. This walks the
+ * body the same way, which is what keeps the Nth tick pointing at the Nth
+ * rendered heading.
+ */
+export function extractHeadings(body: string): Heading[] {
+  const out: Heading[] = [];
+  const lines = body.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    if (/^```/.test(lines[i])) {
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) i++;
+      i++; // the closing fence
+      continue;
+    }
+    // Same pattern the renderers use, empty title included — an index that
+    // skipped "# " here would point every later tick at the wrong heading.
+    const m = lines[i].match(/^(#{1,6})\s+(.*)$/);
+    if (m) {
+      out.push({
+        level: m[1].length,
+        text: m[2].replace(/[*_`~]|\[\[|\]\]/g, '').trim() || 'Untitled section',
+      });
+    }
+    i++;
+  }
+  return out;
+}
+
+/* ===== Tables (GFM) =====
+   Shared by both renderers so the preview and the edit overlay always agree
+   on what counts as a table. */
+
+export type TableAlign = 'left' | 'center' | 'right';
+
+/**
+ * Split one table row into trimmed cells.
+ *
+ * Written as a scan rather than a split on /(?<!\\)\|/ so that an escaped
+ * \| inside a cell survives on every engine, lookbehind or not.
+ */
+export function splitTableRow(row: string): string[] {
+  let s = row.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0, -1);
+
+  const cells: string[] = [];
+  let cur = '';
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\' && s[i + 1] === '|') {
+      cur += '|';
+      i++;
+      continue;
+    }
+    if (s[i] === '|') {
+      cells.push(cur.trim());
+      cur = '';
+      continue;
+    }
+    cur += s[i];
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+
+/** The `|---|:--:|---:|` line that turns the row above it into a header. */
+export function isTableDelimiter(row: string): boolean {
+  if (!row.includes('-') || !row.includes('|')) return false;
+  const cells = splitTableRow(row);
+  return cells.length > 0 && cells.every((c) => /^:?-+:?$/.test(c));
+}
+
+/** A table starts where a row is followed by a delimiter row. */
+export function isTableStart(line: string, next: string | undefined): boolean {
+  return Boolean(line.includes('|') && next !== undefined && isTableDelimiter(next));
+}
+
+/** Column alignment, read off the delimiter row's colons. */
+export function parseTableAlign(row: string): TableAlign[] {
+  return splitTableRow(row).map((c) => {
+    const left = c.startsWith(':');
+    const right = c.endsWith(':');
+    if (left && right) return 'center';
+    return right ? 'right' : 'left';
+  });
+}
+
 /** Count words in a markdown body (ignoring markup noise). */
 export function countWords(body: string): number {
   // Strip wiki-link brackets and markdown punctuation for cleaner count
@@ -91,6 +188,7 @@ export function renderMarkdownOverlay(body: string): string {
   const out: string[] = [];
 
   let i = 0;
+  let headingIndex = 0;
 
   // Syntax markers (**, #, `, [[ ]]) must stay in the text — the overlay is
   // aligned to the textarea character for character — but they are dimmed so
@@ -175,8 +273,27 @@ export function renderMarkdownOverlay(body: string): string {
     // replayed verbatim — collapsing it to one space would shift the caret.
     const hMatch = line.match(/^(#{1,6})(\s+)(.*)$/);
     if (hMatch) {
-      out.push(`<span class="sb-tok-h">${mark(hMatch[1])}${hMatch[2]}${escapeHtml(hMatch[3])}</span>`);
+      // data-h indexes headings in document order so the editor's spine can
+      // scroll to one. Counted the same way in both renderers and in the
+      // spine's own parse: fenced code is skipped first, so the indices agree.
+      out.push(`<span class="sb-tok-h" data-h="${headingIndex++}">${mark(hMatch[1])}${hMatch[2]}${escapeHtml(hMatch[3])}</span>`);
       i++;
+      continue;
+    }
+
+    // Table: every character stays put, but the pipes fade so the eye reads
+    // columns instead of a wall of punctuation, and the |---|---| row — which
+    // carries no content at all — recedes furthest.
+    if (isTableStart(line, lines[i + 1])) {
+      const dimPipes = (raw: string) =>
+        raw.split('|').map((seg, idx) => (idx ? mark('|') : '') + renderInline(seg)).join('');
+      out.push(dimPipes(line));
+      out.push(`<span class="sb-tok-meta">${escapeHtml(lines[i + 1])}</span>`);
+      i += 2;
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim() !== '') {
+        out.push(dimPipes(lines[i]));
+        i++;
+      }
       continue;
     }
 

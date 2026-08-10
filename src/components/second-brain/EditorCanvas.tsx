@@ -1,8 +1,11 @@
 'use client';
 
 import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
-import { Note, TAG_COLORS } from '@/types';
-import { renderMarkdownOverlay, formatDate, countWords, plural } from '@/utils/markdown';
+import { Note, Folder } from '@/types';
+import {
+  renderMarkdownOverlay, formatDate, countWords, plural,
+  isTableStart, splitTableRow, parseTableAlign,
+} from '@/utils/markdown';
 import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
 import { htmlToMarkdown, looksLikeRichHtml } from '@/utils/htmlToMarkdown';
 import { getImageObjectUrl, isImageRef, refToId } from '@/utils/imageStore';
@@ -10,13 +13,16 @@ import { useImageInsert } from '@/hooks/useImageInsert';
 import { safeUrl, IMG_SLOT } from '@/utils/markdownHtml';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
-import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2, Type, Check } from 'lucide-react';
-import { FormattingToolbar } from './FormattingToolbar';
+import { ArrowLeft, RefreshCw, Trash2, ChevronRight } from 'lucide-react';
+import { SelectionFormatBar } from './SelectionFormatBar';
+import { Spine } from './Spine';
+import { TagEditor } from './TagEditor';
 import { WriterAI } from './WriterAI';
 import { SlashMenu, SlashCommand } from './SlashMenu';
 import { Mermaid } from './Mermaid';
 import { isMermaidLang, normalizeMermaidSource } from '@/utils/mermaid';
-import { useEditorFont, EDITOR_FONT_OPTIONS } from '@/hooks/useEditorFont';
+import { useEditorFont } from '@/hooks/useEditorFont';
+import type { ViewMode } from './EditorBar';
 
 // Split a markdown body into prose vs. diagram segments so the preview can
 // render diagrams as SVG while keeping the existing HTML renderer for
@@ -38,14 +44,15 @@ function splitMermaidBlocks(body: string): { type: 'text' | 'mermaid'; content: 
   return out.length ? out : [{ type: 'text', content: body }];
 }
 
-type ViewMode = 'edit' | 'preview' | 'diff';
-
 // Simple markdown-to-HTML for preview mode
 function renderMarkdownHtml(body: string): string {
   const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const lines = body.split('\n');
   const blocks: string[] = [];
   let i = 0;
+  // Kept in step with renderMarkdownOverlay and extractHeadings so the spine's
+  // ticks resolve to the same headings in every view mode.
+  let headingIndex = 0;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -77,7 +84,7 @@ function renderMarkdownHtml(body: string): string {
         calloutBody.push(lines[i].replace(/^>\s?/, ''));
         i++;
       }
-      blocks.push(`<div style="background:var(--acc-bg);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:10px 14px;margin:12px 0"><div style="font-size:10px;text-transform:uppercase;color:var(--acc2);font-weight:600;margin-bottom:4px">${escapeHtml(calloutType)}</div><div style="color:#9994cc;font-size:13px">${calloutBody.map(l => renderInline(l)).join('<br/>')}</div></div>`);
+      blocks.push(`<div style="background:var(--acc-bg);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:10px 14px;margin:12px 0"><div style="font-size:10px;text-transform:uppercase;color:var(--acc2);font-weight:600;margin-bottom:4px">${escapeHtml(calloutType)}</div><div style="color:var(--callout-text);font-size:13px">${calloutBody.map(l => renderInline(l)).join('<br/>')}</div></div>`);
       continue;
     }
 
@@ -97,10 +104,43 @@ function renderMarkdownHtml(body: string): string {
     if (hMatch) {
       const level = hMatch[1].length;
       const text = renderInline(hMatch[2]);
-      const sizes = ['22px', '18px', '16px', '15px', '14px', '13px'];
-      const topMargin = level <= 2 ? '16px' : '12px';
-      blocks.push(`<h${level} style="font-size:${sizes[level-1]};font-weight:700;color:var(--t1);margin-top:${topMargin};margin-bottom:8px;letter-spacing:-0.01em">${text}</h${level}>`);
+      const sizes = ['26px', '20px', '17px', '15px', '14px', '13px'];
+      const topMargin = level <= 2 ? '28px' : '20px';
+      blocks.push(`<h${level} data-h="${headingIndex++}" style="font-size:${sizes[level-1]};font-weight:700;color:var(--t1);margin-top:${topMargin};margin-bottom:8px;letter-spacing:-0.015em;scroll-margin-top:18px">${text}</h${level}>`);
       i++;
+      continue;
+    }
+
+    // Table (GFM): a header row, a delimiter row, then body rows. Checked
+    // before the horizontal rule and the lists, since "|---|---|" would
+    // otherwise be read as punctuation and printed literally.
+    if (isTableStart(line, lines[i + 1])) {
+      const header = splitTableRow(line);
+      const align = parseTableAlign(lines[i + 1]);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim() !== '') {
+        rows.push(splitTableRow(lines[i]));
+        i++;
+      }
+      const cell = (text: string, k: number, head: boolean) =>
+        `<${head ? 'th' : 'td'} style="padding:7px 12px;text-align:${align[k] || 'left'};` +
+        `border-bottom:1px solid var(--bd);color:var(--t1);vertical-align:top;` +
+        (head ? 'font-weight:700;white-space:nowrap;border-bottom-color:var(--bd2)' : '') +
+        `">${renderInline(text)}</${head ? 'th' : 'td'}>`;
+      const thead = header.map((c, k) => cell(c, k, true)).join('');
+      // Ragged rows are normal in hand-written markdown — every row is padded
+      // to the header's width so the grid never collapses mid-table.
+      const tbody = rows
+        .map((r) => `<tr>${header.map((_, k) => cell(r[k] ?? '', k, false)).join('')}</tr>`)
+        .join('');
+      // The table scrolls inside its own box: a wide table must never make the
+      // whole note scroll sideways.
+      blocks.push(
+        `<div style="overflow-x:auto;margin:18px 0;border:1px solid var(--bd);border-radius:6px">` +
+        `<table style="border-collapse:collapse;width:100%;font-size:0.9em">` +
+        `<thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>`,
+      );
       continue;
     }
 
@@ -138,7 +178,7 @@ function renderMarkdownHtml(body: string): string {
 
     // Paragraph
     const paraLines: string[] = [];
-    while (i < lines.length && lines[i].trim() !== '' && !/^#{1,6}\s/.test(lines[i]) && !/^```/.test(lines[i]) && !/^>\s/.test(lines[i]) && !/^\s*[-*+]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^---+\s*$/.test(lines[i])) {
+    while (i < lines.length && lines[i].trim() !== '' && !/^#{1,6}\s/.test(lines[i]) && !/^```/.test(lines[i]) && !/^>\s/.test(lines[i]) && !/^\s*[-*+]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^---+\s*$/.test(lines[i]) && !isTableStart(lines[i], lines[i + 1])) {
       paraLines.push(lines[i]);
       i++;
     }
@@ -147,7 +187,11 @@ function renderMarkdownHtml(body: string): string {
     }
   }
 
-  return `<div style="font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.8;color:var(--t2)">${blocks.join('\n')}</div>`;
+  // No font-family or size here: .sb-preview-prose owns both, so reading mode
+  // and writing mode land on the same metrics and the same reading font.
+  // Pinning 14px monospace here made the text reflow every time the writer
+  // switched modes, and quietly overrode the font they had chosen.
+  return `<div>${blocks.join('\n')}</div>`;
 }
 
 // Preview inline rendering — unlike the edit overlay, this STRIPS the markdown
@@ -191,8 +235,13 @@ function escapeHtml(s: string): string {
 interface EditorCanvasProps {
   note: Note;
   allNotes: Note[];
+  /** Used for the breadcrumb above the title — where this note lives. */
+  folders: Folder[];
   dirty: boolean;
   editor: ReturnType<typeof useEditor>;
+  /** Owned by the page: the mode switch sits in the shared editor bar. */
+  viewMode: ViewMode;
+  onViewModeChange: (m: ViewMode) => void;
   onSave: (id: string, patch: Partial<Note>) => void;
   onOpenNote: (id: string) => void;
   onOpenNoteByTitle: (title: string) => void;
@@ -200,26 +249,33 @@ interface EditorCanvasProps {
   onDeleteNote?: (id: string) => void;
   /** An image could not be uploaded and lives only in this browser. */
   onImagesLocalOnly?: () => void;
+  /** Filled with the file-picker opener so the editor bar's button can call it. */
+  imagePickerRef?: React.MutableRefObject<(() => void) | null>;
+  onImageBusyChange?: (busy: boolean) => void;
 }
 
 export function EditorCanvas({
   note,
   allNotes,
+  folders,
   dirty,
   editor,
+  viewMode,
+  onViewModeChange,
   onSave,
   onOpenNote,
   onOpenNoteByTitle,
   onToggleEvergreen,
   onDeleteNote,
   onImagesLocalOnly,
+  imagePickerRef,
+  onImageBusyChange,
 }: EditorCanvasProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const insertImage = useImageInsert();
-  const { font: editorFont, setFont: setEditorFont } = useEditorFont();
-  const [fontMenuOpen, setFontMenuOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('preview');
+  const { font: editorFont } = useEditorFont();
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -257,32 +313,27 @@ export function EditorCanvas({
   const diffLines = useMemo(() => computeLineDiff(note.body, editor.body), [note.body, editor.body]);
   const stats = useMemo(() => diffStats(note.body, editor.body), [note.body, editor.body]);
 
-  // A note opens as a finished document, not as source. Someone who does not
-  // know markdown should never have to read their own note through "## " and
-  // "**" — they click the text to start editing, the way a document app works.
-  // A note with an empty body has nothing to preview, so it opens ready to type.
-  // Kept out of localStorage: the mode is per-note, not a saved preference.
-  // Adjusted during render rather than in an effect — this is React's
-  // documented way to reset state when a prop changes, and it avoids the
-  // extra commit (and visible flash of the wrong mode) an effect would cause.
-  // Comparing ids, not bodies: the body changes on every autosave and would
-  // throw the writer back into preview mid-sentence.
-  const [lastNoteId, setLastNoteId] = useState(note.id);
-  if (note.id !== lastNoteId) {
-    setLastNoteId(note.id);
-    setViewMode(note.body.trim() ? 'preview' : 'edit');
-  }
-
-  const changeViewMode = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-  }, []);
-
   // Clicking the rendered document drops into editing and puts the caret in
   // the textarea, so the click that starts a thought does not need a second one.
   const editFromPreview = useCallback(() => {
-    setViewMode('edit');
+    onViewModeChange('edit');
     setTimeout(() => textareaRef.current?.focus(), 0);
-  }, []);
+  }, [onViewModeChange]);
+
+  // Where this note sits in the vault. The breadcrumb replaces a decorative
+  // header: a slip-box card's first line is which drawer it came out of.
+  const folderPath = useMemo(() => {
+    const byId = new Map(folders.map((f) => [f.id, f]));
+    const path: string[] = [];
+    let cursor = byId.get(note.folderId);
+    // Guard against a cycle in stored data rather than hanging the render.
+    let guard = 0;
+    while (cursor && guard++ < 12) {
+      path.unshift(cursor.name);
+      cursor = cursor.parentId ? byId.get(cursor.parentId) : undefined;
+    }
+    return path;
+  }, [folders, note.folderId]);
 
   // Auto-resize textarea to match content height
   const autoResize = useCallback(() => {
@@ -374,6 +425,14 @@ export function EditorCanvas({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pickImage = useCallback(() => imageInputRef.current?.click(), []);
 
+  // The "add a picture" button lives in the editor bar, which is rendered by
+  // the page; the file input has to stay next to the note it inserts into.
+  useEffect(() => {
+    if (!imagePickerRef) return;
+    imagePickerRef.current = pickImage;
+    return () => { imagePickerRef.current = null; };
+  }, [imagePickerRef, pickImage]);
+
   // Slash commands for the / menu
   const slashCommands: SlashCommand[] = useMemo(() => {
     const insertAtCursor = (text: string) => {
@@ -446,7 +505,11 @@ export function EditorCanvas({
       {
         id: 'table', label: 'Table', description: 'Insert a 3-column table',
         icon: ({ size }) => <span style={{ fontSize: size || 14 }}>▦</span>,
-        action: () => insertAtCursor('\n| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell | Cell | Cell |\n'),
+        action: () => insertAtCursor(
+          '\n| Column 1 | Column 2 | Column 3 |\n'
+          + '| -------- | -------- | -------- |\n'
+          + '| Cell     | Cell     | Cell     |\n',
+        ),
       },
       {
         id: 'todo', label: 'Todo list', description: 'Checkbox todo items',
@@ -538,6 +601,7 @@ export function EditorCanvas({
       const images = files.filter((f) => f.type.startsWith('image/'));
       if (!images.length) return;
       setImageBusy(true);
+      onImageBusyChange?.(true);
       const refs: string[] = [];
       let anyLocalOnly = false;
       try {
@@ -555,11 +619,12 @@ export function EditorCanvas({
         }
       } finally {
         setImageBusy(false);
+        onImageBusyChange?.(false);
       }
       if (refs.length) insertBlockAtCaret(refs.join('\n\n'));
       if (anyLocalOnly) onImagesLocalOnly?.();
     },
-    [insertBlockAtCaret, insertImage, onImagesLocalOnly],
+    [insertBlockAtCaret, insertImage, onImagesLocalOnly, onImageBusyChange],
   );
 
   const handleDrop = useCallback(
@@ -776,6 +841,8 @@ export function EditorCanvas({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        // Anchors the floating AI trigger to the writing surface.
+        position: 'relative',
       }}
     >
       {/* Shared by the toolbar button and the /image slash command. Reset after
@@ -793,295 +860,180 @@ export function EditorCanvas({
         }}
       />
 
-      {/* Mode switcher + formatting toolbar */}
-      <div style={{
-        display: 'flex', alignItems: 'center',
-        borderBottom: '1px solid var(--bd)', background: 'var(--bg1)', flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', padding: '0 4px' }}>
-          <ModeTab icon={Pencil} label="edit" active={viewMode === 'edit'} onClick={() => changeViewMode('edit')} />
-          <ModeTab icon={Eye} label="preview" active={viewMode === 'preview'} onClick={() => changeViewMode('preview')} />
-          <ModeTab icon={GitCompare} label="diff" active={viewMode === 'diff'} onClick={() => changeViewMode('diff')} />
-        </div>
-        {viewMode === 'edit' && (
-          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            <FormattingToolbar
-              textareaRef={textareaRef}
-              body={editor.body}
-              onBodyChange={editor.updateBody}
-              onInsertImage={pickImage}
-              imageBusy={imageBusy}
-            />
-          </div>
-        )}
-        {viewMode !== 'edit' && <div style={{ flex: 1 }} />}
-
-        {/* Reading-font picker + undo/redo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 4px', flexShrink: 0, position: 'relative' }}>
-          <button
-            onClick={() => setFontMenuOpen((o) => !o)}
-            title="Reading font"
-            aria-label="Reading font"
-            style={{
-              width: 28, height: 28, borderRadius: 3,
-              background: fontMenuOpen ? 'var(--bg3)' : 'transparent',
-              border: '1px solid transparent',
-              color: editorFont === 'mono' ? 'var(--t2)' : 'var(--acc2)',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; }}
-            onMouseLeave={(e) => { if (!fontMenuOpen) e.currentTarget.style.background = 'transparent'; }}
-          >
-            <Type size={14} strokeWidth={2} />
-          </button>
-          {fontMenuOpen && (
-            <>
-              <div
-                onClick={() => setFontMenuOpen(false)}
-                style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-              />
-              <div
-                style={{
-                  position: 'absolute', top: 34, right: 0, zIndex: 50,
-                  width: 220, background: 'var(--bg2)', border: '1px solid var(--bd2)',
-                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', padding: 4,
-                }}
-              >
-                <div style={{
-                  fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em',
-                  color: 'var(--t3)', fontWeight: 600, padding: '5px 8px 6px',
-                }}>
-                  reading font
-                </div>
-                {EDITOR_FONT_OPTIONS.map((opt) => {
-                  const active = editorFont === opt.id;
-                  // <samp> escapes the global monospace-!important rule, so the
-                  // inline font stack actually renders — each label previews
-                  // its own face.
-                  const stack =
-                    opt.id === 'serif'
-                      ? "'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif"
-                      : opt.id === 'sans'
-                        ? "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif"
-                        : "'JetBrains Mono','Fira Mono',monospace";
-                  return (
-                    <button
-                      key={opt.id}
-                      onClick={() => { setEditorFont(opt.id); setFontMenuOpen(false); }}
-                      style={{
-                        width: '100%', textAlign: 'left', padding: '7px 8px', borderRadius: 4,
-                        background: active ? 'var(--acc-bg)' : 'transparent',
-                        border: active ? '1px solid #3d378a' : '1px solid transparent',
-                        color: 'var(--t1)', cursor: 'pointer', display: 'flex',
-                        alignItems: 'center', gap: 8,
-                      }}
-                      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--bg3)'; }}
-                      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <span style={{ width: 14, flexShrink: 0, color: 'var(--acc2)' }}>
-                        {active && <Check size={13} />}
-                      </span>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <samp style={{ fontFamily: stack, fontSize: 14, color: active ? 'var(--t1)' : 'var(--t2)', display: 'block' }}>
-                          {opt.label} — Aa
-                        </samp>
-                        <span style={{ fontSize: 10, color: 'var(--t3)' }}>{opt.hint}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-          <button
-            onClick={editor.undo}
-            disabled={!editor.canUndo}
-            title="Undo (⌘Z)"
-            style={{
-              width: 28, height: 28, borderRadius: 3,
-              background: 'transparent', border: '1px solid transparent',
-              color: editor.canUndo ? 'var(--t2)' : 'var(--t3)',
-              cursor: editor.canUndo ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              opacity: editor.canUndo ? 1 : 0.4,
-            }}
-            onMouseEnter={(e) => { if (editor.canUndo) { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; } }}
-            onMouseLeave={(e) => { if (editor.canUndo) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; } }}
-          >
-            <Undo2 size={14} strokeWidth={2} />
-          </button>
-          <button
-            onClick={editor.redo}
-            disabled={!editor.canRedo}
-            title="Redo (⌘⇧Z)"
-            style={{
-              width: 28, height: 28, borderRadius: 3,
-              background: 'transparent', border: '1px solid transparent',
-              color: editor.canRedo ? 'var(--t2)' : 'var(--t3)',
-              cursor: editor.canRedo ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              opacity: editor.canRedo ? 1 : 0.4,
-            }}
-            onMouseEnter={(e) => { if (editor.canRedo) { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; } }}
-            onMouseLeave={(e) => { if (editor.canRedo) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; } }}
-          >
-            <Redo2 size={14} strokeWidth={2} />
-          </button>
-        </div>
-      </div>
 
       <div
+        ref={scrollRef}
         className="sb-scroll"
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '28px 48px 80px',
+          padding: '30px 28px 96px',
         }}
       >
-        {/* Comfortable writing measure — ~66 characters at the 16.5px body
-            size. Wider than this and the eye loses the line on return. */}
-        <div style={{ maxWidth: 680, margin: '0 auto' }}>
-        {/* Note header: tags + metadata */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 14,
-            flexWrap: 'wrap',
-          }}
-        >
-          {note.tags.map((t) => {
-            const c = TAG_COLORS[t] || TAG_COLORS.strategy;
-            return (
-              <span
-                key={t}
+        {/* The margin, then the measure. ~66 characters at the 16.5px body
+            size — wider than this and the eye loses the line on return. */}
+        <div className="sb-page">
+          <Spine body={editor.body} scrollRef={scrollRef} viewMode={viewMode} />
+
+          <div>
+            {/* Which drawer this card came out of. */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+                marginBottom: 12,
+                fontSize: 10,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: 'var(--t3)',
+                fontWeight: 600,
+                minHeight: 13,
+              }}
+            >
+              {folderPath.map((name, i) => (
+                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                  {i > 0 && <ChevronRight size={10} style={{ opacity: 0.6 }} />}
+                  <span style={{ color: i === folderPath.length - 1 ? 'var(--t2)' : 'var(--t3)' }}>{name}</span>
+                </span>
+              ))}
+            </div>
+
+            {/* Title — set in the chrome's own typewriter face at the size of a
+                card heading, while the body below reads in the chosen prose
+                font. That contrast is what makes the title read as a label on
+                the card rather than as the first line of the text. */}
+            <input
+              className="sb-title-input"
+              value={editor.title}
+              onChange={(e) => editor.updateTitle(e.target.value)}
+              placeholder="Untitled note"
+              aria-label="Note title"
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--t1)',
+                fontSize: 30,
+                fontWeight: 700,
+                letterSpacing: '-0.035em',
+                lineHeight: 1.2,
+                padding: 0,
+                marginBottom: 6,
+                fontFamily: 'inherit',
+                caretColor: 'var(--acc2)',
+              }}
+            />
+
+            <input
+              className="sb-prose-input"
+              value={editor.subtitle}
+              onChange={(e) => editor.updateSubtitle(e.target.value)}
+              placeholder="What is this note about?"
+              aria-label="Note subtitle"
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--t2)',
+                fontSize: 15.5,
+                lineHeight: 1.5,
+                padding: 0,
+                marginBottom: 16,
+                fontFamily: 'inherit',
+                caretColor: 'var(--acc2)',
+              }}
+            />
+
+            {/* Facts about the note, below the title where they read as a
+                caption. Tags and status are controls; the counts are not. */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                paddingBottom: 18,
+                marginBottom: 26,
+                borderBottom: '1px solid var(--bd)',
+              }}
+            >
+              <button
+                onClick={() => onToggleEvergreen(note.id)}
+                title={note.status === 'evergreen'
+                  ? 'This note is settled. Mark it a draft again.'
+                  : 'Mark this note evergreen once you trust it.'}
                 style={{
-                  fontSize: 11,
-                  color: c.color,
-                  background: c.bg,
-                  border: `1px solid ${c.border}`,
+                  fontSize: 10.5,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  fontWeight: 600,
+                  color: note.status === 'evergreen' ? 'var(--grn)' : 'var(--t3)',
+                  background: note.status === 'evergreen' ? 'var(--grn-bg)' : 'transparent',
+                  border: '1px solid ' + (note.status === 'evergreen' ? 'var(--grn-bd)' : 'var(--bd2)'),
                   padding: '3px 8px',
                   borderRadius: 3,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
                   fontFamily: 'inherit',
                 }}
               >
-                #{t}
+                {note.status === 'evergreen' ? (
+                  <>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--grn)' }} />
+                    evergreen
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={10} />
+                    draft
+                  </>
+                )}
+              </button>
+
+              <TagEditor
+                tags={note.tags}
+                allNotes={allNotes}
+                onChange={(tags) => onSave(note.id, { tags })}
+              />
+
+              <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 2 }}>
+                {formatDate(note.updatedAt)} · {plural(countWords(note.body), 'word')} · {plural(backlinks.length, 'backlink')}
               </span>
-            );
-          })}
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{formatDate(note.updatedAt)}</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{plural(countWords(note.body), 'word')}</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>{plural(backlinks.length, 'backlink')}</span>
-          <span style={{ color: 'var(--t3)', fontSize: 11 }}>·</span>
-          <button
-            onClick={() => onToggleEvergreen(note.id)}
-            title="Toggle evergreen status"
-            style={{
-              fontSize: 11,
-              color: note.status === 'evergreen' ? 'var(--grn)' : 'var(--t3)',
-              background: note.status === 'evergreen' ? 'var(--grn-bg)' : 'transparent',
-              border:
-                note.status === 'evergreen' ? '1px solid #1a4a2a' : '1px solid var(--bd2)',
-              padding: '3px 8px',
-              borderRadius: 3,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              fontFamily: 'inherit',
-            }}
-          >
-            {note.status === 'evergreen' ? (
-              <>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--grn)' }} />
-                evergreen
-              </>
-            ) : (
-              <>
-                <RefreshCw size={11} />
-                draft
-              </>
-            )}
-          </button>
-          {onDeleteNote && (
-            <button
-              onClick={() => onDeleteNote(note.id)}
-              title="Delete note"
-              style={{
-                fontSize: 11,
-                color: 'var(--t3)',
-                background: 'transparent',
-                border: '1px solid transparent',
-                padding: '3px 6px',
-                borderRadius: 3,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                fontFamily: 'inherit',
-                marginLeft: 'auto',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--red)';
-                e.currentTarget.style.borderColor = 'var(--bd2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--t3)';
-                e.currentTarget.style.borderColor = 'transparent';
-              }}
-            >
-              <Trash2 size={12} />
-            </button>
-          )}
-        </div>
 
-        {/* Title */}
-        <input
-          className="sb-prose-input"
-          value={editor.title}
-          onChange={(e) => editor.updateTitle(e.target.value)}
-          placeholder="Untitled note"
-          style={{
-            width: '100%',
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: 'var(--t1)',
-            fontSize: 34,
-            fontWeight: 700,
-            letterSpacing: '-0.022em',
-            lineHeight: 1.15,
-            padding: 0,
-            marginBottom: 8,
-            fontFamily: 'inherit',
-            caretColor: 'var(--acc2)',
-          }}
-        />
-
-        {/* Subtitle */}
-        <input
-          className="sb-prose-input"
-          value={editor.subtitle}
-          onChange={(e) => editor.updateSubtitle(e.target.value)}
-          placeholder="A short tagline…"
-          style={{
-            width: '100%',
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: 'var(--t2)',
-            fontSize: 16,
-            fontStyle: 'italic',
-            padding: 0,
-            marginBottom: 30,
-            fontFamily: 'inherit',
-            caretColor: 'var(--acc2)',
-          }}
-        />
+              {onDeleteNote && (
+                <button
+                  onClick={() => onDeleteNote(note.id)}
+                  title="Delete this note"
+                  aria-label="Delete this note"
+                  style={{
+                    color: 'var(--t3)',
+                    background: 'transparent',
+                    border: '1px solid transparent',
+                    padding: '4px 6px',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    marginLeft: 'auto',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--red)';
+                    e.currentTarget.style.borderColor = 'var(--bd2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--t3)';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
 
         {/* Body: conditional on view mode */}
         {viewMode === 'edit' && (
@@ -1109,7 +1061,7 @@ export function EditorCanvas({
                 if (Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault();
               }}
               onBlur={() => setTimeout(closeLinkAuto, 150)}
-              placeholder="# Start writing your note…"
+              placeholder="Start writing. Type / for headings, lists and pictures."
               spellCheck={false}
               rows={1}
             />
@@ -1140,7 +1092,7 @@ export function EditorCanvas({
                 style={{
                   padding: '6px 8px', borderRadius: 4, cursor: 'pointer',
                   background: i === linkSel ? 'var(--acc-bg)' : 'transparent',
-                  border: i === linkSel ? '1px solid #3d378a' : '1px solid transparent',
+                  border: i === linkSel ? '1px solid var(--acc-bd)' : '1px solid transparent',
                 }}
               >
                 <div style={{ fontSize: 12, color: i === linkSel ? 'var(--t1)' : 'var(--t2)', fontWeight: 500 }}>
@@ -1196,34 +1148,28 @@ export function EditorCanvas({
           <DiffView diffLines={diffLines} additions={stats.additions} deletions={stats.deletions} dirty={dirty} />
         )}
 
-        {/* Backlinks section */}
-        <div
-          style={{
-            marginTop: 40,
-            background: 'var(--bg2)',
-            border: '1px solid var(--bd)',
-            borderRadius: 4,
-            padding: '12px 16px',
-          }}
-        >
+        {/* Backlinks — the other half of a slip-box. Set as an apparatus at
+            the foot of the page rather than a boxed widget: it is part of the
+            document, not a panel that happens to sit under it. */}
+        <div style={{ marginTop: 48, paddingTop: 18, borderTop: '1px solid var(--bd)' }}>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 10,
               textTransform: 'uppercase',
-              letterSpacing: '0.09em',
+              letterSpacing: '0.12em',
               color: 'var(--t3)',
-              marginBottom: 10,
+              marginBottom: 12,
               fontWeight: 600,
             }}
           >
-            backlinks — {backlinks.length} {backlinks.length === 1 ? 'note' : 'notes'} reference this
+            referenced by {backlinks.length === 0 ? 'nothing yet' : plural(backlinks.length, 'note')}
           </div>
           {backlinks.length === 0 ? (
-            <div style={{ fontSize: 13, color: 'var(--t3)', fontStyle: 'italic' }}>
-              no backlinks yet. link this note from elsewhere with [[{note.title}]].
+            <div style={{ fontSize: 12.5, color: 'var(--t3)', lineHeight: 1.6 }}>
+              Write [[{note.title}]] in another note and it will show up here.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {backlinks.map((b) => (
                 <button
                   key={b.id}
@@ -1231,24 +1177,21 @@ export function EditorCanvas({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    padding: 0,
+                    padding: '4px 6px 4px 0',
                     color: 'var(--t2)',
                     fontSize: 13,
                     cursor: 'pointer',
                     textAlign: 'left',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6,
+                    gap: 8,
+                    borderRadius: 3,
                     fontFamily: 'inherit',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--acc2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'var(--t2)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--acc2)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t2)'; }}
                 >
-                  <ArrowLeft size={13} style={{ opacity: 0.6 }} />
+                  <ArrowLeft size={13} style={{ opacity: 0.6, flexShrink: 0 }} />
                   {b.title}
                 </button>
               ))}
@@ -1256,20 +1199,22 @@ export function EditorCanvas({
           )}
         </div>
 
-        {/* Hint at bottom for wiki-link click */}
-        <div
-          style={{
-            marginTop: 16,
-            fontSize: 11,
-            color: 'var(--t3)',
-            opacity: 0.7,
-            fontStyle: 'italic',
-          }}
-        >
-          tip: ⌘+click a [[wiki-link]] to open that note in a new tab
-        </div>
+            <div style={{ marginTop: 20, fontSize: 11, color: 'var(--t3)' }}>
+              Hold ⌘ and click a linked note to open it.
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Formatting appears at the selection instead of holding a row. */}
+      {viewMode === 'edit' && (
+        <SelectionFormatBar
+          textareaRef={textareaRef}
+          body={editor.body}
+          onBodyChange={editor.updateBody}
+          suppressed={slashOpen || Boolean(linkAuto)}
+        />
+      )}
 
       {/* Writer AI — manages its own open/close state */}
       <WriterAI
@@ -1289,48 +1234,6 @@ export function EditorCanvas({
         onClose={() => setSlashOpen(false)}
       />
     </div>
-  );
-}
-
-/* ---------- Mode Tab Button ---------- */
-function ModeTab({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        height: 36,
-        padding: '0 14px',
-        background: 'transparent',
-        border: 'none',
-        borderBottom: active ? '2px solid var(--acc)' : '2px solid transparent',
-        color: active ? 'var(--t1)' : 'var(--t3)',
-        fontSize: 12,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        textTransform: 'uppercase',
-        letterSpacing: '0.06em',
-        fontWeight: active ? 600 : 400,
-        transition: 'color 0.12s',
-      }}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--t2)'; }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--t3)'; }}
-    >
-      <Icon size={13} strokeWidth={2} />
-      {label}
-    </button>
   );
 }
 

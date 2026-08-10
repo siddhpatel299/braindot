@@ -9,76 +9,82 @@
   --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
 }
 
-/* ===== Braindot Design System — Theme Variables ===== */
+/* ===== Braindot Design System — Theme Variables =====
+   Direction: "slip-box". The ground is warm graphite (dark) or warm paper
+   (light) rather than the blue-black of a terminal — a note is a card under a
+   desk lamp, not a console. The accent stays in the iron-gall ink family:
+   cool indigo against a warm ground, which is what ink on paper actually is.
+   Red/amber/green stay reserved for state (danger, unsaved, saved), so the
+   accent never has to compete with a warning. */
 
 /* Dark mode (default) */
 [data-theme="dark"] {
-  --bg:       #0c0c0e;
-  --bg1:      #111113;
-  --bg2:      #171719;
-  --bg3:      #1e1e21;
-  --bg4:      #26262a;
-  --bd:       #252528;
-  --bd2:      #333338;
-  --t1:       #f0f0f2;
-  --t2:       #888894;
-  --t3:       #444450;
-  --acc:      #7c6ef7;
-  --acc2:     #b0a8fb;
-  --acc-bg:   #1a1830;
-  --acc-bd:   #3d378a;
-  --grn:      #34d399;
-  --grn-bg:   #0a1f16;
-  --grn-bd:   #1a4a2a;
-  --amb:      #fbbf24;
-  --amb-bg:   #1c1608;
-  --amb-bd:   #4a3010;
-  --blu:      #60a5fa;
-  --blu-bg:   #0c1f2e;
-  --blu-bd:   #0f3a50;
-  --red:      #f87171;
-  --red-bg:   #2a0f0f;
-  --coral:    #f0997b;
-  --coral-bg: #2a160c;
-  --coral-bd: #4a2515;
-  --callout-text: #9994cc;
-  --selection-bg: rgba(124, 110, 247, 0.25);
-  --canvas-dot: #18181b;
+  --bg:       #141310;
+  --bg1:      #1b1917;
+  --bg2:      #23201d;
+  --bg3:      #2c2925;
+  --bg4:      #363229;
+  --bd:       #2a2723;
+  --bd2:      #3b3630;
+  --t1:       #efeae0;
+  --t2:       #a19890;
+  --t3:       #6e665c;
+  --acc:      #6f63e0;
+  --acc2:     #a79ef5;
+  --acc-bg:   #1e1b33;
+  --acc-bd:   #3b3480;
+  --grn:      #43c495;
+  --grn-bg:   #0e1f18;
+  --grn-bd:   #1f4a33;
+  --amb:      #e9b14b;
+  --amb-bg:   #201808;
+  --amb-bd:   #4a3413;
+  --blu:      #6fa8dc;
+  --blu-bg:   #0f1f2b;
+  --blu-bd:   #1a3a4e;
+  --red:      #e8746b;
+  --red-bg:   #2a1310;
+  --coral:    #e8926f;
+  --coral-bg: #2a1810;
+  --coral-bd: #4a2818;
+  --callout-text: #a49dd4;
+  --selection-bg: rgba(111, 99, 224, 0.26);
+  --canvas-dot: #24211d;
 }
 
 /* Light mode */
 [data-theme="light"] {
-  --bg:       #f5f5f3;
-  --bg1:      #ffffff;
-  --bg2:      #f0efed;
-  --bg3:      #e8e7e4;
-  --bg4:      #dddcda;
-  --bd:       #e0dedd;
-  --bd2:      #cccbc8;
-  --t1:       #1a1a18;
-  --t2:       #5a5a56;
-  --t3:       #9a9994;
-  --acc:      #5b4fe8;
-  --acc2:     #4338ca;
-  --acc-bg:   #eeecfd;
-  --acc-bd:   #c7c3f5;
+  --bg:       #efece4;
+  --bg1:      #f8f6f1;
+  --bg2:      #e6e2d8;
+  --bg3:      #dbd6ca;
+  --bg4:      #cdc7b9;
+  --bd:       #dcd7cb;
+  --bd2:      #c4bdaf;
+  --t1:       #1e1b16;
+  --t2:       #5b554b;
+  --t3:       #8b8478;
+  --acc:      #5449c9;
+  --acc2:     #3b32a8;
+  --acc-bg:   #e9e7fa;
+  --acc-bd:   #c0baef;
   --grn:      #0f7a56;
-  --grn-bg:   #e8f7f1;
-  --grn-bd:   #6ee7b7;
-  --amb:      #b45309;
-  --amb-bg:   #fef3c7;
-  --amb-bd:   #fcd34d;
+  --grn-bg:   #e2f2ea;
+  --grn-bd:   #86ceae;
+  --amb:      #9c5b12;
+  --amb-bg:   #f7ecd4;
+  --amb-bd:   #dcb579;
   --blu:      #1d6fa4;
-  --blu-bg:   #e8f2fb;
-  --blu-bd:   #93c5fd;
-  --red:      #b91c1c;
-  --red-bg:   #fef2f2;
-  --coral:    #c2410c;
-  --coral-bg: #fff7ed;
-  --coral-bd: #fed7aa;
-  --callout-text: #4338ca;
-  --selection-bg: rgba(91, 79, 232, 0.18);
-  --canvas-dot: #d8d7d4;
+  --blu-bg:   #e2ecf5;
+  --blu-bd:   #9dc0dd;
+  --red:      #a8261f;
+  --red-bg:   #f7e4e0;
+  --coral:    #b1470f;
+  --coral-bg: #f8e9dc;
+  --coral-bd: #e0bb9a;
+  --callout-text: #3b32a8;
+  --selection-bg: rgba(84, 73, 201, 0.18);
+  --canvas-dot: #d3cec1;
 }
 
 /* Default to dark ONLY before JS sets data-theme (prevents flash).
@@ -86,37 +92,37 @@
    as [data-theme="light"] and, coming later in the file, would override it,
    permanently defeating light mode. */
 :root:not([data-theme]) {
-  --bg:       #0c0c0e;
-  --bg1:      #111113;
-  --bg2:      #171719;
-  --bg3:      #1e1e21;
-  --bg4:      #26262a;
-  --bd:       #252528;
-  --bd2:      #333338;
-  --t1:       #f0f0f2;
-  --t2:       #888894;
-  --t3:       #444450;
-  --acc:      #7c6ef7;
-  --acc2:     #b0a8fb;
-  --acc-bg:   #1a1830;
-  --acc-bd:   #3d378a;
-  --grn:      #34d399;
-  --grn-bg:   #0a1f16;
-  --grn-bd:   #1a4a2a;
-  --amb:      #fbbf24;
-  --amb-bg:   #1c1608;
-  --amb-bd:   #4a3010;
-  --blu:      #60a5fa;
-  --blu-bg:   #0c1f2e;
-  --blu-bd:   #0f3a50;
-  --red:      #f87171;
-  --red-bg:   #2a0f0f;
-  --coral:    #f0997b;
-  --coral-bg: #2a160c;
-  --coral-bd: #4a2515;
-  --callout-text: #9994cc;
-  --selection-bg: rgba(124, 110, 247, 0.25);
-  --canvas-dot: #18181b;
+  --bg:       #141310;
+  --bg1:      #1b1917;
+  --bg2:      #23201d;
+  --bg3:      #2c2925;
+  --bg4:      #363229;
+  --bd:       #2a2723;
+  --bd2:      #3b3630;
+  --t1:       #efeae0;
+  --t2:       #a19890;
+  --t3:       #6e665c;
+  --acc:      #6f63e0;
+  --acc2:     #a79ef5;
+  --acc-bg:   #1e1b33;
+  --acc-bd:   #3b3480;
+  --grn:      #43c495;
+  --grn-bg:   #0e1f18;
+  --grn-bd:   #1f4a33;
+  --amb:      #e9b14b;
+  --amb-bg:   #201808;
+  --amb-bd:   #4a3413;
+  --blu:      #6fa8dc;
+  --blu-bg:   #0f1f2b;
+  --blu-bd:   #1a3a4e;
+  --red:      #e8746b;
+  --red-bg:   #2a1310;
+  --coral:    #e8926f;
+  --coral-bg: #2a1810;
+  --coral-bd: #4a2818;
+  --callout-text: #a49dd4;
+  --selection-bg: rgba(111, 99, 224, 0.26);
+  --canvas-dot: #24211d;
 }
 
 * {
@@ -161,10 +167,11 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   --font-reading-mono:  'JetBrains Mono', 'Fira Mono', monospace;
   --font-reading-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, 'Times New Roman', serif;
   --font-reading-sans:  system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --editor-font: var(--font-reading-mono);
+  /* Serif by default: prose is prose. Mono stays one click away in the bar. */
+  --editor-font: var(--font-reading-serif);
 }
-:root[data-editor-font="serif"] { --editor-font: var(--font-reading-serif); }
-:root[data-editor-font="sans"]  { --editor-font: var(--font-reading-sans); }
+:root[data-editor-font="mono"] { --editor-font: var(--font-reading-mono); }
+:root[data-editor-font="sans"] { --editor-font: var(--font-reading-sans); }
 
 /* Edit-mode overlay: textarea + styled <pre> must share the exact same
    family/metrics or the caret drifts — both read --editor-font. */
@@ -181,7 +188,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 
 /* Preview-mode rendered markdown — prose in the reading font, code stays mono.
    Size matches .sb-editor-wrap so toggling edit/preview doesn't reflow. */
-.sb-preview-prose { font-size: 16.5px; line-height: 1.8; }
+.sb-preview-prose { font-size: 16.5px; line-height: 1.8; color: var(--t1); }
 .sb-preview-prose,
 .sb-preview-prose * { font-family: var(--editor-font) !important; }
 .sb-preview-prose code,
@@ -297,7 +304,9 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   font-size: inherit;
   line-height: inherit;
   letter-spacing: inherit;
-  color: var(--t2);
+  /* The note's own text reads at full strength — it is the document, not
+     chrome. Markdown punctuation is what recedes (see .sb-mark). */
+  color: var(--t1);
   pointer-events: none;
   z-index: 1;
 }
@@ -459,8 +468,28 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .sb-note-row:hover .sb-note-badge { display: none; }
 .sb-note-del:hover { opacity: 1 !important; }
 
-/* Reset focus rings on the app (we want minimal chrome) */
-button:focus, input:focus, textarea:focus {
+/* Pointer focus stays quiet; keyboard focus is always visible. :focus-visible
+   only matches when the browser judges a ring is warranted (tab, not click),
+   so this costs nothing visually and makes the app navigable without a mouse. */
+button:focus, input:focus, textarea:focus, [tabindex]:focus {
+  outline: none;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--acc2);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* …except on the writing surface itself. A ring drawn around the whole page
+   of prose is a box the writer has to look past all day, and it says nothing
+   the blinking caret has not already said. */
+.sb-editor-textarea:focus-visible,
+.sb-prose-input:focus-visible,
+.sb-title-input:focus-visible {
   outline: none;
 }
 
@@ -473,10 +502,12 @@ button {
 .sb-no-scrollbar::-webkit-scrollbar { display: none; }
 .sb-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Tab close button: show on tab hover */
+/* Tab close button: show on tab hover — and on keyboard focus, or it would be
+   an invisible control for anyone not using a mouse. */
 .sb-tab-close { opacity: 0 !important; }
 div:hover > .sb-tab-close { opacity: 0.6 !important; }
 div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) !important; }
+.sb-tab-close:focus-visible { opacity: 1 !important; background: var(--bg3) !important; }
 
 /* Make the editor canvas wrap shrink-to-fit so the textarea overlay technique works */
 .sb-editor-wrap > textarea.sb-editor-textarea,
@@ -516,6 +547,156 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
   background: rgba(52, 211, 153, 0.15);
   border-bottom: 1px solid rgba(52, 211, 153, 0.4);
   color: var(--t1);
+}
+
+/* ===== The spine =====
+   A Zettel carries its branch numbers down the left margin, in a second hand,
+   beside the text rather than above it. This is that margin: the note's
+   headings as ticks, sticky alongside the writing measure. Screens are wide
+   and short, so structure belongs in the horizontal space nobody was using —
+   not in another horizontal bar stacked on top of the page. */
+.sb-page {
+  display: grid;
+  /* The margin is carved out of the page's own gutter, not out of the
+     measure — the line length a writer reads at must not pay for it. */
+  grid-template-columns: 22px minmax(0, 680px);
+  column-gap: 18px;
+  justify-content: center;
+}
+
+/* Not enough width for a margin — the text takes all of it. */
+@media (max-width: 860px) {
+  .sb-page { grid-template-columns: minmax(0, 680px); column-gap: 0; }
+  .sb-spine { display: none; }
+}
+
+.sb-spine {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  padding-top: 6px;
+  /* The ticks are a map, not a control surface: they stay out of the way
+     until the pointer is in the margin. */
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+.sb-page:hover .sb-spine,
+.sb-spine:focus-within {
+  opacity: 1;
+}
+
+/* One tick per heading. Length encodes depth — H1 spans the margin, H3 is a
+   short mark — so the shape of the column is the shape of the document. */
+.sb-tick {
+  display: block;
+  height: 2px;
+  border: none;
+  padding: 0;
+  border-radius: 1px;
+  background: var(--t3);
+  cursor: pointer;
+  transition: background 120ms ease, width 120ms ease;
+}
+.sb-tick[data-level="1"] { width: 22px; }
+.sb-tick[data-level="2"] { width: 15px; }
+.sb-tick[data-level="3"] { width: 10px; }
+.sb-tick[data-level="4"],
+.sb-tick[data-level="5"],
+.sb-tick[data-level="6"] { width: 6px; }
+.sb-tick:hover { background: var(--t1); }
+.sb-tick[data-current="true"] { background: var(--acc2); }
+
+/* The heading's text, revealed on hover of its tick. Rendered to the left of
+   the margin so it never covers the prose it is pointing at. */
+.sb-tick-wrap { position: relative; display: flex; justify-content: flex-end; }
+.sb-tick-label {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: -7px;
+  white-space: nowrap;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--t1);
+  background: var(--bg2);
+  border: 1px solid var(--bd2);
+  border-radius: 3px;
+  padding: 2px 7px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 5;
+}
+.sb-tick-wrap:hover .sb-tick-label,
+.sb-tick:focus-visible + .sb-tick-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Empty state for the spine: a plain rule, so the margin still reads as a
+   margin in a note that has no headings yet. */
+.sb-spine-rule {
+  width: 1px;
+  height: 34px;
+  background: var(--bd2);
+  margin-right: 12px;
+}
+
+/* Tag chips: the remove control stays out of the way until you mean it. */
+.sb-tag-chip .sb-tag-x { opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.sb-tag-chip:hover .sb-tag-x { opacity: 0.7; pointer-events: auto; }
+.sb-tag-chip .sb-tag-x:hover { opacity: 1; }
+.sb-tag-chip .sb-tag-x:focus-visible { opacity: 1; pointer-events: auto; }
+
+/* ===== Floating format bar =====
+   Formatting is a response to a selection, so it appears at the selection
+   instead of holding a permanent row above the page. */
+.sb-selbar {
+  position: fixed;
+  z-index: 260;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg2);
+  border: 1px solid var(--bd2);
+  border-radius: 7px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sb-selbar { animation: sb-rise 120ms cubic-bezier(0.2, 0.7, 0.3, 1); }
+}
+@keyframes sb-rise {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sb-selbar-btn {
+  width: 27px;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--t2);
+  cursor: pointer;
+}
+.sb-selbar-btn:hover { background: var(--bg3); color: var(--t1); }
+.sb-selbar-sep { width: 1px; height: 16px; background: var(--bd2); margin: 0 3px; }
+
+/* Nothing in this app needs to move for the interface to work. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Canvas dotted grid background — theme-aware */

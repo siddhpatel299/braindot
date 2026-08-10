@@ -10,7 +10,12 @@ import {
   KanbanSquare,
   PenTool,
   BookOpen,
+  Plus,
+  Sun,
+  Moon,
+  LogOut,
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 import { LogoMark } from './Logo';
 
 /** The rail is for switching *places*. Journal, Ask AI and Study mode are not
@@ -22,53 +27,63 @@ interface IconRailProps {
   active: IconRailView;
   onSelect: (view: IconRailView) => void;
   onOpenPalette: () => void;
+  /** Was a button on the old top bar; it is an action, so it lives on the rail. */
+  onCreateNote: () => void;
+  onSignOut?: () => void;
 }
 
 interface RailButtonProps {
   icon: LucideIcon;
   label: string;
   active?: boolean;
+  muted?: boolean;
   onClick?: () => void;
 }
 
-function RailButton({ icon: Icon, label, active, onClick }: RailButtonProps) {
+function RailButton({ icon: Icon, label, active, muted, onClick }: RailButtonProps) {
+  const idle = muted ? 'var(--t3)' : 'var(--t2)';
   return (
     <button
       onClick={onClick}
       aria-label={label}
+      aria-current={active ? 'page' : undefined}
       title={label}
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 5,
+        width: 34,
+        height: 34,
+        borderRadius: 6,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        position: 'relative',
         background: active ? 'var(--acc-bg)' : 'transparent',
-        color: active ? 'var(--acc2)' : 'var(--t2)',
-        border: active ? '1px solid var(--acc-bd)' : '1px solid transparent',
+        color: active ? 'var(--acc2)' : idle,
+        border: 'none',
         cursor: 'pointer',
-        transition: 'background 0.12s, color 0.12s, border 0.12s',
+        transition: 'background 0.12s, color 0.12s',
       }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          e.currentTarget.style.background = 'var(--bg2)';
-          e.currentTarget.style.color = 'var(--t1)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = 'var(--t2)';
-        }
-      }}
+      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+      onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = idle; } }}
     >
-      <Icon size={18} strokeWidth={1.75} />
+      {/* The active place is marked in the rail's own edge, so the mark reads
+          as "you are here" rather than as another button. */}
+      {active && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute', left: -8, top: 8, bottom: 8,
+            width: 2, borderRadius: '0 2px 2px 0', background: 'var(--acc)',
+          }}
+        />
+      )}
+      <Icon size={17} strokeWidth={1.9} />
     </button>
   );
 }
 
-export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
+export function IconRail({ active, onSelect, onOpenPalette, onCreateNote, onSignOut }: IconRailProps) {
+  const { theme, toggle } = useTheme();
+
   return (
     <div
       style={{
@@ -80,18 +95,18 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '8px 0',
-        gap: 6,
+        padding: '8px 0 10px',
+        gap: 3,
+        flexShrink: 0,
       }}
     >
-      {/* Logo — the Braindot caret, clickable to go to dashboard */}
       <button
         onClick={() => onSelect('dashboard')}
         title="Braindot — dashboard"
         aria-label="Braindot — dashboard"
         style={{
-          width: 32,
-          height: 32,
+          width: 30,
+          height: 30,
           borderRadius: 7,
           background: 'var(--acc-bg)',
           border: '1px solid var(--acc-bd)',
@@ -100,16 +115,9 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
           justifyContent: 'center',
           marginBottom: 8,
           cursor: 'pointer',
-          transition: 'transform 0.15s, background 0.15s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.06)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
         }}
       >
-        <LogoMark size={20} />
+        <LogoMark size={18} />
       </button>
 
       <RailButton icon={LayoutDashboard} label="Dashboard" active={active === 'dashboard'} onClick={() => onSelect('dashboard')} />
@@ -119,42 +127,48 @@ export function IconRail({ active, onSelect, onOpenPalette }: IconRailProps) {
       <RailButton icon={PenTool} label="Canvas" active={active === 'canvas'} onClick={() => onSelect('canvas')} />
       <RailButton icon={BookOpen} label="Reading" active={active === 'reading'} onClick={() => onSelect('reading')} />
 
-      {/* Divider */}
-      <div
-        style={{
-          width: 22,
-          height: 1,
-          background: 'var(--bd)',
-          margin: '6px 0',
-        }}
-      />
+      <div style={{ width: 20, height: 1, background: 'var(--bd)', margin: '5px 0' }} />
 
       <RailButton icon={Tags} label="Tags" active={active === 'tags'} onClick={() => onSelect('tags')} />
-      <RailButton icon={Search} label="Search" active={active === 'search'} onClick={() => onSelect('search')} />
+      <RailButton icon={Search} label="Search everything" active={active === 'search'} onClick={() => onSelect('search')} />
+      <RailButton icon={Plus} label="New note  ⌘T" onClick={onCreateNote} />
 
-      {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* User avatar */}
-      <div
-        title="You"
+      {/* ⌘K used to be advertised by a permanent 720px-wide field across the
+          top of the app. It is one key; the rail can say so in 34px. */}
+      <button
+        onClick={onOpenPalette}
+        title="Command palette  ⌘K"
+        aria-label="Open the command palette"
         style={{
-          width: 30,
-          height: 30,
-          borderRadius: '50%',
-          background: '#1D9E75',
-          color: '#fff',
+          width: 34,
+          height: 26,
+          borderRadius: 5,
+          background: 'var(--bg2)',
+          border: '1px solid var(--bd)',
+          color: 'var(--t2)',
+          fontSize: 11,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          cursor: 'pointer',
+          marginBottom: 4,
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.color = 'var(--t2)'; }}
       >
-        ZA
-      </div>
+        ⌘K
+      </button>
+
+      <RailButton
+        icon={theme === 'dark' ? Sun : Moon}
+        label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        muted
+        onClick={toggle}
+      />
+      {onSignOut && <RailButton icon={LogOut} label="Sign out" muted onClick={onSignOut} />}
     </div>
   );
 }

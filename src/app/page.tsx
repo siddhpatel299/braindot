@@ -11,9 +11,9 @@ import { SEED_FOLDER_IDS, todayDateKey } from '@/utils/seedData';
 import { extractWikiLinks } from '@/utils/markdown';
 import { IconRail, IconRailView } from '@/components/second-brain/IconRail';
 import { FileTree } from '@/components/second-brain/FileTree';
-import { CommandBar } from '@/components/second-brain/CommandBar';
-import { EditorTabs } from '@/components/second-brain/EditorTabs';
+import { EditorBar, ViewMode } from '@/components/second-brain/EditorBar';
 import { EditorCanvas } from '@/components/second-brain/EditorCanvas';
+import { useEditorFont } from '@/hooks/useEditorFont';
 import { ContextPanel, ContextTab } from '@/components/second-brain/ContextPanel';
 import { AIMode } from '@/components/second-brain/AIChat';
 import { StatusBar } from '@/components/second-brain/StatusBar';
@@ -27,64 +27,9 @@ import { KanbanTodoPage } from '@/components/second-brain/KanbanTodoPage';
 import { CanvasView } from '@/components/second-brain/CanvasView';
 import { ReadingView } from '@/components/second-brain/ReadingView';
 import { useKanbanTodos, useCanvas, useReading } from '@/hooks/useVaultData';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 const TREE_COLLAPSED_KEY = 'second-brain-tree-collapsed';
 const PANEL_COLLAPSED_KEY = 'second-brain-panel-collapsed';
-
-/**
- * Edge toggle for the file tree / context panel. Sits in the editor tab row so
- * it stays reachable when the panel it controls is hidden — a control that
- * disappears with its panel leaves no way back.
- */
-function PanelToggle({
-  side,
-  collapsed,
-  onClick,
-}: {
-  side: 'left' | 'right';
-  collapsed: boolean;
-  onClick: () => void;
-}) {
-  const Icon = side === 'left'
-    ? (collapsed ? PanelLeftOpen : PanelLeftClose)
-    : (collapsed ? PanelRightOpen : PanelRightClose);
-  const what = side === 'left' ? 'folder tree' : 'context panel';
-  const label = `${collapsed ? 'Show' : 'Hide'} ${what}`;
-
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={!collapsed}
-      title={`${label}  ${side === 'left' ? '⌘\\' : '⌘⇧\\'}`}
-      style={{
-        width: 34,
-        height: 38,
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg1)',
-        border: 'none',
-        borderBottom: '1px solid var(--bd)',
-        color: collapsed ? 'var(--t3)' : 'var(--t2)',
-        cursor: 'pointer',
-        transition: 'color 140ms, background 140ms',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--bg3)';
-        e.currentTarget.style.color = 'var(--t1)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'var(--bg1)';
-        e.currentTarget.style.color = collapsed ? 'var(--t3)' : 'var(--t2)';
-      }}
-    >
-      <Icon size={15} />
-    </button>
-  );
-}
 
 interface HistoryEntry {
   id: string;
@@ -161,7 +106,10 @@ export default function Home() {
   const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search' | 'graph' | 'kanban' | 'canvas' | 'reading'>('dashboard');
   const [search, setSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [contextTab, setContextTab] = useState<ContextTab>('info');
+  // Format opens first: the panel's most common job is helping someone shape
+  // the note they are writing, and it is the surface a writer who does not
+  // know markdown depends on. Info is a click away.
+  const [contextTab, setContextTab] = useState<ContextTab>('format');
   const [aiMode, setAiMode] = useState<AIMode>('note');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [fileTreeView, setFileTreeView] = useState<'folders' | 'tags'>('folders');
@@ -170,6 +118,9 @@ export default function Home() {
   const [askAIOpen, setAskAIOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const imagePickerRef = useRef<(() => void) | null>(null);
+  const { font: editorFont, setFont: setEditorFont } = useEditorFont();
 
   const activeNote = useMemo(
     () => state.notes.find((n) => n.id === state.activeTab) || state.notes[0],
@@ -177,6 +128,23 @@ export default function Home() {
   );
 
   const editor = useEditor(activeNote, updateNote);
+
+  // A note opens as a finished document, not as source. Someone who does not
+  // know markdown should never have to read their own note through "## " and
+  // "**" — they click the text to start editing, the way a document app works.
+  // A note with an empty body has nothing to read, so it opens ready to type.
+  // Kept out of localStorage: the mode is per-note, not a saved preference.
+  // Adjusted during render rather than in an effect — this is React's
+  // documented way to reset state when a prop changes, and it avoids the extra
+  // commit (and visible flash of the wrong mode) an effect would cause.
+  // Comparing ids, not bodies: the body changes on every autosave and would
+  // throw the writer back into reading mode mid-sentence.
+  const [viewMode, setViewMode] = useState<ViewMode>('preview');
+  const [lastNoteId, setLastNoteId] = useState(activeNote?.id);
+  if (activeNote && activeNote.id !== lastNoteId) {
+    setLastNoteId(activeNote.id);
+    setViewMode(activeNote.body.trim() ? 'preview' : 'edit');
+  }
 
   // ---------- Toast helper ----------
   const showToast = useCallback((msg: string) => {
@@ -758,21 +726,6 @@ export default function Home() {
         overflow: 'hidden',
       }}
     >
-      {/* Top: command bar */}
-      <CommandBar
-        search={search}
-        onSearchChange={setSearch}
-        onOpenPalette={() => setPaletteOpen(true)}
-        onCreate={() => handleCreateNote()}
-        streak={state.streak}
-        syncState={
-          authMode === 'user'
-            ? (cloudSync.syncing ? 'syncing' : 'synced')
-            : 'local'
-        }
-        onSignOut={authMode === 'user' ? handleSignOut : undefined}
-      />
-
       {/* Demo banner */}
       {authMode === 'demo' && (
         <div style={{
@@ -798,6 +751,8 @@ export default function Home() {
           active={iconView}
           onSelect={handleIconSelect}
           onOpenPalette={() => setPaletteOpen(true)}
+          onCreateNote={() => handleCreateNote()}
+          onSignOut={authMode === 'user' ? handleSignOut : undefined}
         />
 
         {appView === 'dashboard' ? (
@@ -928,6 +883,7 @@ export default function Home() {
                 folders={state.folders}
                 activeId={activeNote?.id || ''}
                 filter={search}
+                onFilterChange={setSearch}
                 view={fileTreeView}
                 onViewChange={setFileTreeView}
                 onSelect={handleOpenNote}
@@ -942,35 +898,50 @@ export default function Home() {
               />
             </div>
 
-            {/* Editor area: tabs + canvas */}
+            {/* Editor area: one bar of chrome, then the page */}
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
-                <PanelToggle side="left" collapsed={treeCollapsed} onClick={toggleTree} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <EditorTabs
-                    notes={state.notes}
-                    openTabs={state.openTabs}
-                    activeTab={state.activeTab}
-                    dirtyIds={dirtyIds}
-                    onSelect={setActiveTab}
-                    onClose={handleCloseTab}
-                    onCreate={() => handleCreateNote()}
-                    onReorder={reorderTabs}
-                  />
-                </div>
-                <PanelToggle side="right" collapsed={panelCollapsed} onClick={togglePanel} />
-              </div>
+              <EditorBar
+                notes={state.notes}
+                openTabs={state.openTabs}
+                activeTab={state.activeTab}
+                dirtyIds={dirtyIds}
+                onSelectTab={setActiveTab}
+                onCloseTab={handleCloseTab}
+                onCreateNote={() => handleCreateNote()}
+                onReorderTabs={reorderTabs}
+                treeCollapsed={treeCollapsed}
+                onToggleTree={toggleTree}
+                panelCollapsed={panelCollapsed}
+                onTogglePanel={togglePanel}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                font={editorFont}
+                onFontChange={setEditorFont}
+                canUndo={editor.canUndo}
+                canRedo={editor.canRedo}
+                onUndo={editor.undo}
+                onRedo={editor.redo}
+                onInsertImage={() => imagePickerRef.current?.()}
+                imageBusy={imageBusy}
+                onOpenFormat={() => revealContext('format')}
+                disabled={!activeNote}
+              />
               {activeNote && (
                 <EditorCanvas
                   note={activeNote}
                   allNotes={state.notes}
+                  folders={state.folders}
                   dirty={editor.dirty}
                   editor={editor}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
                   onSave={updateNote}
                   onOpenNote={handleOpenNote}
                   onOpenNoteByTitle={handleOpenNoteByTitle}
                   onToggleEvergreen={handleToggleEvergreen}
                   onDeleteNote={handleDeleteNote}
+                  imagePickerRef={imagePickerRef}
+                  onImageBusyChange={setImageBusy}
                   onImagesLocalOnly={() =>
                     showToast(
                       authMode === 'demo'
@@ -988,6 +959,11 @@ export default function Home() {
                 allNotes={state.notes}
                 activeTab={contextTab}
                 onTabChange={setContextTab}
+                body={editor.body}
+                onBodyChange={editor.updateBody}
+                readingMode={viewMode !== 'edit'}
+                onRequestEdit={() => setViewMode('edit')}
+                onInsertImage={() => imagePickerRef.current?.()}
                 aiMode={aiMode}
                 onAiModeChange={setAiMode}
                 onOpenNote={handleOpenNote}
@@ -1012,6 +988,12 @@ export default function Home() {
         dirty={editor.dirty}
         totalNotes={state.notes.length}
         totalConnections={state.totalConnections}
+        streak={state.streak}
+        syncState={
+          authMode === 'user'
+            ? (cloudSync.syncing ? 'syncing' : 'synced')
+            : 'local'
+        }
       />
 
       {/* Overlays */}

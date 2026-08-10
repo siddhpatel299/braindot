@@ -109,7 +109,14 @@ export function WriterAI({ textareaRef, body, onBodyChange, noteTitle, noteTags 
       const rect = btnRef.current.getBoundingClientRect();
       const panelWidth = 340;
       const left = Math.max(8, Math.min(window.innerWidth - panelWidth - 8, rect.right - panelWidth));
-      setPanelPos({ top: rect.bottom + 6, left });
+      // The trigger sits low on the page, so the panel opens upward whenever
+      // there is not room below it — matching the maxHeight the panel uses.
+      const panelHeight = Math.min(window.innerHeight * 0.7, 560);
+      const below = rect.bottom + 6;
+      const top = below + panelHeight > window.innerHeight - 8
+        ? Math.max(8, rect.top - panelHeight - 6)
+        : below;
+      setPanelPos({ top, left });
     }
     const ta = getActiveTextarea();
     if (ta) {
@@ -267,20 +274,29 @@ export function WriterAI({ textareaRef, body, onBodyChange, noteTitle, noteTags 
     }
   };
 
-  // The trigger button (rendered inline in the toolbar).
+  // The trigger floats over the bottom-right corner of the writing surface.
+  // It used to be an in-flow button below the editor, which cost every note
+  // 28px of height for a control the writer only reaches for occasionally —
+  // and left a stray strip under the page. Floating, it costs nothing.
   const triggerBtn = (
     <button
       ref={btnRef}
       type="button"
       onClick={open ? handleClose : handleOpen}
       title="AI writing assistant"
+      aria-expanded={open}
       style={{
+        position: 'absolute',
+        right: 18,
+        bottom: 16,
+        zIndex: 20,
         height: 28,
-        padding: '0 10px',
-        borderRadius: 4,
-        background: open ? 'var(--acc-bg)' : 'transparent',
-        border: `1px solid ${open ? 'var(--acc)' : 'transparent'}`,
+        padding: '0 11px',
+        borderRadius: 14,
+        background: open ? 'var(--acc-bg)' : 'var(--bg2)',
+        border: `1px solid ${open ? 'var(--acc)' : 'var(--bd2)'}`,
         color: open ? 'var(--acc2)' : 'var(--t2)',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
@@ -295,18 +311,16 @@ export function WriterAI({ textareaRef, body, onBodyChange, noteTitle, noteTags 
         if (!open) {
           e.currentTarget.style.background = 'var(--bg3)';
           e.currentTarget.style.color = 'var(--t1)';
-          e.currentTarget.style.borderColor = 'var(--bd2)';
         }
       }}
       onMouseLeave={(e) => {
         if (!open) {
-          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.background = 'var(--bg2)';
           e.currentTarget.style.color = 'var(--t2)';
-          e.currentTarget.style.borderColor = 'transparent';
         }
       }}
     >
-      <Sparkles size={14} color={open ? 'var(--acc2)' : 'var(--acc2)'} />
+      <Sparkles size={13} color="var(--acc2)" />
       write
     </button>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { FileText, Plus, FolderPlus, Folder as FolderIcon, ChevronRight, ChevronDown, Pin, Tag, Hash, X } from 'lucide-react';
+import { FileText, Plus, FolderPlus, Folder as FolderIcon, ChevronRight, ChevronDown, Pin, Tag, Hash, X, Search } from 'lucide-react';
 import { Note, Folder } from '@/types';
 
 interface FileTreeProps {
@@ -9,6 +9,7 @@ interface FileTreeProps {
   folders: Folder[];
   activeId: string;
   filter: string;
+  onFilterChange: (value: string) => void;
   view: 'folders' | 'tags';
   onViewChange: (v: 'folders' | 'tags') => void;
   onSelect: (id: string) => void;
@@ -27,6 +28,7 @@ export function FileTree({
   folders,
   activeId,
   filter,
+  onFilterChange,
   view,
   onViewChange,
   onSelect,
@@ -543,6 +545,59 @@ export function FileTree({
         >
           <FolderPlus size={13} strokeWidth={2} />
         </button>
+      </div>
+
+      {/* Filter. This narrows the tree below it, so it belongs on the tree —
+          not stretched across the top of the whole app, where it read as a
+          global search it never was. Searching everything is ⌘K. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          height: 30,
+          margin: '6px 8px 2px',
+          padding: '0 8px',
+          borderRadius: 4,
+          background: 'var(--bg2)',
+          border: '1px solid ' + (filter ? 'var(--acc-bd)' : 'var(--bd)'),
+        }}
+      >
+        <Search size={12} color="var(--t3)" strokeWidth={2} />
+        <input
+          value={filter}
+          onChange={(e) => onFilterChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') onFilterChange(''); }}
+          placeholder="Filter these notes"
+          aria-label="Filter notes by name"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: 'var(--t1)',
+            fontSize: 11.5,
+            fontFamily: 'inherit',
+            caretColor: 'var(--acc2)',
+          }}
+        />
+        {filter && (
+          <button
+            onClick={() => onFilterChange('')}
+            title="Clear filter"
+            aria-label="Clear filter"
+            style={{
+              width: 16, height: 16, borderRadius: 3, flexShrink: 0,
+              background: 'transparent', border: 'none', color: 'var(--t3)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; }}
+          >
+            <X size={11} strokeWidth={2.25} />
+          </button>
+        )}
       </div>
 
       {/* List */}
