@@ -971,6 +971,13 @@ export default function Home() {
                   onOpenNoteByTitle={handleOpenNoteByTitle}
                   onToggleEvergreen={handleToggleEvergreen}
                   onDeleteNote={handleDeleteNote}
+                  onImagesLocalOnly={() =>
+                    showToast(
+                      authMode === 'demo'
+                        ? 'image saved in this browser only — sign up to sync it'
+                        : 'image could not be uploaded — saved in this browser only',
+                    )
+                  }
                 />
               )}
             </div>

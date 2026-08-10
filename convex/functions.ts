@@ -114,6 +114,34 @@ export const wipeAllAdmin = internalMutation({
   },
 });
 
+// ===== Images =====
+//
+// Image bytes go to Convex file storage rather than into a note body: a note
+// is one document with a 1MB ceiling, and it has to stay small enough to sync.
+// The body ends up holding the ordinary HTTPS URL Convex serves the file from,
+// which keeps the markdown portable — the picture still resolves when the note
+// is exported or opened in another app.
+//
+// Both are mutations because generateUploadUrl and getUrl are only available
+// outside queries, and both verify identity so an anonymous caller cannot
+// upload into the account's storage.
+
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await getVerifiedToken(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const getImageUrl = mutation({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    await getVerifiedToken(ctx);
+    return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
 // ===== Wipe: delete every row for the signed-in user (reset account) =====
 export const wipe = mutation({
   args: {},

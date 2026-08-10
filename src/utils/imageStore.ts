@@ -39,8 +39,11 @@ export function idToRef(id: string): string {
  * Shrink oversized bitmaps before storing. Returns the original blob whenever
  * re-encoding would not actually help — a small PNG can come out of a WebP
  * round-trip larger than it went in.
+ *
+ * Exported because the cloud upload path wants the same treatment: a 5MB phone
+ * photo should not become 5MB of Convex storage and 5MB of download per view.
  */
-async function normalise(file: Blob): Promise<Blob> {
+export async function normaliseImage(file: Blob): Promise<Blob> {
   // SVG keeps its resolution independence and GIF keeps its frames only if we
   // leave them alone; a canvas round-trip would flatten both.
   if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
@@ -77,9 +80,9 @@ async function normalise(file: Blob): Promise<Blob> {
   return encoded && encoded.size < file.size ? encoded : file;
 }
 
-/** Store an image and return its id. */
+/** Store an image locally and return its id. Used when signed out / in demo. */
 export async function putImage(file: Blob): Promise<string> {
-  const blob = await normalise(file);
+  const blob = await normaliseImage(file);
   const id = crypto.randomUUID();
   await set(id, blob, imageStore);
   return id;

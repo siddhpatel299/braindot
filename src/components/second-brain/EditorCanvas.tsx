@@ -5,7 +5,8 @@ import { Note, TAG_COLORS } from '@/types';
 import { renderMarkdownOverlay, formatDate, countWords, plural } from '@/utils/markdown';
 import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
 import { htmlToMarkdown, looksLikeRichHtml } from '@/utils/htmlToMarkdown';
-import { putImage, idToRef, getImageObjectUrl, isImageRef, refToId } from '@/utils/imageStore';
+import { getImageObjectUrl, isImageRef, refToId } from '@/utils/imageStore';
+import { useImageInsert } from '@/hooks/useImageInsert';
 import { safeUrl, IMG_SLOT } from '@/utils/markdownHtml';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
@@ -197,6 +198,8 @@ interface EditorCanvasProps {
   onOpenNoteByTitle: (title: string) => void;
   onToggleEvergreen: (id: string) => void;
   onDeleteNote?: (id: string) => void;
+  /** An image could not be uploaded and lives only in this browser. */
+  onImagesLocalOnly?: () => void;
 }
 
 export function EditorCanvas({
@@ -209,9 +212,11 @@ export function EditorCanvas({
   onOpenNoteByTitle,
   onToggleEvergreen,
   onDeleteNote,
+  onImagesLocalOnly,
 }: EditorCanvasProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  const insertImage = useImageInsert();
   const { font: editorFont, setFont: setEditorFont } = useEditorFont();
   const [fontMenuOpen, setFontMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
@@ -527,23 +532,34 @@ export function EditorCanvas({
   // Store dropped/pasted/picked images and write references into the note.
   // Sequential rather than parallel: each one is decoded and re-encoded on a
   // canvas, and several large screenshots at once will jank the editor.
+  const [imageBusy, setImageBusy] = useState(false);
   const insertImageFiles = useCallback(
     async (files: File[]) => {
       const images = files.filter((f) => f.type.startsWith('image/'));
       if (!images.length) return;
+      setImageBusy(true);
       const refs: string[] = [];
-      for (const file of images) {
-        try {
-          const id = await putImage(file);
-          const alt = file.name.replace(/\.[^.]+$/, '').trim() || 'image';
-          refs.push(`![${alt}](${idToRef(id)})`);
-        } catch {
-          // A single unreadable file should not discard the rest of the drop.
+      let anyLocalOnly = false;
+      try {
+        for (const file of images) {
+          try {
+            const { url, synced } = await insertImage(file);
+            if (!synced) anyLocalOnly = true;
+            // Brackets and parens in a filename would terminate the markdown
+            // link early, so they are stripped from the alt text.
+            const alt = file.name.replace(/\.[^.]+$/, '').replace(/[[\]()]/g, '').trim() || 'image';
+            refs.push(`![${alt}](${url})`);
+          } catch {
+            // A single unreadable file should not discard the rest of the drop.
+          }
         }
+      } finally {
+        setImageBusy(false);
       }
       if (refs.length) insertBlockAtCaret(refs.join('\n\n'));
+      if (anyLocalOnly) onImagesLocalOnly?.();
     },
-    [insertBlockAtCaret],
+    [insertBlockAtCaret, insertImage, onImagesLocalOnly],
   );
 
   const handleDrop = useCallback(
@@ -794,6 +810,7 @@ export function EditorCanvas({
               body={editor.body}
               onBodyChange={editor.updateBody}
               onInsertImage={pickImage}
+              imageBusy={imageBusy}
             />
           </div>
         )}

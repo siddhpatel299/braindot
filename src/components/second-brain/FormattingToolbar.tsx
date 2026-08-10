@@ -11,10 +11,12 @@ interface FormattingToolbarProps {
   body: string;
   /** Opens the file picker. Insertion is async, so it lives in EditorCanvas. */
   onInsertImage?: () => void;
+  /** An upload is in flight — a big paste can take a moment over the network. */
+  imageBusy?: boolean;
   onBodyChange: (next: string) => void;
 }
 
-export function FormattingToolbar({ textareaRef, body, onBodyChange, onInsertImage }: FormattingToolbarProps) {
+export function FormattingToolbar({ textareaRef, body, onBodyChange, onInsertImage, imageBusy }: FormattingToolbarProps) {
   // Wrap selected text with prefix/suffix, or insert placeholder if no selection.
   const wrapSelection = useCallback(
     (prefix: string, suffix: string, placeholder: string = 'text') => {
@@ -253,7 +255,15 @@ export function FormattingToolbar({ textareaRef, body, onBodyChange, onInsertIma
         <LinkIcon size={15} strokeWidth={2} />
       </button>
       {onInsertImage && (
-        <button style={btnStyle} title="Insert image" aria-label="Insert image" onClick={onInsertImage} {...hoverHandlers}>
+        <button
+          style={{ ...btnStyle, opacity: imageBusy ? 0.5 : 1 }}
+          title={imageBusy ? 'Uploading image…' : 'Insert image'}
+          aria-label="Insert image"
+          aria-busy={imageBusy || undefined}
+          disabled={imageBusy}
+          onClick={onInsertImage}
+          {...hoverHandlers}
+        >
           <ImagePlus size={15} strokeWidth={2} />
         </button>
       )}
