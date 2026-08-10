@@ -41,11 +41,26 @@ function renderImage(match: string, alt: string, src: string): string {
 // An image alone on its own line is a block, not a word inside a paragraph.
 const LONE_IMAGE = /^!\[([^\]]*)\]\(([^)]+)\)\s*$/;
 
+/**
+ * Placeholder delimiter for images parked during inline rendering. A private-use
+ * code point: it cannot be typed into a note, no markdown rule matches it, and
+ * unlike NUL it does not make source files look binary to git.
+ */
+export const IMG_SLOT = String.fromCharCode(0xE000);
+
 function renderInline(s: string): string {
   let out = escapeHtml(s);
-  // images ![alt](src) — must run before the link rule below, which would
-  // otherwise match the [alt](src) part and leave a stray "!" behind.
-  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, renderImage);
+  // Images are parked as placeholders before anything else runs. Their alt text
+  // ends up inside an HTML attribute, and the emphasis rules below match raw
+  // characters — a filename like "11_58_33 AM" would otherwise get an <em>
+  // injected into the middle of alt="…", breaking the tag. Restored at the end.
+  const images: string[] = [];
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt: string, src: string) => {
+    const html = renderImage(match, alt, src);
+    if (html === match) return match; // unsafe URL — left as plain text
+    images.push(html);
+    return `${IMG_SLOT}${images.length - 1}${IMG_SLOT}`;
+  });
   // wiki-links  [[Title]]
   out = out.replace(
     /\[\[([^\]]+)\]\]/g,
@@ -72,6 +87,8 @@ function renderInline(s: string): string {
       return `${pre}<a class="md-link" href="${safe}" target="_blank" rel="noopener noreferrer">${text}</a>`;
     },
   );
+  // Put the images back now that no rule can reach inside their attributes.
+  out = out.replace(new RegExp(IMG_SLOT + '(\\d+)' + IMG_SLOT, 'g'), (_m, i: string) => images[Number(i)]);
   return out;
 }
 

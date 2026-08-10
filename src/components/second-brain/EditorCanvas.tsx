@@ -6,7 +6,7 @@ import { renderMarkdownOverlay, formatDate, countWords, plural } from '@/utils/m
 import { getCaretCoordinates, clampToViewport } from '@/utils/caret';
 import { htmlToMarkdown, looksLikeRichHtml } from '@/utils/htmlToMarkdown';
 import { putImage, idToRef, getImageObjectUrl, isImageRef, refToId } from '@/utils/imageStore';
-import { safeUrl } from '@/utils/markdownHtml';
+import { safeUrl, IMG_SLOT } from '@/utils/markdownHtml';
 import { computeLineDiff, diffStats } from '@/utils/diff';
 import { useEditor } from '@/hooks/useEditor';
 import { ArrowLeft, RefreshCw, Eye, Pencil, GitCompare, Undo2, Redo2, Trash2, Type, Check } from 'lucide-react';
@@ -153,15 +153,20 @@ function renderMarkdownHtml(body: string): string {
 // markers (** * ~~ ` [[ ]]) and shows only the formatted result.
 function renderInline(s: string): string {
   let out = escapeHtml(s);
-  // images ![alt](src). Locally stored images carry a data-img-id and get their
-  // src filled in after mount, once IndexedDB resolves the blob. Unsafe schemes
-  // fall through to plain text rather than reaching the DOM.
+  // Images are pulled out to placeholders BEFORE any other rule runs. Their alt
+  // text lands inside an HTML attribute, and the emphasis rules below match on
+  // raw characters — a filename like "11_58_33 AM" would otherwise have an <em>
+  // injected into the middle of alt="…", breaking the tag. Restored at the end.
+  const images: string[] = [];
   out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt: string, src: string) => {
     const safe = safeUrl(src);
     if (!safe) return match;
-    return isImageRef(safe)
-      ? `<img class="md-image" data-img-id="${refToId(safe)}" alt="${alt}" />`
-      : `<img class="md-image" src="${safe}" alt="${alt}" loading="lazy" />`;
+    images.push(
+      isImageRef(safe)
+        ? `<img class="md-image" data-img-id="${refToId(safe)}" alt="${alt}" />`
+        : `<img class="md-image" src="${safe}" alt="${alt}" loading="lazy" />`,
+    );
+    return `${IMG_SLOT}${images.length - 1}${IMG_SLOT}`;
   });
   // wiki-links: show the title only, clickable (title kept in data-wiki)
   out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1) => `<a data-wiki="${escapeHtml(p1)}" style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px;cursor:pointer">${escapeHtml(p1)}</a>`);
@@ -173,6 +178,8 @@ function renderInline(s: string): string {
   out = out.replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g, '<u>$1</u>');
   out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<em style="color:var(--acc2);font-style:italic">$2</em>');
   out = out.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<em style="color:var(--acc2);font-style:italic">$2</em>');
+  // Put the images back now that no rule can reach inside their attributes.
+  out = out.replace(new RegExp(IMG_SLOT + '(\\d+)' + IMG_SLOT, 'g'), (_m, i: string) => images[Number(i)]);
   return out;
 }
 
