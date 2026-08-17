@@ -812,6 +812,18 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .sb-note-row:hover .sb-note-del { opacity: 0.6; }
 .sb-note-row:hover .sb-note-badge { display: none; }
 .sb-note-del:hover { opacity: 1 !important; }
+/* Keyboard users need the delete too, and it must not sit invisibly clickable
+   over the badge the rest of the time. */
+.sb-note-del { pointer-events: none; }
+.sb-note-row:hover .sb-note-del,
+.sb-note-del:focus-visible { opacity: 1; pointer-events: auto; }
+
+/* A folder's actions appear on its row, the same way. These lived in a <style>
+   tag inside FileTree; they belong beside the note rules they mirror. */
+.sb-folder-actions { opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+.sb-folder-row:hover .sb-folder-actions,
+.sb-folder-actions:focus-within { opacity: 0.85; pointer-events: auto; }
+.sb-folder-actions button:hover { opacity: 1; background: var(--bg3); }
 
 /* Pointer focus stays quiet; keyboard focus is always visible. :focus-visible
    only matches when the browser judges a ring is warranted (tab, not click),

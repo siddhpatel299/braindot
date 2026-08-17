@@ -10,7 +10,7 @@ import { Note } from '@/types';
 import { SEED_FOLDER_IDS, todayDateKey } from '@/utils/seedData';
 import { extractWikiLinks } from '@/utils/markdown';
 import { IconRail, IconRailView } from '@/components/second-brain/IconRail';
-import { FileTree } from '@/components/second-brain/FileTree';
+import { NotesSidebar } from '@/components/second-brain/NotesSidebar';
 import { EditorBar, ViewMode } from '@/components/second-brain/EditorBar';
 import { EditorCanvas } from '@/components/second-brain/EditorCanvas';
 import { useEditorFont } from '@/hooks/useEditorFont';
@@ -112,7 +112,7 @@ export default function Home() {
   const [contextTab, setContextTab] = useState<ContextTab>('format');
   const [aiMode, setAiMode] = useState<AIMode>('note');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [fileTreeView, setFileTreeView] = useState<'folders' | 'tags'>('folders');
+  const [sidebarView, setSidebarView] = useState<'folders' | 'tags'>('folders');
   const [treeCollapsed, setTreeCollapsed] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [askAIOpen, setAskAIOpen] = useState(false);
@@ -583,11 +583,11 @@ export default function Home() {
       setAppView('reading');
     } else if (v === 'tags') {
       setAppView('notes');
-      setFileTreeView('tags');
+      setSidebarView('tags');
       showToast('switched to tag view');
     } else if (v === 'notes') {
       setAppView('notes');
-      setFileTreeView('folders');
+      setSidebarView('folders');
     }
   }, [showToast]);
 
@@ -886,14 +886,14 @@ export default function Home() {
                 state (AI thread, scroll, rename-in-progress) alive across a
                 toggle, and takes the subtree out of the a11y tree for free. */}
             <div style={{ display: treeCollapsed ? 'none' : 'flex', flexShrink: 0 }}>
-              <FileTree
+              <NotesSidebar
                 notes={state.notes}
                 folders={state.folders}
                 activeId={activeNote?.id || ''}
                 filter={search}
                 onFilterChange={setSearch}
-                view={fileTreeView}
-                onViewChange={setFileTreeView}
+                view={sidebarView}
+                onViewChange={setSidebarView}
                 onSelect={handleOpenNote}
                 onCreateNote={(folderId) => handleCreateNote(folderId)}
                 onCreateFolder={handleCreateFolder}
