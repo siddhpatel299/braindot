@@ -1,7 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decodeEntities, htmlToMarkdownBlocks } from '@/utils/serverHtml';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+
+/**
+ * Find the cover image inside an epub and return it as a small data URL.
+ *
+ * The manifest is asked first and guessed from filenames only as a fallback,
+ * because plenty of books ship a "cover.xhtml" wrapper page alongside the
+ * actual image and the name alone cannot tell them apart.
+ *
+ * The image is re-encoded to a shelf-sized JPEG. A cover straight out of an
+ * epub is often 1–3MB, which would not survive the trip: the vault keeps it as
+ * a data URL in localStorage and syncs it inside a document with a 1MB ceiling.
+ */
+async function extractEpubCover(zip: any, opfEntryName: string, opfXml: string): Promise<string | null> {
+  const entries = zip.getEntries();
+  const opfDir = opfEntryName.includes('/') ? opfEntryName.slice(0, opfEntryName.lastIndexOf('/') + 1) : '';
+
+  // Resolve an href that is relative to the OPF's own folder.
+  const resolve = (href: string) => {
+    const path = (opfDir + href.replace(/^\.\//, '')).replace(/[^/]+\/\.\.\//g, '');
+    return entries.find((e: any) => e.entryName === path)
+      || entries.find((e: any) => e.entryName.endsWith('/' + href))
+      || entries.find((e: any) => e.entryName === href);
+  };
+
+  const manifest = [...opfXml.matchAll(/<item\b[^>]*>/gi)].map((m) => m[0]);
+  const attr = (tag: string, name: string) =>
+    tag.match(new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`, 'i'))?.[1] ?? '';
+
+  let entry: any = null;
+
+  // 1. EPUB 3: the manifest item marked as the cover image.
+  const byProperty = manifest.find((t) => /properties\s*=\s*["'][^"']*cover-image/i.test(t));
+  if (byProperty) entry = resolve(attr(byProperty, 'href'));
+
+  // 2. EPUB 2: <meta name="cover" content="theItemId"/> pointing into the manifest.
+  if (!entry) {
+    const metaId = opfXml.match(/<meta[^>]+name\s*=\s*["']cover["'][^>]+content\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (metaId) {
+      const item = manifest.find((t) => attr(t, 'id') === metaId);
+      if (item) entry = resolve(attr(item, 'href'));
+    }
+  }
+
+  // 3. Any manifest image whose id or href mentions a cover.
+  if (!entry) {
+    const guess = manifest.find((t) =>
+      /image\//i.test(attr(t, 'media-type')) && /cover/i.test(attr(t, 'id') + ' ' + attr(t, 'href')));
+    if (guess) entry = resolve(attr(guess, 'href'));
+  }
+
+  // 4. Last resort: a file in the archive that looks like a cover image.
+  if (!entry) {
+    entry = entries.find((e: any) => /cover[^/]*\.(jpe?g|png|webp)$/i.test(e.entryName));
+  }
+
+  if (!entry) return null;
+
+  try {
+    const raw = entry.getData();
+    if (!raw || raw.length === 0) return null;
+    const { default: sharp } = await import('sharp');
+    const out = await sharp(raw)
+      .resize({ width: 320, height: 480, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 74, mozjpeg: true })
+      .toBuffer();
+    return `data:image/jpeg;base64,${out.toString('base64')}`;
+  } catch {
+    // A cover is a nicety. A book that fails to produce one still imports.
+    return null;
+  }
+}
 
 // Extract text content from uploaded epub or pdf files
 export async function POST(req: NextRequest) {
@@ -20,6 +93,7 @@ export async function POST(req: NextRequest) {
     let author = 'Unknown';
     let chapters: { title: string; content: string }[] = [];
     let totalPages = 1;
+    let coverUrl: string | null = null;
 
     if (fileName.endsWith('.epub')) {
       // EPUB is a zip file containing XHTML files
@@ -35,8 +109,9 @@ export async function POST(req: NextRequest) {
           const opfContent = opfFiles[0].getData().toString('utf8');
           const titleMatch = opfContent.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
           const authorMatch = opfContent.match(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/i);
-          if (titleMatch) title = titleMatch[1].trim();
-          if (authorMatch) author = authorMatch[1].trim();
+          if (titleMatch) title = decodeEntities(titleMatch[1]).trim();
+          if (authorMatch) author = decodeEntities(authorMatch[1]).trim();
+          coverUrl = await extractEpubCover(zip, opfFiles[0].entryName, opfContent);
         }
 
         // Extract text from all HTML/XHTML files in the epub
@@ -49,36 +124,24 @@ export async function POST(req: NextRequest) {
 
         for (const entry of htmlEntries) {
           const html = entry.getData().toString('utf8');
-          // Extract title from h1/h2 or title tag
-          const h1Match = html.match(/<h[12][^>]*>([^<]+)<\/h[12]>/i);
-          const chapterTitle = h1Match ? h1Match[1].trim() : `Chapter ${chapters.length + 1}`;
+          const h1Match = html.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/i);
+          const chapterTitle = h1Match
+            ? decodeEntities(h1Match[1].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+            : `Chapter ${chapters.length + 1}`;
 
-          // Strip HTML tags and get text
-          let text = html
-            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-            .replace(/<[^>]+>/g, '\n')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-
-          if (text.length > 100) {
-            // Format as markdown
-            const lines = text.split('\n').filter((l: string) => l.trim());
-            const formatted = lines.map((l: string) => {
-              const trimmed = l.trim();
-              if (trimmed.length < 60 && !trimmed.endsWith('.')) {
-                return `## ${trimmed}`;
-              }
-              return trimmed;
-            }).join('\n\n');
-
-            chapters.push({ title: chapterTitle, content: `# ${chapterTitle}\n\n${formatted}` });
+          const body = htmlToMarkdownBlocks(html);
+          if (body.length > 100) {
+            // The heading is prepended only when the text does not already open
+            // with it. The old code always prepended, so every chapter showed
+            // its title twice before a word of prose — three times once the
+            // length heuristic promoted the running head to a heading too.
+            const firstBlock = body.split('\n\n')[0] || '';
+            const opensWithTitle = /^#{1,3}\s+/.test(firstBlock)
+              && firstBlock.replace(/^#{1,3}\s+/, '').toLowerCase() === chapterTitle.toLowerCase();
+            chapters.push({
+              title: chapterTitle,
+              content: opensWithTitle ? body : `# ${chapterTitle}\n\n${body}`,
+            });
           }
         }
 
@@ -145,6 +208,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       title,
       author,
+      coverUrl,
       content: fullContent || `# ${title}\n\n*No content could be extracted from this file.*`,
       totalPages,
       chapters: chapters.length,

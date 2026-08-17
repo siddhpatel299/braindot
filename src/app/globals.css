@@ -194,6 +194,303 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .sb-preview-prose code,
 .sb-preview-prose pre { font-family: var(--font-reading-mono) !important; }
 
+/* ===== The reading room =====
+   The editor is a desk; this is a chair. Long-form text gets the reading face
+   at a real reading size, a measure that ends where the eye can still find the
+   next line, and space around it — none of which existed before: the reader
+   class was referenced by the component but never defined, so books rendered
+   in the chrome's monospace at whatever size the browser felt like. */
+.sb-reader-prose {
+  font-size: var(--reader-fs, 18px);
+  line-height: 1.75;
+  color: var(--t1);
+}
+/* The measure is a separate concern from the typography: scrolling reading
+   caps the line length here, while paged reading gets its measure from the
+   width of a column instead. */
+.sb-reader-measure {
+  /* ~68 characters. Set in ch so it tracks the reader's chosen size rather
+     than being a pixel width that runs too wide when they size down. */
+  max-width: 68ch;
+}
+
+/* The page: text to the left, a wide outer margin for the reader's own marks —
+   the proportions of a book page rather than a centred web column. */
+.sb-reader-page {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding-right: 218px;
+}
+.sb-reader-margin {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 190px;
+}
+/* Not enough width for an outer margin — the text takes the page, and the
+   marks are read from the drawer instead. */
+@media (max-width: 1180px) {
+  .sb-reader-page { padding-right: 0; }
+  .sb-reader-margin { display: none; }
+}
+.sb-reader-prose,
+.sb-reader-prose * {
+  font-family: var(--editor-font) !important;
+}
+/* Code keeps the typewriter face — it is not prose and should not pretend. */
+.sb-reader-prose code,
+.sb-reader-prose pre,
+.sb-reader-prose kbd {
+  font-family: var(--font-reading-mono) !important;
+  font-size: 0.86em;
+}
+
+/* Headings scale from the reader's size, so one control moves the whole
+   hierarchy together rather than just the body copy. */
+.sb-reader-prose h1 { font-size: 1.7em; line-height: 1.2; margin: 1.6em 0 0.5em; font-weight: 700; letter-spacing: -0.02em; }
+.sb-reader-prose h2 { font-size: 1.32em; line-height: 1.28; margin: 1.5em 0 0.45em; font-weight: 700; letter-spacing: -0.015em; }
+.sb-reader-prose h3 { font-size: 1.12em; line-height: 1.35; margin: 1.35em 0 0.4em; font-weight: 700; }
+.sb-reader-prose h4,
+.sb-reader-prose h5,
+.sb-reader-prose h6 { font-size: 1em; margin: 1.2em 0 0.35em; font-weight: 700; }
+.sb-reader-prose h1:first-child,
+.sb-reader-prose h2:first-child { margin-top: 0; }
+
+.sb-reader-prose p { margin: 0 0 1.05em; }
+.sb-reader-prose ul,
+.sb-reader-prose ol { margin: 0 0 1.05em; padding-left: 1.5em; }
+.sb-reader-prose li { margin-bottom: 0.35em; }
+.sb-reader-prose blockquote {
+  margin: 1.3em 0;
+  padding-left: 1.1em;
+  border-left: 2px solid var(--bd2);
+  color: var(--t2);
+  font-style: italic;
+}
+.sb-reader-prose hr { border: none; border-top: 1px solid var(--bd); margin: 2em 0; }
+.sb-reader-prose img { max-width: 100%; height: auto; border-radius: 4px; }
+.sb-reader-prose a { color: var(--acc2); text-underline-offset: 2px; }
+.sb-reader-prose pre {
+  background: var(--bg1);
+  border: 1px solid var(--bd);
+  border-radius: 5px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.sb-reader-prose table { border-collapse: collapse; width: 100%; font-size: 0.9em; }
+.sb-reader-prose th,
+.sb-reader-prose td { border-bottom: 1px solid var(--bd); padding: 6px 10px; text-align: left; }
+
+/* A highlight is a mark on the page, not a UI chip: it keeps the text colour
+   and takes a wash behind it. */
+.sb-reader-prose mark {
+  background: transparent;
+  color: inherit;
+  padding: 0.05em 0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+/* ===== Paged reading =====
+   A book does not scroll. The text is laid into columns of a fixed height and
+   the spread slides sideways a page at a time, so a paragraph always ends
+   where the page ends and the eye returns to a known place. */
+.sb-book-viewport {
+  position: relative;
+  overflow: hidden;
+  /* No scrolling here — paging is the only way through. */
+  overscroll-behavior: contain;
+}
+.sb-book-flow {
+  height: 100%;
+  column-gap: var(--book-gap, 72px);
+  /* auto rather than balance: columns fill to the page height in order, which
+     is what makes the overflow spill sideways into the next spread. */
+  column-fill: auto;
+  transition: transform 260ms cubic-bezier(0.22, 0.7, 0.25, 1);
+  will-change: transform;
+}
+/* Justified, because a book page is — but only with hyphenation on. Justifying
+   a ~40-character column without it opens rivers of white space down the page,
+   which is worse than a ragged edge. The pair is the point. */
+.sb-book-flow p,
+.sb-book-flow li,
+.sb-book-flow blockquote {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphenate-limit-chars: 6 3 3;
+  text-wrap: pretty;
+}
+/* Headings stay ranged left: a justified two-word heading is stretched apart. */
+.sb-book-flow h1,
+.sb-book-flow h2,
+.sb-book-flow h3 { text-align: left; hyphens: manual; }
+@media (prefers-reduced-motion: reduce) {
+  .sb-book-flow { transition: none; }
+}
+/* A heading should not be the last thing on a page, and a paragraph should not
+   leave one line behind. */
+.sb-book-flow h1,
+.sb-book-flow h2,
+.sb-book-flow h3 { break-after: avoid-column; break-inside: avoid-column; }
+.sb-book-flow p,
+.sb-book-flow blockquote,
+.sb-book-flow li { orphans: 2; widows: 2; }
+.sb-book-flow img { break-inside: avoid-column; max-height: 88%; object-fit: contain; }
+
+/* The two leaves are separated by the gutter's own width and nothing else. A
+   rule drawn down the middle stayed fixed while the text slid past it on every
+   turn, which read as a seam in the window rather than a fold in the page. */
+
+/* ===== The shelf =====
+   Books are found by their faces. The grid is sized so a cover is big enough
+   to recognise across the room, and auto-fills rather than fixing a column
+   count, so a narrow window loses columns instead of shrinking the covers. */
+.sb-shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 26px 22px;
+}
+.sb-shelf-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+.sb-shelf-cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  overflow: hidden;
+  background: var(--bg2);
+  /* Lifted off the shelf rather than outlined — a border on a cover reads as
+     part of the artwork. */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.34), 0 8px 20px rgba(0, 0, 0, 0.22);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.sb-shelf-item:hover .sb-shelf-cover,
+.sb-shelf-item:focus-visible .sb-shelf-cover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), 0 14px 30px rgba(0, 0, 0, 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-shelf-cover { transition: none; }
+  .sb-shelf-item:hover .sb-shelf-cover { transform: none; }
+}
+.sb-shelf-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* An unjacketed book: the title set on the boards. */
+.sb-shelf-blank {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  height: 100%;
+  padding: 13px 11px;
+  background: var(--bg2);
+  border-top: 3px solid var(--acc);
+}
+.sb-shelf-blank-kind {
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+.sb-shelf-blank-title {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--t2);
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sb-shelf-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.sb-shelf-progress > span { display: block; height: 100%; background: var(--acc); }
+
+.sb-shelf-title {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--t1);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sb-shelf-author {
+  font-size: 10.5px;
+  color: var(--t3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-shelf-action {
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 5px;
+  background: var(--bg2);
+  border: 1px solid var(--bd);
+  color: var(--t2);
+  font-size: 11.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.sb-shelf-action:hover { color: var(--t1); border-color: var(--acc-bd); }
+.sb-shelf-action-primary { background: var(--acc-bg); border-color: var(--acc-bd); color: var(--acc2); }
+
+/* ===== Marginalia =====
+   Your marks live beside the passage they came from, set in the chrome's
+   typewriter face — a second hand in the margin, the way a reader's notes are
+   never in the same hand as the printed text. */
+.sb-margin-note {
+  position: absolute;
+  right: 0;
+  width: 178px;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--t3);
+  border-left: 2px solid var(--bd2);
+  padding: 1px 0 1px 9px;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+  /* Marks are reference, not content — they never grab the eye mid-sentence. */
+  opacity: 0.75;
+}
+.sb-margin-note:hover,
+.sb-margin-note:focus-visible {
+  color: var(--t1);
+  opacity: 1;
+}
+.sb-margin-note[data-color="yellow"] { border-left-color: var(--amb); }
+.sb-margin-note[data-color="purple"] { border-left-color: var(--acc); }
+.sb-margin-note[data-color="green"]  { border-left-color: var(--grn); }
+.sb-margin-note-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Animations */
 @keyframes sb-pulse {
   0%, 100% { opacity: 1; }

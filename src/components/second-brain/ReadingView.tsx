@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { Note, LibraryItem, Highlight } from '@/types';
 import { renderMarkdownHtml } from '@/utils/markdownHtml';
 import {
   Search, Plus, BookOpen, FileText, Rss, Link as LinkIcon, X,
   Highlighter, StickyNote, Sparkles, ArrowRight, Type, List,
   Upload, ArrowUpRight, RefreshCw, Loader2, Globe,
-  ChevronLeft, ChevronRight, Minus, Menu, Library,
+  ChevronLeft, ChevronRight, Minus, Menu, Library, AlignJustify, Newspaper,
 } from 'lucide-react';
 import { plural } from '@/utils/markdown';
+import { repairImportedText } from '@/utils/repairImportedText';
 import { ViewHeader, HeaderButton, HeaderDivider } from './ViewHeader';
+import { ReaderMargin } from './ReaderMargin';
+import { Bookshelf } from './Bookshelf';
 
 interface ReadingViewProps {
   libraryItems: LibraryItem[];
@@ -18,7 +21,7 @@ interface ReadingViewProps {
   notes: Note[];
   onBack: () => void;
   onOpenNote: (id: string) => void;
-  onAddLibraryItem: (item: Omit<LibraryItem, 'id' | 'addedAt' | 'highlights'>) => LibraryItem;
+  onAddLibraryItem: (item: Omit<LibraryItem, 'id' | 'addedAt' | 'updatedAt' | 'highlights'>) => LibraryItem;
   onUpdateLibraryItem: (id: string, patch: Partial<LibraryItem>) => void;
   onDeleteLibraryItem: (id: string) => void;
   onAddHighlight: (highlight: Omit<Highlight, 'id' | 'createdAt'>) => Highlight;
@@ -28,11 +31,18 @@ interface ReadingViewProps {
 }
 
 type TabFilter = 'all' | 'books' | 'papers' | 'news';
-type SidebarTab = 'ai' | 'highlights' | 'notes';
+type ReadMode = 'scroll' | 'pages';
+
+/** Space between the two leaves of a spread, in px. */
+const BOOK_GAP = 72;
+const READ_MODE_KEY = 'sb-read-mode';
 type HighlightColor = 'yellow' | 'purple' | 'green';
 type FontSize = 'sm' | 'md' | 'lg';
 
-const FONT_SIZES: Record<FontSize, number> = { sm: 12, md: 14, lg: 17 };
+// Reading sizes, not UI sizes. The old scale topped out at 17px and started at
+// 12 — chrome sizes, applied to book-length text.
+const FONT_SIZES: Record<FontSize, number> = { sm: 16, md: 18, lg: 21 };
+const FONT_SIZE_LABELS: Record<FontSize, string> = { sm: 'Small', md: 'Medium', lg: 'Large' };
 
 interface Chapter {
   idx: number;
@@ -47,17 +57,26 @@ const TYPE_ABBREV: Record<string, { label: string; color: string; bg: string }> 
   url: { label: 'URL', color: '#34d399', bg: '#0a1f16' },
 };
 
+/* Theme tokens rather than fixed hexes, so highlights stay readable in light
+   mode instead of staying light-on-dark wherever they are shown. */
 const HIGHLIGHT_BORDER: Record<HighlightColor, string> = {
-  yellow: '#fbbf24',
-  purple: '#7c6ef7',
-  green: '#34d399',
+  yellow: 'var(--amb)',
+  purple: 'var(--acc)',
+  green: 'var(--grn)',
 };
 
 const HIGHLIGHT_BG: Record<HighlightColor, string> = {
-  yellow: '#3d3200',
-  purple: '#1e1a3a',
-  green: '#0a1f16',
+  yellow: 'var(--amb-bg)',
+  purple: 'var(--acc-bg)',
+  green: 'var(--grn-bg)',
 };
+
+/** The three marks, offered at the point of highlighting. */
+const HIGHLIGHT_SWATCHES: { id: HighlightColor; label: string; swatch: string }[] = [
+  { id: 'yellow', label: 'yellow', swatch: 'var(--amb)' },
+  { id: 'purple', label: 'purple', swatch: 'var(--acc)' },
+  { id: 'green', label: 'green', swatch: 'var(--grn)' },
+];
 
 const NEWS_CATEGORIES = [
   { id: 'tech', label: 'tech' },
@@ -98,25 +117,40 @@ export function ReadingView({
   const [search, setSearch] = useState('');
   const [tabFilter, setTabFilter] = useState<TabFilter>('all');
   const [activeItemId, setActiveItemId] = useState<string | null>(libraryItems[0]?.id || null);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('ai');
   // Reading defaults to one column. Both rails used to be pinned open, which
   // left a 915px column wrapped around a 680px measure — the widest screen in
   // the app showing the narrowest text. They open on demand instead.
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
-  const [currentHighlightColor, setCurrentHighlightColor] = useState<HighlightColor>('yellow');
   const [showImport, setShowImport] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
   const [selectionPos, setSelectionPos] = useState({ x: 0, y: 0 });
   const [selectedText, setSelectedText] = useState('');
   const readerRef = useRef<HTMLDivElement>(null);
+  const proseRef = useRef<HTMLDivElement>(null);
 
   // Ebook reader state
   const [currentChapterIdx, setCurrentChapterIdx] = useState(0);
   const [fontSize, setFontSize] = useState<FontSize>('md');
   const [showToc, setShowToc] = useState(false);
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
   const tocBtnRef = useRef<HTMLButtonElement>(null);
   const tocPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Scrolling or paged. Paged is the book: text laid into columns, a spread at
+  // a time. Kept per device — it is a reading habit, not a property of a book.
+  const [readMode, setReadMode] = useState<ReadMode>('scroll');
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
+  const [spreadStep, setSpreadStep] = useState(0);
+  const [columnCount, setColumnCount] = useState(2);
+
+  // How far through the chapter the reader is, from the scroll position — the
+  // old bar only counted chapters, so it never moved while you read one.
+  const [scrollProgress, setScrollProgress] = useState(0);
+  // Width of the reading column, so the marginalia re-measure when the layout
+  // reflows (a rail opening, or the window resizing).
+  const [readerWidth, setReaderWidth] = useState(0);
 
   // Live news/papers state
   const [showFeedPanel, setShowFeedPanel] = useState<'news' | 'papers' | null>(null);
@@ -125,6 +159,11 @@ export function ReadingView({
   const [fetchedItems, setFetchedItems] = useState<FetchedItem[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
+  // Which feed item is being fetched, so the row can say it is working.
+  const [openingArticle, setOpeningArticle] = useState<string | null>(null);
+  // Building today's edition takes a few seconds of fetching, so the button
+  // says what it is doing rather than appearing to have missed the click.
+  const [buildingEdition, setBuildingEdition] = useState(false);
 
   const activeItem = useMemo(
     () => libraryItems.find((l) => l.id === activeItemId) || null,
@@ -142,7 +181,17 @@ export function ReadingView({
   // "Chapter N" / "Page N" for epubs / pdfs respectively.
   const chapters = useMemo<Chapter[]>(() => {
     if (!activeItem?.content) return [];
-    const raw = activeItem.content;
+    // Books imported before the extractor was fixed still carry the damage in
+    // their stored text, and the original file is not kept to re-extract from.
+    // This puts them back together on read; nothing is written back.
+    //
+    // Only uploaded files, because only the file importer ever produced that
+    // damage. Articles and editions are composed by current code, and running
+    // the repair over them misread a link line — which ends in ")" rather than
+    // a full stop — as an unfinished sentence, and stripped the heading that
+    // followed it. Every story headline in the paper disappeared.
+    const isImportedFile = activeItem.type === 'epub' || activeItem.type === 'pdf';
+    const raw = isImportedFile ? repairImportedText(activeItem.content) : activeItem.content;
     // Split on lines that consist of only --- (with optional surrounding whitespace).
     const parts = raw.split(/\r?\n---\s*\r?\n/);
     const isPdf = activeItem.type === 'pdf';
@@ -166,67 +215,189 @@ export function ReadingView({
       result.push({ idx: 0, title, content: raw.trim() });
     }
     return result;
-  }, [activeItem]);
+    // Keyed on the text, not on the item object. Saving your reading position
+    // replaces that object, and a `chapters` array that changed identity every
+    // time progress was written fed straight back into the effect that writes
+    // progress — an endless save loop that also yanked the page back to the
+    // top a few times a second.
+  }, [activeItem?.id, activeItem?.content, activeItem?.type]);
 
   const currentChapter: Chapter | null = chapters[currentChapterIdx] || chapters[0] || null;
 
-  // When the active item changes, jump to the chapter whose title matches
-  // the stored chapterTitle (Kindle-style "return to where you left off"),
-  // falling back to chapter 0.
+  // Reopen where you left off. The chapter is recovered from the saved
+  // percentage rather than from a stored title: `progress` is the field the
+  // vault actually has and actually syncs, so this survives a device change.
+  // The old code wrote chapterTitle/currentPage/totalPages/lastOpenedAt, none
+  // of which exist on LibraryItem — so nothing was ever restored, and the
+  // percentage it wrote as `progressPercent` never reached the cloud either.
+  // Restore once per item. Guarding on the id matters: this effect resets the
+  // scroll position, and it used to re-run on every change to the item —
+  // including the progress it had just saved — so the page jumped back to the
+  // top while you were reading it.
+  const restoredFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!activeItem || chapters.length === 0) {
-      setCurrentChapterIdx(0);
-      return;
-    }
-    const stored = activeItem.chapterTitle;
-    if (stored) {
-      const matchIdx = chapters.findIndex(
-        (c) => c.title === stored || c.title.startsWith(stored) || stored.startsWith(c.title),
-      );
-      setCurrentChapterIdx(matchIdx >= 0 ? matchIdx : 0);
-    } else {
-      setCurrentChapterIdx(0);
-    }
-    // Scroll to top of reader on chapter/item change.
+    if (!activeItemId || chapters.length === 0) return;
+    if (restoredFor.current === activeItemId) return;
+    restoredFor.current = activeItemId;
+    const saved = activeItem?.progress ?? 0;
+    const idx = saved > 0
+      ? Math.min(chapters.length - 1, Math.max(0, Math.round((saved / 100) * chapters.length) - 1))
+      : 0;
+    setCurrentChapterIdx(idx);
     if (readerRef.current) readerRef.current.scrollTop = 0;
-  }, [activeItemId, activeItem, chapters]);
+  }, [activeItemId, activeItem?.progress, chapters.length]);
 
   // Persist reading progress whenever the chapter changes.
-  // Progress = (currentChapter + 1) / totalChapters * 100, clamped to [0, 100].
-  // Also updates chapterTitle so reopening returns to the same chapter.
   const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedProgress = useRef<{ id: string; pct: number; status: string } | null>(null);
   useEffect(() => {
     if (!activeItemId || chapters.length === 0 || !currentChapter) return;
     if (progressTimer.current) clearTimeout(progressTimer.current);
     progressTimer.current = setTimeout(() => {
       const pct = Math.min(100, Math.round(((currentChapterIdx + 1) / chapters.length) * 100));
-      onUpdateLibraryItem(activeItemId, {
-        progressPercent: pct,
-        chapterTitle: currentChapter.title,
-        currentPage: currentChapterIdx + 1,
-        totalPages: chapters.length,
-        lastOpenedAt: new Date().toISOString(),
-        status: pct >= 100 ? 'done' : 'reading',
-      });
+      const status = pct >= 100 ? 'done' : 'reading';
+      // Write only on a real change. An unconditional write replaced the item
+      // object on every pass, which is what turned this into a loop.
+      if (savedProgress.current?.id === activeItemId
+        && savedProgress.current.pct === pct
+        && savedProgress.current.status === status) return;
+      savedProgress.current = { id: activeItemId, pct, status };
+      onUpdateLibraryItem(activeItemId, { progress: pct, status });
     }, 400);
     return () => {
       if (progressTimer.current) clearTimeout(progressTimer.current);
     };
   }, [activeItemId, currentChapterIdx, chapters, currentChapter, onUpdateLibraryItem]);
 
+  // Track scroll position for the progress hairline, and the column width so
+  // the margin can re-place its marks after a reflow. Both are passive.
+  useEffect(() => {
+    const el = readerRef.current;
+    if (!el) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const max = el.scrollHeight - el.clientHeight;
+      setScrollProgress(max > 8 ? Math.min(1, el.scrollTop / max) : 0);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    measure();
+    el.addEventListener('scroll', onScroll, { passive: true });
+
+    const ro = new ResizeObserver(() => {
+      setReaderWidth(el.clientWidth);
+      measure();
+    });
+    ro.observe(el);
+
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [activeItemId, currentChapterIdx]);
+
+  // Remember the reading mode across sessions.
+  useEffect(() => {
+    const saved = localStorage.getItem(READ_MODE_KEY);
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    if (saved === 'pages' || saved === 'scroll') setReadMode(saved);
+  }, []);
+
+  const changeReadMode = useCallback((m: ReadMode) => {
+    setReadMode(m);
+    setPageIndex(0);
+    try { localStorage.setItem(READ_MODE_KEY, m); } catch {}
+  }, []);
+
+  // Lay the chapter out into pages. The flow element is as wide as the
+  // viewport; content that does not fit spills into further columns to the
+  // right, so the total width divided by one spread gives the page count.
+  useLayoutEffect(() => {
+    if (readMode !== 'pages') return;
+    const viewport = readerRef.current;
+    const flow = proseRef.current;
+    if (!viewport || !flow) return;
+
+    const measure = () => {
+      // The flow's own width, which is the width one spread occupies. Reading
+      // it off the viewport's clientWidth included the padding, so every turn
+      // advanced ~88px too far and left a sliver of the next columns showing.
+      const w = flow.clientWidth;
+      if (w < 40) return;
+      // One leaf below ~880px: a spread whose columns are narrower than about
+      // 40 characters is worse than a single page, not better.
+      const cols = w >= 880 ? 2 : 1;
+      setColumnCount(cols);
+      const step = w + BOOK_GAP;
+      setSpreadStep(step);
+      // Total laid-out width. scrollWidth is unaffected by the transform, so
+      // it stays correct on any page.
+      const total = flow.scrollWidth;
+      setPageCount(Math.max(1, Math.ceil((total + BOOK_GAP) / step)));
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(viewport);
+    return () => ro.disconnect();
+    // Keyed on what determines the rendered text, since readerHtml itself is
+    // derived further down.
+  }, [readMode, currentChapter?.content, itemHighlights.length, fontSize, currentChapterIdx, railOpen, libraryOpen]);
+
+  // The page actually shown. Derived rather than stored, so a chapter that
+  // repaginates shorter — larger text, a narrower window — cannot leave the
+  // reader parked past the end, and no extra render is needed to correct it.
+  const page = Math.min(pageIndex, Math.max(0, pageCount - 1));
+
+  const turnPage = useCallback((dir: 1 | -1) => {
+    setPageIndex((stored) => {
+      const i = Math.min(stored, Math.max(0, pageCount - 1));
+      const next = i + dir;
+      if (next >= 0 && next < pageCount) return next;
+      // Past either end, carry on into the next or previous chapter — a book
+      // does not stop at a chapter break.
+      if (next >= pageCount && currentChapterIdx < chapters.length - 1) {
+        setCurrentChapterIdx((c) => c + 1);
+        return 0;
+      }
+      if (next < 0 && currentChapterIdx > 0) {
+        setCurrentChapterIdx((c) => c - 1);
+        return 0;
+      }
+      return i;
+    });
+  }, [pageCount, currentChapterIdx, chapters.length]);
+
+  // Arrow keys and space turn pages, the way they do in every reader.
+  useEffect(() => {
+    if (readMode !== 'pages' || !activeItem) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowRight' || (e.key === ' ' && !e.shiftKey)) { e.preventDefault(); turnPage(1); }
+      else if (e.key === 'ArrowLeft' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); turnPage(-1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [readMode, activeItem, turnPage]);
+
   const goToChapter = useCallback((idx: number) => {
     setCurrentChapterIdx(idx);
+    setPageIndex(0);
     setShowToc(false);
     if (readerRef.current) readerRef.current.scrollTop = 0;
   }, []);
 
   const goToPrevChapter = useCallback(() => {
     setCurrentChapterIdx((i) => Math.max(0, i - 1));
+    setPageIndex(0);
     if (readerRef.current) readerRef.current.scrollTop = 0;
   }, []);
 
   const goToNextChapter = useCallback(() => {
     setCurrentChapterIdx((i) => Math.min(chapters.length - 1, i + 1));
+    setPageIndex(0);
     if (readerRef.current) readerRef.current.scrollTop = 0;
   }, [chapters.length]);
 
@@ -315,20 +486,21 @@ export function ReadingView({
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, []);
 
-  // Create a real highlight
-  const handleHighlight = useCallback(() => {
+  // Create a real highlight. The colour comes from the click, not from a mode
+  // set earlier in a toolbar — you know what a passage means as you mark it.
+  const handleHighlight = useCallback((color: HighlightColor) => {
     if (!selectedText || !activeItemId) return;
     onAddHighlight({
       libraryItemId: activeItemId,
       text: selectedText,
-      color: currentHighlightColor,
-      location: 'selection',
+      color,
+      noteId: null,
+      page: null,
     });
     setSelectedText('');
     window.getSelection()?.removeAllRanges();
     setShowSelectionToolbar(false);
-    setSidebarTab('highlights');
-  }, [selectedText, activeItemId, currentHighlightColor, onAddHighlight]);
+  }, [selectedText, activeItemId, onAddHighlight]);
 
   // Fetch news from API
   const fetchNews = useCallback(async (cat: string) => {
@@ -371,19 +543,94 @@ export function ReadingView({
     else fetchPapers(paperCategory);
   }, [newsCategory, paperCategory, fetchNews, fetchPapers]);
 
-  // Add fetched item to library
-  const addFetchedItem = useCallback((item: FetchedItem) => {
-    const newItem = onAddLibraryItem({
-      title: item.title,
-      author: item.author,
+  /**
+   * Read a page properly, rather than filing a link and calling it a read.
+   *
+   * The feed gives a headline and a URL. This asks the server to fetch the
+   * page and pull the article out of it; when that fails — a paywall, or a
+   * page assembled by scripts in the browser — the item says so instead of
+   * storing a stub that claims the content is "available at the source".
+   */
+  const importArticle = useCallback(async (item: FetchedItem) => {
+    let article: Record<string, unknown> | null = null;
+    if (item.url) {
+      try {
+        const res = await fetch('/api/reading/article', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: item.url }),
+        });
+        article = await res.json();
+      } catch {
+        article = null;
+      }
+    }
+
+    const readable = article && !article.error && typeof article.content === 'string';
+    const excerpt = String(article?.excerpt ?? '') || item.content || '';
+    const fallback = [
+      `# ${item.title}`,
+      excerpt ? `*${excerpt}*` : '',
+      article?.error
+        ? `> Braindot could not read this page. ${String(article.error)}`
+        : '> Braindot could not reach this page.',
+      item.url ? `[Open the original on ${item.source}](${item.url})` : '',
+    ].filter(Boolean).join('\n\n');
+
+    return onAddLibraryItem({
+      title: readable ? String(article!.title || item.title) : item.title,
+      author: (readable ? String(article!.author ?? '') : '') || item.author || null,
       type: item.type as 'pdf' | 'url' | 'rss',
       source: item.source,
-      progressPercent: 0,
+      progress: 0,
+      excerpt: excerpt.slice(0, 400),
+      // A story's lead image becomes its cover on the shelf, so a news item
+      // has a face like everything else there.
+      coverUrl: readable ? (article!.leadImage as string | null) ?? null : null,
       status: 'unread',
-      content: item.content ? `# ${item.title}\n\n${item.content}` : `# ${item.title}\n\n*Content from ${item.source}. Visit the original source for full text.*\n\nSource: ${item.url}`,
-      chapterTitle: item.source,
+      content: readable ? String(article!.content) : fallback,
     });
-    return newItem;
+  }, [onAddLibraryItem]);
+
+  /**
+   * Assemble today's edition and put it on the shelf.
+   *
+   * The paper is a library item like any other: it gets a cover, opens in the
+   * paged reader, and every headline in it can be highlighted into a note.
+   * Nothing about reading it is special-cased.
+   */
+  const buildEdition = useCallback(async () => {
+    setBuildingEdition(true);
+    try {
+      const res = await fetch('/api/reading/edition', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sections: ['world', 'business', 'science', 'tech'] }),
+      });
+      const data = await res.json();
+      if (data.error || !data.content) {
+        setFeedError(data.error || 'Today’s edition could not be assembled.');
+        return;
+      }
+      const item = onAddLibraryItem({
+        title: data.title,
+        author: null,
+        type: 'url',
+        source: 'Braindot',
+        progress: 0,
+        excerpt: data.excerpt ?? '',
+        coverUrl: data.coverUrl ?? null,
+        status: 'unread',
+        content: data.content,
+      });
+      setActiveItemId(item.id);
+      setShowFeedPanel(null);
+      setLibraryOpen(false);
+    } catch {
+      setFeedError('Today’s edition could not be assembled.');
+    } finally {
+      setBuildingEdition(false);
+    }
   }, [onAddLibraryItem]);
 
   // Handle file upload — sends file to API for real text extraction
@@ -419,12 +666,11 @@ export function ReadingView({
         author: data.author || 'Unknown',
         type: isEpub ? 'epub' : 'pdf',
         source: 'Uploaded file',
-        progressPercent: 0,
+        progress: 0,
+        excerpt: '',
+        coverUrl: data.coverUrl ?? null,
         status: 'unread',
         content: data.content,
-        totalPages: data.totalPages || 1,
-        currentPage: 1,
-        chapterTitle: isEpub ? 'Chapter 1' : 'Page 1',
       });
 
       // Auto-select the newly added item
@@ -438,11 +684,11 @@ export function ReadingView({
         author: 'Unknown',
         type: isEpub ? 'epub' : 'pdf',
         source: 'Uploaded file',
-        progressPercent: 0,
+        progress: 0,
+        excerpt: '',
+        coverUrl: null,
         status: 'unread',
         content: `# ${title}\n\n*Failed to extract content from this file. The file may be corrupted or use a format that cannot be parsed.*\n\nFile: ${file.name}\nSize: ${(file.size / 1024 / 1024).toFixed(1)} MB`,
-        totalPages: 1,
-        currentPage: 1,
       });
       setShowImport(false);
     } finally {
@@ -470,6 +716,13 @@ export function ReadingView({
         />
         {activeItem && (
           <HeaderButton
+            icon={Library}
+            label="shelf"
+            onClick={() => setActiveItemId(null)}
+          />
+        )}
+        {activeItem && (
+          <HeaderButton
             icon={Highlighter}
             label={`${itemHighlights.length} highlight${itemHighlights.length === 1 ? '' : 's'}`}
             onClick={() => setRailOpen((o) => !o)}
@@ -477,6 +730,11 @@ export function ReadingView({
           />
         )}
         <HeaderDivider />
+        <HeaderButton
+          icon={Newspaper}
+          label={buildingEdition ? 'assembling…' : "today's paper"}
+          onClick={() => { if (!buildingEdition) void buildEdition(); }}
+        />
         <HeaderButton icon={Globe} label="news" onClick={() => openFeed('news')} />
         <HeaderButton icon={FileText} label="papers" onClick={() => openFeed('papers')} />
         <HeaderButton icon={Plus} label="add source" accent onClick={() => setShowImport(true)} />
@@ -544,146 +802,169 @@ export function ReadingView({
               setNewsCategory={(c) => { setNewsCategory(c); fetchNews(c); }}
               paperCategory={paperCategory}
               setPaperCategory={(c) => { setPaperCategory(c); fetchPapers(c); }}
-              onAdd={addFetchedItem}
-              onRead={(item) => {
-                const newItem = addFetchedItem(item);
-                setActiveItemId(newItem.id);
-                setShowFeedPanel(null);
+              onAdd={(item) => { void importArticle(item); }}
+              onRead={async (item) => {
+                setOpeningArticle(item.id);
+                try {
+                  const newItem = await importArticle(item);
+                  setActiveItemId(newItem.id);
+                  setShowFeedPanel(null);
+                } finally {
+                  setOpeningArticle(null);
+                }
               }}
+              openingId={openingArticle}
               onClose={() => setShowFeedPanel(null)}
               onRefresh={() => showFeedPanel === 'news' ? fetchNews(newsCategory) : fetchPapers(paperCategory)}
             />
           ) : activeItem ? (
             <>
-              {/* Reader topbar — chapter nav + font size + highlights */}
+              {/* One row of reader chrome. It replaced ten controls — two
+                  chapter arrows, a title, two font buttons, a progress widget
+                  and three highlighter colours — sitting above a surface whose
+                  only job is to be read. The colours moved to the moment of
+                  highlighting; progress became the hairline below. */}
               <div style={{
-                height: 38, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
-                display: 'flex', alignItems: 'center', padding: '0 12px', gap: 6, flexShrink: 0,
+                height: 32, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
+                display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, flexShrink: 0,
                 position: 'relative',
               }}>
-                {/* Prev chapter */}
-                <button
-                  onClick={goToPrevChapter}
-                  disabled={currentChapterIdx <= 0}
-                  title="Previous chapter"
-                  style={{
-                    width: 26, height: 26, borderRadius: 4,
-                    background: 'transparent', border: 'none',
-                    color: currentChapterIdx <= 0 ? 'var(--t3)' : 'var(--t2)',
-                    cursor: currentChapterIdx <= 0 ? 'default' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    opacity: currentChapterIdx <= 0 ? 0.35 : 1,
-                  }}
-                >
-                  <ChevronLeft size={15} />
-                </button>
+                <ReaderIconButton
+                  icon={ChevronLeft}
+                  label={readMode === 'pages' ? 'Previous page  ←' : 'Previous chapter'}
+                  onClick={readMode === 'pages' ? () => turnPage(-1) : goToPrevChapter}
+                  disabled={readMode === 'pages'
+                    ? (page === 0 && currentChapterIdx <= 0)
+                    : currentChapterIdx <= 0}
+                />
 
-                {/* Chapter title + TOC dropdown trigger */}
                 <button
                   ref={tocBtnRef}
                   onClick={() => setShowToc((v) => !v)}
                   disabled={chapters.length === 0}
-                  title="Table of contents"
+                  title="Contents"
                   style={{
-                    flex: 1, minWidth: 0, height: 26, borderRadius: 4,
-                    background: showToc ? 'var(--acc-bg)' : 'transparent',
-                    border: '1px solid ' + (showToc ? 'var(--acc)' : 'transparent'),
-                    color: showToc ? 'var(--acc2)' : 'var(--t2)',
-                    cursor: 'pointer', padding: '0 8px',
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    fontSize: 11, fontFamily: 'inherit', fontWeight: 500,
+                    flex: 1, minWidth: 0, height: 24, borderRadius: 4,
+                    background: showToc ? 'var(--bg3)' : 'transparent',
+                    border: 'none',
+                    color: showToc ? 'var(--t1)' : 'var(--t2)',
+                    cursor: chapters.length === 0 ? 'default' : 'pointer', padding: '0 8px',
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    fontSize: 11.5, fontFamily: 'inherit',
                   }}
-                  onMouseEnter={(e) => { if (!showToc) { e.currentTarget.style.background = 'var(--bg2)'; } }}
-                  onMouseLeave={(e) => { if (!showToc) { e.currentTarget.style.background = 'transparent'; } }}
+                  onMouseEnter={(e) => { if (!showToc) e.currentTarget.style.background = 'var(--bg2)'; }}
+                  onMouseLeave={(e) => { if (!showToc) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <Menu size={12} style={{ flexShrink: 0 }} />
+                  <List size={12} style={{ flexShrink: 0, opacity: 0.75 }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
                     {currentChapter?.title || activeItem.title}
                   </span>
                   {chapters.length > 1 && (
-                    <span style={{ fontSize: 9, color: 'var(--t3)', flexShrink: 0, fontWeight: 600 }}>
-                      {currentChapterIdx + 1}/{chapters.length}
+                    <span style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                      {readMode === 'pages'
+                        ? `page ${page + 1}/${pageCount} · ${currentChapterIdx + 1} of ${chapters.length}`
+                        : `${currentChapterIdx + 1} of ${chapters.length}`}
                     </span>
                   )}
                 </button>
 
-                {/* Next chapter */}
+                <ReaderIconButton
+                  icon={ChevronRight}
+                  label={readMode === 'pages' ? 'Next page  →' : 'Next chapter'}
+                  onClick={readMode === 'pages' ? () => turnPage(1) : goToNextChapter}
+                  disabled={readMode === 'pages'
+                    ? (page >= pageCount - 1 && currentChapterIdx >= chapters.length - 1)
+                    : currentChapterIdx >= chapters.length - 1}
+                />
+
+                <span style={{ width: 1, height: 15, background: 'var(--bd)', margin: '0 2px', flexShrink: 0 }} />
+
+                {/* Scroll or read it as a book. */}
                 <button
-                  onClick={goToNextChapter}
-                  disabled={currentChapterIdx >= chapters.length - 1}
-                  title="Next chapter"
+                  onClick={() => changeReadMode(readMode === 'pages' ? 'scroll' : 'pages')}
+                  title={readMode === 'pages' ? 'Switch to scrolling' : 'Read as pages'}
+                  aria-pressed={readMode === 'pages'}
                   style={{
-                    width: 26, height: 26, borderRadius: 4,
-                    background: 'transparent', border: 'none',
-                    color: currentChapterIdx >= chapters.length - 1 ? 'var(--t3)' : 'var(--t2)',
-                    cursor: currentChapterIdx >= chapters.length - 1 ? 'default' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    opacity: currentChapterIdx >= chapters.length - 1 ? 0.35 : 1,
+                    height: 24, padding: '0 8px', borderRadius: 4, flexShrink: 0,
+                    background: readMode === 'pages' ? 'var(--acc-bg)' : 'transparent',
+                    border: 'none',
+                    color: readMode === 'pages' ? 'var(--acc2)' : 'var(--t2)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+                    fontFamily: 'inherit',
                   }}
+                  onMouseEnter={(e) => { if (readMode !== 'pages') e.currentTarget.style.background = 'var(--bg2)'; }}
+                  onMouseLeave={(e) => { if (readMode !== 'pages') e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <ChevronRight size={15} />
+                  {readMode === 'pages' ? <BookOpen size={12} /> : <AlignJustify size={12} />}
+                  <span style={{ fontSize: 10.5 }}>{readMode === 'pages' ? 'Pages' : 'Scroll'}</span>
                 </button>
 
-                <div style={{ width: 1, height: 18, background: 'var(--bd)' }} />
+                <span style={{ width: 1, height: 15, background: 'var(--bd)', margin: '0 2px', flexShrink: 0 }} />
 
-                {/* Font size controls A- / A+ */}
-                <button
-                  onClick={decreaseFontSize}
-                  disabled={fontSize === 'sm'}
-                  title="Decrease font size"
-                  style={{
-                    width: 26, height: 26, borderRadius: 4,
-                    background: 'transparent', border: 'none',
-                    color: fontSize === 'sm' ? 'var(--t3)' : 'var(--t2)',
-                    cursor: fontSize === 'sm' ? 'default' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    opacity: fontSize === 'sm' ? 0.35 : 1,
-                    fontSize: 10, fontWeight: 700,
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <span style={{ fontSize: 13 }}>A</span>
-                    <Minus size={9} />
-                  </span>
-                </button>
-                <button
-                  onClick={increaseFontSize}
-                  disabled={fontSize === 'lg'}
-                  title="Increase font size"
-                  style={{
-                    width: 26, height: 26, borderRadius: 4,
-                    background: 'transparent', border: 'none',
-                    color: fontSize === 'lg' ? 'var(--t3)' : 'var(--t2)',
-                    cursor: fontSize === 'lg' ? 'default' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    opacity: fontSize === 'lg' ? 0.35 : 1,
-                  }}
-                >
-                  <span style={{ fontSize: 15, fontWeight: 700 }}>A</span>
-                </button>
+                {/* Text size is a preference, so it lives in a menu that names
+                    its options rather than two buttons you press repeatedly. */}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <button
+                    onClick={() => setShowTypeMenu((v) => !v)}
+                    title="Text size"
+                    aria-label="Text size"
+                    style={{
+                      height: 24, padding: '0 8px', borderRadius: 4,
+                      background: showTypeMenu ? 'var(--bg3)' : 'transparent',
+                      border: 'none', color: showTypeMenu ? 'var(--t1)' : 'var(--t2)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                      fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={(e) => { if (!showTypeMenu) e.currentTarget.style.background = 'var(--bg2)'; }}
+                    onMouseLeave={(e) => { if (!showTypeMenu) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <Type size={12} />
+                    <span style={{ fontSize: 10.5 }}>{FONT_SIZE_LABELS[fontSize]}</span>
+                  </button>
+                  {showTypeMenu && (
+                    <>
+                      <div onClick={() => setShowTypeMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                      <div style={{
+                        position: 'absolute', top: 28, right: 0, zIndex: 50, width: 150,
+                        background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 6,
+                        boxShadow: '0 10px 28px rgba(0,0,0,0.36)', padding: 4,
+                      }}>
+                        {(['sm', 'md', 'lg'] as const).map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => { setFontSize(s); setShowTypeMenu(false); }}
+                            style={{
+                              width: '100%', textAlign: 'left', padding: '7px 9px', borderRadius: 4,
+                              background: fontSize === s ? 'var(--acc-bg)' : 'transparent',
+                              border: fontSize === s ? '1px solid var(--acc-bd)' : '1px solid transparent',
+                              color: fontSize === s ? 'var(--t1)' : 'var(--t2)',
+                              cursor: 'pointer', fontFamily: 'inherit',
+                              fontSize: FONT_SIZES[s] * 0.62,
+                            }}
+                            onMouseEnter={(e) => { if (fontSize !== s) e.currentTarget.style.background = 'var(--bg3)'; }}
+                            onMouseLeave={(e) => { if (fontSize !== s) e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            {FONT_SIZE_LABELS[s]}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
 
-                <div style={{ width: 1, height: 18, background: 'var(--bd)' }} />
-
-                {/* Reading progress bar (chapter-based) */}
-                {chapters.length > 1 && (
-                  <div style={{
-                    width: 80, height: 4, background: 'var(--bg3)', borderRadius: 2, overflow: 'hidden',
-                    flexShrink: 0,
-                  }} title={`${Math.round(((currentChapterIdx + 1) / chapters.length) * 100)}%`}>
-                    <div style={{
-                      height: '100%',
-                      width: `${((currentChapterIdx + 1) / chapters.length) * 100}%`,
-                      background: 'var(--acc)', borderRadius: 2,
-                      transition: 'width 0.2s ease',
-                    }} />
-                  </div>
-                )}
-
-                <div style={{ width: 1, height: 18, background: 'var(--bd)' }} />
-
-                <ToolButton icon={Highlighter} label="yellow" active={currentHighlightColor === 'yellow'} onClick={() => setCurrentHighlightColor('yellow')} color="#fbbf24" />
-                <ToolButton icon={Highlighter} label="purple" active={currentHighlightColor === 'purple'} onClick={() => setCurrentHighlightColor('purple')} color="#7c6ef7" />
-                <ToolButton icon={Highlighter} label="green" active={currentHighlightColor === 'green'} onClick={() => setCurrentHighlightColor('green')} color="#34d399" />
+              {/* Where you are in the chapter, as a hairline rather than a
+                  widget. It reads the scroll position, so it moves as you
+                  read instead of only when you change chapter. */}
+              <div style={{ height: 2, background: 'var(--bg2)', flexShrink: 0 }}>
+                <div style={{
+                  height: '100%',
+                  width: `${Math.round((readMode === 'pages'
+                    ? (pageCount > 1 ? (page + 1) / pageCount : 1)
+                    : scrollProgress) * 100)}%`,
+                  background: 'var(--acc)',
+                  transition: 'width 90ms linear',
+                }} />
               </div>
 
               {/* TOC dropdown */}
@@ -757,80 +1038,167 @@ export function ReadingView({
                 </div>
               )}
 
-              {/* Reader body */}
-              <div
-                ref={readerRef}
-                className="sb-scroll"
-                style={{ flex: 1, overflowY: 'auto', padding: '32px 56px', display: 'flex', justifyContent: 'center' }}
-              >
+              {/* The page. Paged reading lays the chapter into columns and
+                  slides a spread at a time; scrolling reading keeps the single
+                  measure with marks in the outer margin. */}
+              {readMode === 'pages' ? (
+                // The spacing lives on this wrapper and the clipping on the
+                // viewport inside it. With padding on the clipping element,
+                // overflow is cut at the padding box — so the next spread's
+                // columns showed through in the margins, and the page step,
+                // measured from clientWidth, was padding-too-wide.
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', padding: '34px 44px 30px' }}>
                 <div
-                  className="sb-reader-prose"
-                  style={{
-                    maxWidth: 720, width: '100%',
-                    // Drive the proportional font-size scaling via the CSS variable
-                    // consumed by .sb-reader-prose and its h1/h2/h3 rules in globals.css.
-                    ['--reader-fs' as string]: `${FONT_SIZES[fontSize]}px`,
-                  }}
-                  dangerouslySetInnerHTML={{ __html: readerHtml }}
+                  ref={readerRef}
+                  className="sb-book-viewport"
+                  style={{ flex: 1, minWidth: 0 }}
                   onClick={(e) => {
-                    const target = e.target as HTMLElement;
-                    const hl = target.closest('[data-hl-id]') as HTMLElement | null;
-                    if (hl) setSidebarTab('highlights');
+                    // Clicking the outer third of a leaf turns the page, the
+                    // way tapping the edge of a book does. A click that lands
+                    // on text, or that ends a selection, is left alone.
+                    if (window.getSelection()?.toString()) return;
+                    if ((e.target as HTMLElement).closest('mark')) return;
+                    const box = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - box.left;
+                    if (x < box.width * 0.14) turnPage(-1);
+                    else if (x > box.width * 0.86) turnPage(1);
                   }}
-                />
-              </div>
+                >
+                  <div
+                    ref={proseRef}
+                    className="sb-reader-prose sb-book-flow"
+                    style={{
+                      ['--reader-fs' as string]: `${FONT_SIZES[fontSize]}px`,
+                      ['--book-gap' as string]: `${BOOK_GAP}px`,
+                      columnCount,
+                      transform: `translateX(-${page * spreadStep}px)`,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: readerHtml }}
+                  />
+                </div>
+                </div>
+              ) : (
+                <div
+                  ref={readerRef}
+                  className="sb-scroll"
+                  style={{ flex: 1, overflowY: 'auto', padding: '38px 40px 120px' }}
+                >
+                  <div className="sb-reader-page">
+                    <div
+                      ref={proseRef}
+                      className="sb-reader-prose sb-reader-measure"
+                      style={{ ['--reader-fs' as string]: `${FONT_SIZES[fontSize]}px` }}
+                      dangerouslySetInnerHTML={{ __html: readerHtml }}
+                    />
+                    <div className="sb-reader-margin">
+                      <ReaderMargin
+                        highlights={itemHighlights}
+                        proseRef={proseRef}
+                        scrollRef={readerRef}
+                        revision={`${currentChapterIdx}:${fontSize}:${itemHighlights.length}:${readerWidth}`}
+                        onCapture={(hl) => onCreateNoteFromHighlight(hl, activeItem.title)}
+                        onDelete={onDeleteHighlight}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              {/* Floating selection toolbar */}
+              {/* Choose the colour as you mark the passage — that is when you
+                  know what the mark means. It used to be a mode set in the
+                  toolbar beforehand. */}
               {showSelectionToolbar && (
                 <div style={{
                   position: 'fixed', left: selectionPos.x, top: selectionPos.y,
                   transform: 'translate(-50%, -100%)', zIndex: 200,
-                  background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 6,
-                  padding: '4px 6px', display: 'flex', gap: 4,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                  background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 7,
+                  padding: 5, display: 'flex', alignItems: 'center', gap: 5,
+                  boxShadow: '0 10px 26px rgba(0,0,0,0.34)',
                 }}>
-                  <SelectionBtn icon={Highlighter} label="highlight" onClick={handleHighlight} color={currentHighlightColor === 'yellow' ? '#fbbf24' : currentHighlightColor === 'purple' ? '#7c6ef7' : '#34d399'} />
-                  <SelectionBtn icon={Sparkles} label="ask AI" onClick={() => {
-                    navigator.clipboard?.writeText(selectedText);
-                    setShowSelectionToolbar(false);
-                  }} />
+                  {HIGHLIGHT_SWATCHES.map((s) => (
+                    <button
+                      key={s.id}
+                      onMouseDown={(e) => { e.preventDefault(); handleHighlight(s.id); }}
+                      title={`Highlight — ${s.label}`}
+                      aria-label={`Highlight in ${s.label}`}
+                      style={{
+                        width: 22, height: 22, borderRadius: '50%', cursor: 'pointer',
+                        background: s.swatch, border: '1px solid rgba(255,255,255,0.18)',
+                      }}
+                    />
+                  ))}
+                  <span style={{ width: 1, height: 16, background: 'var(--bd2)' }} />
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      navigator.clipboard?.writeText(selectedText);
+                      setShowSelectionToolbar(false);
+                    }}
+                    title="Copy this passage"
+                    style={{
+                      background: 'transparent', border: 'none', color: 'var(--t2)',
+                      fontSize: 10.5, fontFamily: 'inherit', cursor: 'pointer', padding: '0 5px',
+                    }}
+                  >
+                    copy
+                  </button>
                 </div>
               )}
             </>
           ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--t3)', fontSize: 14, fontStyle: 'italic' }}>
-              <BookOpen size={32} color="var(--t3)" strokeWidth={1.5} />
-              <span>select an item from your library</span>
-              <span style={{ fontSize: 11 }}>or fetch tech news / research papers from the topbar</span>
-            </div>
+            <Bookshelf
+              items={libraryItems}
+              onOpen={(id) => { setActiveItemId(id); setLibraryOpen(false); }}
+              onAddSource={() => setShowImport(true)}
+              onFetchNews={() => openFeed('news')}
+              onFetchPapers={() => openFeed('papers')}
+              onBuildEdition={() => { if (!buildingEdition) void buildEdition(); }}
+              buildingEdition={buildingEdition}
+            />
           )}
         </div>
 
-        {/* Highlights / AI drawer — opens from the header count, not pinned */}
+        {/* The drawer is now only for the marks — and only earns its place on
+            a screen too narrow for the margin, or when you want the whole list
+            at once. The AI tab that used to live here asserted things about
+            the reader's vault that it had not looked at, and the Notes tab
+            filtered on a field no highlight has ever carried, so it was
+            permanently empty. A thought about a passage becomes a note in the
+            vault, which is what "make a note" already does. */}
         <div style={{
-          width: railOpen ? 250 : 0, minWidth: railOpen ? 250 : 0,
+          width: railOpen ? 264 : 0, minWidth: railOpen ? 264 : 0,
           background: 'var(--bg1)', borderLeft: railOpen ? '1px solid var(--bd)' : 'none',
           display: railOpen ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex', height: 38, borderBottom: '1px solid var(--bd)', flexShrink: 0 }}>
-            {([
-              { id: 'ai', label: 'AI' }, { id: 'highlights', label: 'Highlights' }, { id: 'notes', label: 'Notes' },
-            ] as const).map((t) => (
-              <button key={t.id} onClick={() => setSidebarTab(t.id)} style={{
-                flex: 1, background: 'transparent', border: 'none',
-                borderBottom: sidebarTab === t.id ? '2px solid var(--acc)' : '2px solid transparent',
-                color: sidebarTab === t.id ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
-                textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: sidebarTab === t.id ? 600 : 400,
-              }}>{t.label}</button>
-            ))}
+          <div style={{
+            display: 'flex', alignItems: 'center', height: 32, padding: '0 12px',
+            borderBottom: '1px solid var(--bd)', flexShrink: 0, gap: 8,
+          }}>
+            <span style={{
+              fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em',
+              color: 'var(--t3)', fontWeight: 600, flex: 1,
+            }}>
+              {itemHighlights.length > 0 ? plural(itemHighlights.length, 'mark') : 'marks'}
+            </span>
+            <button
+              onClick={() => setRailOpen(false)}
+              title="Hide marks"
+              aria-label="Hide marks"
+              style={{
+                background: 'transparent', border: 'none', color: 'var(--t3)',
+                cursor: 'pointer', padding: 0, display: 'flex',
+              }}
+            >
+              <X size={12} />
+            </button>
           </div>
-          <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-            {sidebarTab === 'ai' && activeItem && <AISidebar item={activeItem} highlights={itemHighlights} />}
-            {sidebarTab === 'highlights' && (
-              <HighlightsTab highlights={itemHighlights} onOpenNote={onOpenNote} onDelete={onDeleteHighlight} onCreateNote={(hl) => onCreateNoteFromHighlight(hl, activeItem?.title || '')} />
-            )}
-            {sidebarTab === 'notes' && <NotesTab highlights={itemHighlights.filter((h) => h.note)} onOpenNote={onOpenNote} />}
+          <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+            <HighlightsTab
+              highlights={itemHighlights}
+              onOpenNote={onOpenNote}
+              onDelete={onDeleteHighlight}
+              onCreateNote={(hl) => onCreateNoteFromHighlight(hl, activeItem?.title || '')}
+            />
           </div>
         </div>
       </div>
@@ -845,17 +1213,21 @@ export function ReadingView({
           onAddRss={(url) => {
             onAddLibraryItem({
               title: url,
-              type: 'rss', source: url, progressPercent: 0, status: 'unread',
+              type: 'rss', author: null, source: url, progress: 0, excerpt: '', coverUrl: null, status: 'unread',
               content: `# ${url}\n\n*RSS feed content will appear here once fetched.*\n\nFeed URL: ${url}`,
             });
             setShowImport(false);
           }}
-          onAddUrl={(url) => {
-            onAddLibraryItem({
-              title: url.replace(/^https?:\/\//, '').split('/')[0],
-              type: 'url', source: url, progressPercent: 0, status: 'unread',
-              content: `# ${url}\n\n*Article content extracted from ${url}.*\n\nThis is a clipped article. The full content would be extracted using Mozilla Readability.`,
+          onAddUrl={async (url) => {
+            // This used to file the link with a paragraph claiming the article
+            // "would be extracted using Mozilla Readability" — a description of
+            // work that never happened, saved as though it were the article.
+            const host = url.replace(/^https?:\/\//, '').split('/')[0];
+            const item = await importArticle({
+              id: `url_${Date.now()}`, title: host, author: '', type: 'url',
+              source: host, url, score: 0, content: '', time: 0,
             });
+            setActiveItemId(item.id);
             setShowImport(false);
           }}
         />
@@ -868,7 +1240,7 @@ export function ReadingView({
 
 function FeedPanel({
   type, items, loading, error, newsCategory, setNewsCategory, paperCategory, setPaperCategory,
-  onAdd, onRead, onClose, onRefresh,
+  onAdd, onRead, onClose, onRefresh, openingId,
 }: {
   type: 'news' | 'papers';
   items: FetchedItem[];
@@ -879,7 +1251,8 @@ function FeedPanel({
   paperCategory: string;
   setPaperCategory: (c: string) => void;
   onAdd: (item: FetchedItem) => void;
-  onRead: (item: FetchedItem) => void;
+  onRead: (item: FetchedItem) => void | Promise<void>;
+  openingId: string | null;
   onClose: () => void;
   onRefresh: () => void;
 }) {
@@ -999,13 +1372,26 @@ function LibrarySection({ label, items, activeItemId, onSelect }: {
             cursor: 'pointer', opacity: item.status === 'done' ? 0.5 : 1,
           }} onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg2)'; }}
             onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
-            <div style={{ width: 28, height: 36, borderRadius: 2, background: typeInfo.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, fontWeight: 700, color: typeInfo.color, flexShrink: 0 }}>{typeInfo.label}</div>
+            {/* The book's own cover when it has one, pulled out of the epub on
+                import. The type badge is the stand-in, not the default. */}
+            {item.coverUrl ? (
+              <img
+                src={item.coverUrl}
+                alt=""
+                style={{
+                  width: 28, height: 40, borderRadius: 2, objectFit: 'cover', flexShrink: 0,
+                  background: 'var(--bg3)', boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                }}
+              />
+            ) : (
+              <div style={{ width: 28, height: 40, borderRadius: 2, background: typeInfo.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, fontWeight: 700, color: typeInfo.color, flexShrink: 0 }}>{typeInfo.label}</div>
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, color: isActive ? 'var(--acc2)' : 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
               <div style={{ fontSize: 9, color: 'var(--t3)' }}>{item.author ? `${item.author} · ` : ''}{item.type}</div>
-              {(item.type === 'epub' || item.type === 'pdf') && item.progressPercent > 0 && item.status !== 'done' && (
+              {(item.type === 'epub' || item.type === 'pdf') && item.progress > 0 && item.status !== 'done' && (
                 <div style={{ height: 2, background: 'var(--bg3)', borderRadius: 1, marginTop: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${item.progressPercent}%`, background: 'var(--acc)', borderRadius: 1 }} />
+                  <div style={{ height: '100%', width: `${item.progress}%`, background: 'var(--acc)', borderRadius: 1 }} />
                 </div>
               )}
             </div>
@@ -1016,98 +1402,90 @@ function LibrarySection({ label, items, activeItemId, onSelect }: {
   );
 }
 
-function ToolButton({ icon: Icon, label, active, onClick, color }: {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; color?: string }>;
-  label: string; active?: boolean; onClick: () => void; color?: string;
+/** A quiet square control for the reader's one row of chrome. */
+function ReaderIconButton({ icon: Icon, label, onClick, disabled }: {
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  label: string; onClick: () => void; disabled?: boolean;
 }) {
   return (
-    <button onClick={onClick} title={label} style={{
-      width: 26, height: 26, borderRadius: 4, background: active ? 'var(--acc-bg)' : 'transparent',
-      border: 'none', color: color || 'var(--t3)', cursor: 'pointer',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}><Icon size={13} color={color} /></button>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      style={{
+        width: 24, height: 24, borderRadius: 4, flexShrink: 0,
+        background: 'transparent', border: 'none',
+        color: 'var(--t2)', opacity: disabled ? 0.3 : 1,
+        cursor: disabled ? 'default' : 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; } }}
+    >
+      <Icon size={14} strokeWidth={2} />
+    </button>
   );
 }
 
-function SelectionBtn({ icon: Icon, label, onClick, color }: {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; color?: string }>;
-  label: string; onClick: () => void; color?: string;
-}) {
-  return (
-    <button onClick={onClick} style={{
-      background: 'var(--bg3)', border: 'none', borderRadius: 3, padding: '4px 8px',
-      color: color || 'var(--t2)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
-      display: 'flex', alignItems: 'center', gap: 3, fontWeight: 600,
-    }}><Icon size={11} color={color} />{label}</button>
-  );
-}
 
-function AISidebar({ item, highlights }: { item: LibraryItem; highlights: Highlight[] }) {
-  const cards = [
-    { type: 'connection', desc: `This chapter's concepts map to your existing notes on <em>PARA Method</em> and <em>Zettelkasten</em> — same ideas, different framing.`, action: 'explore connections ↗' },
-    { type: 'capture ready', desc: highlights.length > 0 ? `${highlights.length} highlighted passages ready to become atomic notes. Capture them now?` : 'No highlights yet. Select text in the reader to start capturing.', action: highlights.length > 0 ? 'capture all ↗' : '' },
-    { type: 'summarise', desc: 'Run progressive summarisation — bold key ideas, then extract golden lines.', action: 'summarise ↗' },
-    { type: 'reflection', desc: `You've read ${item.progressPercent}% of this. What surprised you most?`, action: 'reflect ↗' },
-  ];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span className="sb-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--acc)', boxShadow: '0 0 6px rgba(124,110,247,0.6)' }} />
-        <span style={{ fontSize: 10, color: 'var(--acc2)' }}>reading intelligence</span>
-      </div>
-      {cards.map((card, i) => (
-        <div key={i} style={{ background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 4, padding: '9px 11px', cursor: 'pointer', transition: 'background 0.12s, border 0.12s' }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--acc-bg)'; e.currentTarget.style.borderColor = 'var(--acc)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.borderColor = 'var(--bd)'; }}>
-          <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t3)', marginBottom: 4, fontWeight: 600 }}>{card.type}</div>
-          <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.5, marginBottom: 5 }} dangerouslySetInnerHTML={{ __html: card.desc }} />
-          {card.action && <div style={{ fontSize: 10, color: 'var(--acc)', display: 'flex', alignItems: 'center', gap: 3 }}>{card.action}<ArrowUpRight size={9} /></div>}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function HighlightsTab({ highlights, onOpenNote, onDelete, onCreateNote }: {
   highlights: Highlight[]; onOpenNote: (id: string) => void; onDelete: (id: string) => void; onCreateNote: (hl: Highlight) => void;
 }) {
-  if (highlights.length === 0) return <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>no highlights yet — select text in the reader</div>;
+  if (highlights.length === 0) {
+    return (
+      <div style={{ fontSize: 11.5, color: 'var(--t3)', lineHeight: 1.7, padding: '10px 2px' }}>
+        Select a passage while you read to mark it. Marks show up here, and beside
+        the line they came from.
+      </div>
+    );
+  }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {highlights.map((hl) => (
-        <div key={hl.id} style={{ borderLeft: `3px solid ${HIGHLIGHT_BORDER[hl.color]}`, paddingLeft: 10, padding: '8px 10px', background: HIGHLIGHT_BG[hl.color], borderRadius: '0 4px 4px 0', marginBottom: 4 }}>
-          <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5, marginBottom: 4 }}>{hl.text}</div>
-          <div style={{ fontSize: 9, color: 'var(--t3)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>{hl.color}</span>
-            {hl.note && <span>· has note</span>}
-            {hl.linkedNoteId && <span>· linked</span>}
-            <div style={{ flex: 1 }} />
-            {!hl.linkedNoteId && (
-              <button onClick={() => onCreateNote(hl)} style={{ background: 'transparent', border: 'none', color: 'var(--acc)', fontSize: 9, fontFamily: 'inherit', cursor: 'pointer' }}>capture →</button>
+        <div
+          key={hl.id}
+          style={{
+            borderLeft: `2px solid ${HIGHLIGHT_BORDER[hl.color]}`,
+            background: HIGHLIGHT_BG[hl.color],
+            borderRadius: '0 4px 4px 0',
+            padding: '9px 11px',
+          }}
+        >
+          <div style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.6, marginBottom: 6 }}>{hl.text}</div>
+          <div style={{ fontSize: 10, color: 'var(--t3)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            {hl.noteId ? (
+              <button
+                onClick={() => onOpenNote(hl.noteId!)}
+                style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--grn)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                open the note →
+              </button>
+            ) : (
+              <button
+                onClick={() => onCreateNote(hl)}
+                style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--acc2)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                make a note
+              </button>
             )}
-            <button onClick={() => onDelete(hl.id)} style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 0, opacity: 0.5 }}><X size={10} /></button>
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => onDelete(hl.id)}
+              title="Remove this mark"
+              aria-label="Remove this mark"
+              style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 0, display: 'flex' }}
+            >
+              <X size={11} />
+            </button>
           </div>
-          {hl.note && <div style={{ fontSize: 10, color: 'var(--acc2)', marginTop: 4, fontStyle: 'italic' }}>{hl.note}</div>}
         </div>
       ))}
     </div>
   );
 }
 
-function NotesTab({ highlights, onOpenNote }: { highlights: Highlight[]; onOpenNote: (id: string) => void }) {
-  if (highlights.length === 0) return <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>no notes yet</div>;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {highlights.map((hl) => (
-        <div key={hl.id} style={{ background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 4, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 4, fontStyle: 'italic' }}>"{hl.text.slice(0, 80)}{hl.text.length > 80 ? '…' : ''}"</div>
-          <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.5 }}>{hl.note}</div>
-          {hl.linkedNoteId && <button onClick={() => onOpenNote(hl.linkedNoteId!)} style={{ marginTop: 6, background: 'transparent', border: 'none', color: 'var(--acc)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer' }}>open in editor →</button>}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function ImportModal({ onClose, fileInputRef, onFileUpload, uploading, onAddRss, onAddUrl }: {
   onClose: () => void;
@@ -1115,7 +1493,7 @@ function ImportModal({ onClose, fileInputRef, onFileUpload, uploading, onAddRss,
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploading: boolean;
   onAddRss: (url: string) => void;
-  onAddUrl: (url: string) => void;
+  onAddUrl: (url: string) => void | Promise<void>;
 }) {
   const [rssUrl, setRssUrl] = useState('');
   const [articleUrl, setArticleUrl] = useState('');

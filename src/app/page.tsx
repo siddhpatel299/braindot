@@ -863,13 +863,21 @@ export default function Home() {
             onUpdateHighlight={reading.updateHighlight}
             onDeleteHighlight={reading.deleteHighlight}
             onCreateNoteFromHighlight={(highlight, sourceTitle) => {
-              const n = handleCreateNote();
+              // createNote directly rather than handleCreateNote: capturing a
+              // passage must not throw the reader out of the book and into the
+              // editor. The note is waiting in a tab when they are done; the
+              // margin says "note made" and offers the way there.
+              const n = createNote(SEED_FOLDER_IDS.resourcesPkm);
               updateNote(n.id, {
-                title: `Highlight: ${highlight.text.slice(0, 50)}…`,
-                subtitle: `From "${sourceTitle}"`,
-                body: `> ${highlight.text}\n\n## Context\n\nThis highlight came from [[${sourceTitle}]].\n\n## Thoughts\n\n`,
+                title: highlight.text.slice(0, 60) + (highlight.text.length > 60 ? '…' : ''),
+                subtitle: `From “${sourceTitle}”`,
+                body: `> ${highlight.text}\n\n— [[${sourceTitle}]]\n\n## What this changes\n\n`,
               });
-              showToast('created note from highlight');
+              // Link the mark back to the note it became. Without this the
+              // highlight stays unlinked, so the reader offers to capture it
+              // again and there is no way back to what it turned into.
+              reading.updateHighlight(highlight.id, { noteId: n.id });
+              showToast('note made from your mark');
             }}
           />
         ) : (
