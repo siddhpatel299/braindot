@@ -14,6 +14,8 @@ import { repairImportedText } from '@/utils/repairImportedText';
 import { ViewHeader, HeaderButton, HeaderDivider } from './ViewHeader';
 import { ReaderMargin } from './ReaderMargin';
 import { Bookshelf } from './Bookshelf';
+import { DailyPaper, type Edition, type PaperStory } from './DailyPaper';
+import { EDITION_MARKER } from '@/utils/serverHtml';
 
 interface ReadingViewProps {
   libraryItems: LibraryItem[];
@@ -169,6 +171,23 @@ export function ReadingView({
     () => libraryItems.find((l) => l.id === activeItemId) || null,
     [libraryItems, activeItemId],
   );
+
+  /**
+   * An edition stores its structure, not just its prose. When the active item
+   * is one, the paper is set from that structure rather than run through the
+   * book reader — a broadsheet is not a chapter.
+   */
+  const edition = useMemo<Edition | null>(() => {
+    const raw = activeItem?.content;
+    if (!raw || !raw.startsWith(EDITION_MARKER)) return null;
+    try {
+      const json = raw.slice(EDITION_MARKER.length).split('<!--braindot:edition-text-->')[0];
+      return JSON.parse(json.trim()) as Edition;
+    } catch {
+      // Fall through to reading it as text rather than showing nothing.
+      return null;
+    }
+  }, [activeItem?.content]);
 
   const itemHighlights = useMemo(
     () => highlights.filter((h) => h.libraryItemId === activeItemId),
@@ -423,6 +442,18 @@ export function ReadingView({
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [showToc]);
+
+  const shelfProgress = useMemo(
+    () => libraryItems
+      .filter((i) => i.status === 'reading' && i.progress > 0 && i.type !== 'url')
+      .slice(0, 3)
+      .map((i) => ({
+        title: i.title,
+        progress: Math.round(i.progress),
+        highlights: highlights.filter((h) => h.libraryItemId === i.id).length,
+      })),
+    [libraryItems, highlights],
+  );
 
   const filteredItems = useMemo(() => {
     let items = libraryItems;
@@ -816,6 +847,28 @@ export function ReadingView({
               openingId={openingArticle}
               onClose={() => setShowFeedPanel(null)}
               onRefresh={() => showFeedPanel === 'news' ? fetchNews(newsCategory) : fetchPapers(paperCategory)}
+            />
+          ) : edition ? (
+            <DailyPaper
+              edition={edition}
+              shelf={shelfProgress}
+              onAddSource={() => setShowImport(true)}
+              onSaveStory={(story: PaperStory) => {
+                // A story becomes a note the same way a highlight does: quoted,
+                // credited, and linked back to where it came from.
+                onCreateNoteFromHighlight(
+                  {
+                    id: `story_${story.id}`,
+                    libraryItemId: activeItemId ?? '',
+                    noteId: null,
+                    text: [story.headline, story.standfirst, ...story.paragraphs].filter(Boolean).join('\n\n'),
+                    color: 'yellow',
+                    page: null,
+                    createdAt: new Date().toISOString(),
+                  },
+                  story.source,
+                );
+              }}
             />
           ) : activeItem ? (
             <>

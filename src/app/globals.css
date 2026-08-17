@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+/* Source Serif 4 is the paper's face — an optical-size text serif, so the
+   masthead at 3em and the body at 1em are drawn for their sizes rather than
+   scaled from one master. Only the edition uses it. */
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..800;1,8..60,300..700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -50,6 +54,12 @@
   --callout-text: #a49dd4;
   --selection-bg: rgba(111, 99, 224, 0.26);
   --canvas-dot: #24211d;
+  /* The edition: a sheet slightly lifted off the app's ground, with two
+     weights of rule — the heavy ones that separate sections and the hairlines
+     that divide columns. */
+  --paper:  #181614;
+  --rule:   #4a443c;
+  --hair:   #2a2723;
 }
 
 /* Light mode */
@@ -85,6 +95,9 @@
   --callout-text: #3b32a8;
   --selection-bg: rgba(84, 73, 201, 0.18);
   --canvas-dot: #d3cec1;
+  --paper:  #f8f6f1;
+  --rule:   #9d9689;
+  --hair:   #dcd7cb;
 }
 
 /* Default to dark ONLY before JS sets data-theme (prevents flash).
@@ -123,6 +136,12 @@
   --callout-text: #a49dd4;
   --selection-bg: rgba(111, 99, 224, 0.26);
   --canvas-dot: #24211d;
+  /* The edition: a sheet slightly lifted off the app's ground, with two
+     weights of rule — the heavy ones that separate sections and the hairlines
+     that divide columns. */
+  --paper:  #181614;
+  --rule:   #4a443c;
+  --hair:   #2a2723;
 }
 
 * {
@@ -344,6 +363,35 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 /* The two leaves are separated by the gutter's own width and nothing else. A
    rule drawn down the middle stayed fixed while the text slid past it on every
    turn, which read as a seam in the window rather than a fold in the page. */
+
+/* ===== The edition =====
+   The paper sets its own two faces: a text serif for the copy, and the app's
+   typewriter face for every piece of apparatus around it — folio, dateline,
+   credits, section rules, provenance. That contrast is what makes it read as a
+   printed page rather than a feed.
+
+   It has to be done in a stylesheet: the app-wide "monospace on everything"
+   rule carries !important, which an inline font-family cannot beat. */
+.sb-paper,
+.sb-paper * {
+  font-family: 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, serif !important;
+  font-variant-numeric: oldstyle-nums;
+}
+.sb-paper .sb-paper-ap,
+.sb-paper .sb-paper-ap * {
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
+  font-variant-numeric: normal;
+}
+/* Copy is justified, as a paper's is, with hyphenation so the narrow columns
+   do not open rivers. Headlines stay ranged left. */
+.sb-paper p {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+.sb-paper h1,
+.sb-paper h2,
+.sb-paper h3 { text-align: left; hyphens: manual; }
 
 /* ===== The shelf =====
    Books are found by their faces. The grid is sized so a cover is big enough

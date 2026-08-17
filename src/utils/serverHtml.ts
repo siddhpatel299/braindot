@@ -103,3 +103,8 @@ export function htmlToMarkdownBlocks(html: string, opts: { maxHeading?: number }
 
   return blocks.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
 }
+
+/** Marks a library item whose content is a structured edition, not prose. */
+export const EDITION_MARKER = '<!--braindot:edition-->';
+/** Separates that structure from the plain-text fallback beneath it. */
+export const EDITION_TEXT_MARKER = '<!--braindot:edition-text-->';

@@ -2,16 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { collectNews, type FeedItem } from '../news/route';
 import { readArticle } from '@/utils/readArticle';
+import { EDITION_MARKER, EDITION_TEXT_MARKER } from '@/utils/serverHtml';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
-/** How many stories each page of the paper carries. */
+/** How many stories the paper carries, and how the sections are laid out. */
 const PLAN = {
-  front: 3,     // one lead plus two seconds
-  world: 5,
+  read: 8,      // stories fetched and written up in full
   briefs: 6,
 };
+
+/**
+ * The sections of the paper, in printing order.
+ *
+ * Every one is guaranteed at least `min` stories if its sources produced any,
+ * so a busy wire day cannot squeeze a whole section off the page — technology
+ * was being crowded out by world news before this existed.
+ */
+const SECTIONS: { key: string; title: string; from: string[]; min: number }[] = [
+  { key: 'world', title: 'World & Business', from: ['world', 'business'], min: 2 },
+  { key: 'tech', title: 'Technology', from: ['tech'], min: 2 },
+  { key: 'science', title: 'Science', from: ['science'], min: 1 },
+];
 /** Words of source text handed to the summariser per story. */
 const SOURCE_WORD_CAP = 900;
 
@@ -162,52 +175,91 @@ function dateline(d: Date): string {
   });
 }
 
-/** Compose the edition as markdown, in reading order. */
-function compose(stories: Story[], briefs: Story[], now: Date, note: string): string {
-  const [lead, ...seconds] = stories;
+/** Roughly how long a piece takes to read, at a newspaper's pace. */
+const minutesToRead = (text: string) =>
+  Math.max(1, Math.round(text.split(/\s+/).filter(Boolean).length / 220));
+
+/** The edition number: the day of the year, so it advances once a day. */
+function editionNumber(d: Date): number {
+  const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+  return Math.floor((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - start) / 86_400_000);
+}
+
+export interface EditionStory {
+  id: string;
+  headline: string;
+  /** The italic line under the headline. */
+  standfirst: string;
+  paragraphs: string[];
+  source: string;
+  author: string | null;
+  url: string;
+  image: string | null;
+  minutes: number;
+  /** Where the words came from — printed under each story, so the reader knows. */
+  provenance: 'summary' | 'extract' | 'feed' | 'none';
+  note?: string;
+}
+
+/** Turn a fetched story into something the paper can set. */
+function toStory(s: Story, words: number): EditionStory {
+  let text = '';
+  let provenance: EditionStory['provenance'] = 'none';
+  if (s.summary) { text = s.summary; provenance = 'summary'; }
+  else if (s.body) { text = openingExtract(s.body, words); provenance = 'extract'; }
+  else if (s.content) { text = s.content; provenance = 'feed'; }
+
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  // The standfirst is the story's first sentence; the body is the rest. A deck
+  // that repeats the opening paragraph reads as a stutter.
+  const standfirst = sentences.length > 1 ? sentences[0] : '';
+  const rest = sentences.length > 1 ? sentences.slice(1) : sentences;
+
+  // Group the remaining sentences into paragraphs of two or three.
+  const paragraphs: string[] = [];
+  for (let i = 0; i < rest.length; i += 3) paragraphs.push(rest.slice(i, i + 3).join(' '));
+
+  return {
+    id: s.id,
+    headline: s.title,
+    standfirst,
+    paragraphs: paragraphs.filter(Boolean),
+    source: s.source,
+    author: s.author && s.author !== s.source ? s.author : null,
+    url: s.url,
+    image: null,
+    minutes: minutesToRead(text || s.title),
+    provenance,
+    note: provenance === 'none' ? s.unread : undefined,
+  };
+}
+
+/** The markdown fallback, so an edition is still readable as plain text. */
+function compose(lead: EditionStory, sections: { title: string; stories: EditionStory[] }[],
+                 briefs: EditionStory[], now: Date, note: string): string {
   const out: string[] = [];
-
-  // The masthead opens the front page; it does not get a page of its own. The
-  // reader splits pages on a horizontal rule, so a rule here would have left
-  // page one holding nothing but the title.
   out.push(`# The Braindot Edition`);
-  out.push(`*${dateline(now)} · assembled ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · ${note}*`);
+  out.push(`*${dateline(now)} · ${note}*`);
 
-  const story = (s: Story, level: number, words: number) => {
-    out.push(`${'#'.repeat(level)} ${s.title}`);
-    const credit = s.author && s.author !== s.source ? `${s.source} · ${s.author}` : s.source;
-    out.push(`*${credit}*`);
-
-    // In order of what we can honestly print: a summary written from the text
-    // we fetched, the publisher's own opening, the feed's one-line
-    // description, and — only if all three are missing — why we have nothing.
-    if (s.summary) {
-      out.push(s.summary);
-    } else if (s.body) {
-      out.push(openingExtract(s.body, words));
-      out.push(`*Opening paragraphs, as published.*`);
-    } else if (s.content) {
-      out.push(s.content);
-    } else {
-      out.push(`*This story could not be read: ${s.unread ?? 'the page did not respond'}.*`);
-    }
+  const write = (s: EditionStory, level: number) => {
+    out.push(`${'#'.repeat(level)} ${s.headline}`);
+    out.push(`*${s.author ? `${s.source} · ${s.author}` : s.source}*`);
+    if (s.standfirst) out.push(s.standfirst);
+    for (const p of s.paragraphs) out.push(p);
     out.push(`[Read it at ${s.source}](${s.url})`);
   };
 
-  if (lead) story(lead, 2, 220);
-  for (const s of seconds) story(s, 2, 130);
-
+  write(lead, 2);
+  for (const section of sections) {
+    out.push('---');
+    out.push(`# ${section.title}`);
+    for (const s of section.stories) write(s, 2);
+  }
   if (briefs.length) {
     out.push('---');
-    // A section head at h1 so it names its own page in the contents.
     out.push('# In brief');
-    for (const b of briefs) {
-      const line = b.summary || b.content || (b.body ? openingExtract(b.body, 40) : '');
-      out.push(`**${b.title}** — ${line ? `${line} ` : ''}[${b.source}](${b.url})`);
-      if (b.unread && !line) out.push(`*Not read in full: ${b.unread}*`);
-    }
+    for (const b of briefs) out.push(`**${b.headline}** — ${b.standfirst || ''} [${b.source}](${b.url})`);
   }
-
   return out.join('\n\n');
 }
 
@@ -240,7 +292,7 @@ ${[0, 1, 2].map((c) => [0, 1, 2, 3, 4, 5, 6, 7, 8].map((r) =>
 }
 
 export async function POST(req: NextRequest) {
-  let sections: string[] = ['world', 'business', 'science', 'tech'];
+  let sections: string[] = ['world', 'business', 'tech', 'science'];
   try {
     const body = await req.json();
     if (Array.isArray(body?.sections) && body.sections.length) sections = body.sections;
@@ -248,7 +300,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
 
-  // 1. Gather the day's candidates.
+  // 1. Gather the day's candidates, keeping which desk each came from.
   const batches = await Promise.all(sections.map(async (section) => {
     const items = await collectNews(section).catch(() => [] as FeedItem[]);
     return items.map((i) => ({ ...i, section, body: '' } as Story));
@@ -257,7 +309,7 @@ export async function POST(req: NextRequest) {
   const seen = new Set<string>();
   const candidates = rank(batches.flat()).filter((s) => {
     const key = s.url.replace(/[?#].*$/, '');
-    if (seen.has(key)) return false;
+    if (seen.has(key) || !s.title) return false;
     seen.add(key);
     return true;
   });
@@ -266,56 +318,99 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No stories came back from any source just now.' }, { status: 200 });
   }
 
-  // 2. Read the top stories properly. Everything else runs as a brief, from
-  //    the headline and the feed's own one-line description.
-  // The lead is world news when there is any. A link aggregator's top post is
+  // 2. Fill each section's quota before anything competes for the leftovers,
+  //    so technology cannot be crowded out by a busy day on the world wire.
+  const picked: Story[] = [];
+  const take = (s: Story) => { picked.push(s); };
+  for (const section of SECTIONS) {
+    const pool = candidates.filter((c) => section.from.includes(c.section) && !picked.includes(c));
+    spread(pool, section.min).forEach(take);
+  }
+  for (const s of spread(candidates.filter((c) => !picked.includes(c)), PLAN.read - picked.length)) take(s);
+
+  // The lead is world news when there is any: a link aggregator's top post is
   // not the front page of a paper about the world, however fresh it is.
-  const chosen = spread(candidates, PLAN.front + PLAN.world);
-  const leadIdx = chosen.findIndex((s) => s.section === 'world');
-  if (leadIdx > 0) chosen.unshift(...chosen.splice(leadIdx, 1));
+  const leadIdx = picked.findIndex((s) => s.section === 'world');
+  if (leadIdx > 0) picked.unshift(...picked.splice(leadIdx, 1));
 
-  const toRead = chosen;
-  const readIds = new Set(toRead.map((s) => s.id));
-  const rest = candidates.filter((s) => !readIds.has(s.id)).slice(0, PLAN.briefs);
+  const pickedIds = new Set(picked.map((s) => s.id));
+  const briefRaw = candidates.filter((s) => !pickedIds.has(s.id)).slice(0, PLAN.briefs);
 
-  const read = await Promise.all(toRead.map(async (s) => {
+  // 3. Read the chosen stories properly.
+  const read = await Promise.all(picked.map(async (s) => {
     const article = await readArticle(s.url);
-    if (article.ok) return { ...s, body: article.content, title: article.title || s.title };
+    if (article.ok) {
+      return { ...s, body: article.content, title: article.title || s.title, image: article.leadImage };
+    }
     return { ...s, body: '', unread: article.error };
   }));
 
-  // 3. Summarise, from the fetched text only.
+  // 4. Summarise, from the fetched text only.
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
   let note: string;
   let summaries = new Map<string, string>();
 
   if (!apiKey || apiKey === 'mock') {
-    note = 'headlines only — no summariser configured';
+    note = 'opening paragraphs as published — no summariser configured';
   } else {
     try {
-      const marked = read.map((s, i) => ({ ...s, section: i === 0 ? 'lead' : i < PLAN.front ? 'front' : 'world' }));
+      const marked = read.map((s, i) => ({ ...s, section: i === 0 ? 'lead' : i < 3 ? 'front' : 'world' }));
       summaries = await summarise(marked, apiKey, model);
       note = `summarised by ${model} from the linked articles`;
     } catch {
-      note = 'headlines only — the summariser did not answer';
+      note = 'opening paragraphs as published — the summariser did not answer';
     }
   }
 
-  const withSummaries = read.map((s) => ({ ...s, summary: summaries.get(s.id) }));
-  const grounded = withSummaries.filter((s) => s.summary).length;
+  // 5. Set the paper.
+  const built = read.map((s, i) => {
+    const story = toStory({ ...s, summary: summaries.get(s.id) }, i === 0 ? 200 : 110);
+    return { ...story, image: (s as Story & { image?: string | null }).image ?? null, desk: s.section };
+  });
+  const [lead, ...others] = built;
 
-  const content = compose(withSummaries, rest, now, note);
-  const leadHeadline = withSummaries[0]?.title ?? 'Today';
+  const laidOut = SECTIONS
+    .map((section) => ({
+      title: section.title,
+      stories: others.filter((s) => section.from.includes(s.desk)),
+    }))
+    .filter((s) => s.stories.length > 0);
+
+  // Anything whose desk has no section still runs, rather than vanishing.
+  const placed = new Set(laidOut.flatMap((s) => s.stories.map((x) => x.id)));
+  const orphans = others.filter((s) => !placed.has(s.id));
+  if (orphans.length) laidOut.push({ title: 'Also today', stories: orphans });
+
+  const briefs = briefRaw.map((s) => toStory(s, 40));
+  const sources = [...new Set(built.map((s) => s.source))];
+  const totalMinutes = built.reduce((n, s) => n + s.minutes, 0) + Math.ceil(briefs.length / 3);
+
+  const edition = {
+    number: editionNumber(now),
+    date: now.toISOString(),
+    dateline: dateline(now),
+    builtAt: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+    sources,
+    minutes: totalMinutes,
+    storyCount: built.length + briefs.length,
+    note,
+    lead,
+    sections: laidOut,
+    briefs,
+  };
 
   return NextResponse.json({
     title: `The Braindot Edition — ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
     date: now.toISOString(),
-    coverUrl: cover(now, leadHeadline),
-    excerpt: withSummaries.slice(0, 3).map((s) => s.title).join(' · '),
-    content,
-    stories: withSummaries.length + rest.length,
-    grounded,
+    coverUrl: cover(now, lead?.headline ?? 'Today'),
+    excerpt: built.slice(0, 3).map((s) => s.headline).join(' · '),
+    // The item carries the structure, with the markdown kept beneath it so an
+    // edition is still plain text if anything cannot read the paper view.
+    content: `${EDITION_MARKER}\n${JSON.stringify(edition)}\n${EDITION_TEXT_MARKER}\n${compose(lead, laidOut, briefs, now, note)}`,
+    edition,
+    stories: edition.storyCount,
+    grounded: built.filter((s) => s.provenance === 'summary').length,
     note,
   });
 }
