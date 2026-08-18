@@ -456,6 +456,11 @@ export function NotesSidebar({
   };
 
   const notebooksMode = display === 'notebooks';
+  /* Tags are a peer of "a notebook", not a peer of "how the list is drawn":
+     they are another way to pick up a stack of notes. So in Notebooks view
+     they sit at the foot of the spine rail rather than being reachable only
+     by switching back to Folders. */
+  const tagsMode = notebooksMode && view === 'tags';
   /** The panel's subject line: the notebook at root, the folder once drilled. */
   const headName = currentNode?.name ?? '';
   const headCount = currentNode
@@ -479,13 +484,13 @@ export function NotesSidebar({
           }}
         >
           {notebooks.map(({ folder, color, noteCount }) => {
-            const active = folder.id === currentNotebook?.folder.id;
+            const active = folder.id === currentNotebook?.folder.id && !tagsMode;
             return (
               <button
                 key={folder.id}
-                onClick={() => openNotebook(folder.id)}
+                onClick={() => { onViewChange('folders'); openNotebook(folder.id); }}
                 title={`${folder.name} — ${plural(noteCount, 'note')}`}
-                aria-current={active ? 'true' : undefined}
+                aria-current={active && !tagsMode ? 'true' : undefined}
                 style={{
                   width: 36, height: 116, borderRadius: '2px 5px 5px 2px', border: 'none',
                   borderLeft: `3px solid ${color}`,
@@ -511,6 +516,25 @@ export function NotesSidebar({
               </button>
             );
           })}
+          <span style={{ width: 20, height: 1, background: 'var(--bd)', margin: '4px 0', flexShrink: 0 }} />
+          <button
+            onClick={() => onViewChange('tags')}
+            title={`Tags — ${plural(tagGroups.length, 'tag')}`}
+            aria-label="Tags"
+            aria-current={tagsMode ? 'true' : undefined}
+            style={{
+              width: 36, height: 34, borderRadius: 4,
+              background: tagsMode ? 'var(--bg1)' : 'transparent',
+              border: 'none', borderLeft: `3px solid ${tagsMode ? 'var(--acc)' : 'transparent'}`,
+              color: tagsMode ? 'var(--acc2)' : 'var(--t3)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0, flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { if (!tagsMode) { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+            onMouseLeave={(e) => { if (!tagsMode) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t3)'; } }}
+          >
+            <Tag size={14} strokeWidth={1.9} />
+          </button>
           <button
             onClick={() => setShelfOpen(true)}
             title="All notebooks"
@@ -543,7 +567,20 @@ export function NotesSidebar({
             justifyContent: 'space-between', borderBottom: '1px solid var(--bd)', gap: 4,
           }}
         >
-          {notebooksMode ? (
+          {tagsMode ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+              <Tag size={11} strokeWidth={2} style={{ color: 'var(--acc2)', flexShrink: 0 }} />
+              <span style={{
+                fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                Tags
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--t3)', opacity: 0.6, flexShrink: 0 }}>
+                {tagGroups.length || ''}
+              </span>
+            </div>
+          ) : notebooksMode ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
               {path.length > 0 && (
                 <button
@@ -586,7 +623,7 @@ export function NotesSidebar({
             {/* A note in whatever the panel is currently showing. Without it
                 the only way into a freshly made section was to write the note
                 elsewhere and drag it across. */}
-            {notebooksMode && currentNode && (
+            {notebooksMode && currentNode && !tagsMode && (
               <HeaderButton
                 label={`New note in ${currentNode.name}`}
                 onClick={() => onCreateNote(currentNode.id)}
@@ -594,12 +631,14 @@ export function NotesSidebar({
                 <Plus size={13} strokeWidth={2} />
               </HeaderButton>
             )}
-            <HeaderButton
-              label={notebooksMode ? 'New section' : 'New top-level folder'}
-              onClick={() => onCreateFolder(notebooksMode ? (currentNode?.id ?? null) : null)}
-            >
-              <FolderPlus size={13} strokeWidth={2} />
-            </HeaderButton>
+            {!tagsMode && (
+              <HeaderButton
+                label={notebooksMode ? 'New section' : 'New top-level folder'}
+                onClick={() => onCreateFolder(notebooksMode ? (currentNode?.id ?? null) : null)}
+              >
+                <FolderPlus size={13} strokeWidth={2} />
+              </HeaderButton>
+            )}
             <HeaderButton
               label="How this list looks"
               active={viewMenuOpen}
@@ -654,7 +693,7 @@ export function NotesSidebar({
 
         {/* List */}
         <div className="sb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 0' }}>
-          {notebooksMode ? notebooksBody() : view === 'folders' ? (
+          {tagsMode ? renderTagView() : notebooksMode ? notebooksBody() : view === 'folders' ? (
             <>
               {pinnedNotes.length > 0 && !filteredNoteIds && (
                 <div style={{ marginBottom: 4 }}>
@@ -677,9 +716,11 @@ export function NotesSidebar({
         </div>
 
         <Footer
-          text={notebooksMode
-            ? 'drag notes between sections · right-click note to pin'
-            : 'drag notes between folders · double-click folder to rename · right-click note to pin'}
+          text={tagsMode
+            ? 'a note appears under each of its tags · right-click note to pin'
+            : notebooksMode
+              ? 'drag notes between sections · right-click note to pin'
+              : 'drag notes between folders · double-click folder to rename · right-click note to pin'}
         />
       </div>
 
