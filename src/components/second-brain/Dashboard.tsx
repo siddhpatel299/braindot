@@ -1,14 +1,10 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Note, TodoItem, KanbanCardItem, LibraryItem, Highlight } from '@/types';
-import { forceDirectedLayout } from '@/utils/graph';
 import { relativeTime, plural } from '@/utils/markdown';
 import { LucideIcon } from 'lucide-react';
-import {
-  ArrowRight, Sparkles, Calendar, Hash, Download, Upload, Unlink, Clock,
-  BookOpen, Circle, CheckCircle2, GraduationCap, Plus,
-} from 'lucide-react';
+import { ArrowRight, Calendar, Download, Upload, Plus, Sparkles, GraduationCap } from 'lucide-react';
 
 interface DashboardProps {
   notes: Note[];
@@ -26,14 +22,17 @@ interface DashboardProps {
   onExportVault: () => void;
   onImportVault: (file: File) => void;
   onToggleTodo: (id: string) => void;
-  onNavigate: (view: 'kanban' | 'reading' | 'search') => void;
+  /* Widened from kanban/reading/search to the destinations Elsewhere offers.
+     No new plumbing: the caller already passes handleIconSelect, which has
+     always accepted every one of these. */
+  onNavigate: (view: 'notes' | 'graph' | 'tags' | 'kanban' | 'reading' | 'search') => void;
 }
 
 /* ---------- date helpers ---------- */
 
 const DAY_MS = 86400000;
 
-/** Local YYYY-MM-DD key — must be local, not UTC, or the heatmap shifts a day. */
+/** Local YYYY-MM-DD key — must be local, not UTC, or the day bars shift a day. */
 function dayKey(d: Date | string | number): string {
   const date = d instanceof Date ? d : new Date(d);
   const y = date.getFullYear();
@@ -82,6 +81,15 @@ function greeting(): string {
   return 'good evening';
 }
 
+/**
+ * The front page, set as an edition rather than a wall of panels.
+ *
+ * There are no boxes on this screen. Structure is carried by hairline rules
+ * and column gutters, the way a newspaper carries it, so the eye reads the
+ * hierarchy — masthead, lead, then the three standing columns — instead of
+ * counting containers. Serif for the things you read, mono for the apparatus
+ * that labels them.
+ */
 export function Dashboard({
   notes,
   streak,
@@ -100,8 +108,6 @@ export function Dashboard({
   onToggleTodo,
   onNavigate,
 }: DashboardProps) {
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-
   /* ---------- link graph: edges + degree, computed once ---------- */
   const linkGraph = useMemo(() => {
     const titleToId = new Map<string, string>();
@@ -134,11 +140,6 @@ export function Dashboard({
     return { edges, degree };
   }, [notes]);
 
-  const layout = useMemo(
-    () => forceDirectedLayout(notes.map((n) => n.id), linkGraph.edges, null, 600, 400, 400),
-    [notes, linkGraph.edges],
-  );
-
   const stats = useMemo(() => {
     const totalWords = notes.reduce((sum, n) => sum + n.wordCount, 0);
     const evergreenCount = notes.filter((n) => n.status === 'evergreen').length;
@@ -148,7 +149,7 @@ export function Dashboard({
     return { totalWords, evergreenCount, draftCount: notes.length - evergreenCount, recentlyEdited };
   }, [notes]);
 
-  /* ---------- activity: every dated event in the vault ---------- */
+  /* ---------- activity: every dated event in the vault, by local day ---------- */
   const activity = useMemo(() => {
     const byDay = new Map<string, number>();
     const bump = (iso: string | undefined | null) => {
@@ -166,153 +167,38 @@ export function Dashboard({
     for (const c of kanbanCards) bump(c.createdAt);
     for (const h of highlights) bump(h.createdAt);
     for (const l of libraryItems) bump(l.addedAt);
-
-    // 53 columns ending with the current week, aligned to Sunday.
-    const end = startOfDay(new Date());
-    const lastSunday = new Date(end);
-    lastSunday.setDate(lastSunday.getDate() - lastSunday.getDay());
-    const firstSunday = new Date(lastSunday);
-    firstSunday.setDate(firstSunday.getDate() - 52 * 7);
-
-    const weeks: { key: string; date: Date; count: number; future: boolean }[][] = [];
-    const byMonth = new Map<number, number>();
-    let total = 0;
-    let activeDays = 0;
-    let best = 0;
-    let gap = 0;
-    let longestGap = 0;
-    let gapEnd: Date | null = null;
-    // Only count gaps *between* recorded activity. The empty stretch before the
-    // vault existed is not a lapse, and reporting it says "290 day gap" on a
-    // week-old vault.
-    let started = false;
-
-    for (let w = 0; w < 53; w++) {
-      const col: { key: string; date: Date; count: number; future: boolean }[] = [];
-      for (let d = 0; d < 7; d++) {
-        const date = new Date(firstSunday);
-        date.setDate(date.getDate() + w * 7 + d);
-        const key = dayKey(date);
-        const count = byDay.get(key) || 0;
-        const future = date.getTime() > end.getTime();
-        if (!future) {
-          total += count;
-          if (count > 0) {
-            activeDays++;
-            started = true;
-            gap = 0;
-          } else if (started) {
-            gap++;
-            if (gap > longestGap) {
-              longestGap = gap;
-              gapEnd = new Date(date);
-            }
-          }
-          if (count > best) best = count;
-          byMonth.set(date.getMonth(), (byMonth.get(date.getMonth()) || 0) + count);
-        }
-        col.push({ key, date, count, future });
-      }
-      weeks.push(col);
-    }
-
-    const busiest = Array.from(byMonth.entries()).sort((a, b) => b[1] - a[1])[0];
-    const monthName = (m: number) => new Date(2000, m, 1).toLocaleDateString('en-US', { month: 'long' });
-
-    return {
-      weeks,
-      total,
-      activeDays,
-      best,
-      byDay,
-      // Plain English beats a colour legend nobody acts on.
-      summary:
-        total === 0
-          ? 'No activity recorded yet.'
-          : [
-              busiest && busiest[1] > 0 ? `Busiest in ${monthName(busiest[0])} — ${plural(busiest[1], 'event')}.` : '',
-              longestGap > 2 && gapEnd
-                ? `Longest gap: ${longestGap} days to ${gapEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.`
-                : '',
-            ]
-              .filter(Boolean)
-              .join(' '),
-    };
+    return { byDay };
   }, [notes, todos, kanbanCards, highlights, libraryItems]);
 
-  const week = useMemo(() => {
-    const out: { label: string; key: string; active: boolean; today: boolean }[] = [];
+  /** The last fourteen local days, oldest first. A fortnight is long enough to
+   *  show a rhythm and short enough that every bar is a day you remember. */
+  const fortnight = useMemo(() => {
     const today = startOfDay(new Date());
-    for (let i = 6; i >= 0; i--) {
+    const out: { key: string; date: Date; count: number; isToday: boolean }[] = [];
+    for (let i = 13; i >= 0; i--) {
       const d = new Date(today.getTime() - i * DAY_MS);
       const key = dayKey(d);
-      out.push({
-        label: ['s', 'm', 't', 'w', 't', 'f', 's'][d.getDay()],
-        key,
-        active: (activity.byDay.get(key) || 0) > 0,
-        today: i === 0,
-      });
+      out.push({ key, date: d, count: activity.byDay.get(key) || 0, isToday: i === 0 });
     }
     return out;
   }, [activity.byDay]);
 
-  const tagStats = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const n of notes) {
-      if (n.tags.length === 0) m.set('untagged', (m.get('untagged') || 0) + 1);
-      else for (const t of n.tags) m.set(t, (m.get(t) || 0) + 1);
-    }
-    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  const fortnightPeak = Math.max(1, ...fortnight.map((d) => d.count));
+  const activeDays = fortnight.filter((d) => d.count > 0).length;
+
+  const tagCount = useMemo(() => {
+    const s = new Set<string>();
+    for (const n of notes) for (const t of n.tags) s.add(t);
+    return s.size;
   }, [notes]);
 
-  const hubs = useMemo(
-    () =>
-      [...notes]
-        .map((n) => ({ note: n, degree: linkGraph.degree.get(n.id) || 0 }))
-        .filter((x) => x.degree > 0)
-        .sort((a, b) => b.degree - a.degree)
-        .slice(0, 5),
-    [notes, linkGraph.degree],
+  /** Words in notes touched in the last seven days. The vault keeps no history
+   *  of word counts, so this is what can be said honestly — not "words written
+   *  this week", which would need a per-day delta nothing records. */
+  const weekWords = useMemo(
+    () => notes.filter((n) => daysSince(n.updatedAt) <= 7).reduce((sum, n) => sum + n.wordCount, 0),
+    [notes],
   );
-
-  const health = useMemo(() => {
-    const orphans: Note[] = [];
-    const untagged: Note[] = [];
-    const stale: Note[] = [];
-    const aging: Note[] = [];
-    for (const n of notes) {
-      if ((linkGraph.degree.get(n.id) || 0) === 0) orphans.push(n);
-      if (n.tags.length === 0) untagged.push(n);
-      if (n.status === 'evergreen' && daysSince(n.updatedAt) > 30) stale.push(n);
-      if (n.status === 'draft' && daysSince(n.createdAt) > 14 && daysSince(n.updatedAt) > 14) aging.push(n);
-    }
-    // One row per note — the most urgent reason wins, so nothing is listed twice.
-    const seen = new Set<string>();
-    const items: { note: Note; reason: string; color: string; icon: LucideIcon }[] = [];
-    const push = (list: Note[], reason: string, color: string, icon: LucideIcon) => {
-      for (const n of list) {
-        if (seen.has(n.id)) continue;
-        seen.add(n.id);
-        items.push({ note: n, reason, color, icon });
-      }
-    };
-    push(orphans, 'no links', 'var(--red)', Unlink);
-    push(stale, 'stale', 'var(--amb)', Clock);
-    push(aging, 'aging draft', 'var(--amb)', Clock);
-    push(untagged, 'untagged', 'var(--t2)', Hash);
-
-    const connectedPct = notes.length === 0 ? 0 : Math.round(((notes.length - orphans.length) / notes.length) * 100);
-    return {
-      items: items.slice(0, 5),
-      summary: [
-        `${connectedPct}% of notes connected`,
-        orphans.length > 0 ? plural(orphans.length, 'orphan') : '',
-        stale.length > 0 ? `${stale.length} stale evergreen${stale.length === 1 ? '' : 's'}` : '',
-      ]
-        .filter(Boolean)
-        .join(' · '),
-    };
-  }, [notes, linkGraph.degree]);
 
   const focus = useMemo(() => {
     const todayK = dayKey(new Date());
@@ -334,337 +220,291 @@ export function Dashboard({
       done: kanbanCards.filter((c) => c.status === 'done').length,
     };
 
-    const reading =
-      [...libraryItems].filter((i) => i.status === 'reading').sort((a, b) => b.progress - a.progress)[0] ?? null;
-
     return {
       todos: scored.slice(0, 6),
       openCount: open.length,
       overdueCount: scored.filter((s) => s.overdue).length,
       board,
       boardTotal: kanbanCards.length,
-      reading,
       unread: libraryItems.filter((i) => i.status === 'unread').length,
     };
   }, [todos, kanbanCards, libraryItems]);
 
-  const noteById = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes]);
-  const resume = stats.recentlyEdited[0] ?? null;
-  const maxTagCount = tagStats.length > 0 ? tagStats[0][1] : 1;
+  const lead = stats.recentlyEdited[0] ?? null;
+  const recent = stats.recentlyEdited.slice(0, 5);
+
+  const dateline = [
+    new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+    greeting(),
+    plural(notes.length, 'note'),
+    plural(linkGraph.edges.length, 'connection'),
+  ].join(' · ');
+
+  const boardSegments = [
+    { key: 'backlog', n: focus.board.backlog, bg: 'var(--bd2)' },
+    { key: 'in-progress', n: focus.board['in-progress'], bg: 'var(--acc)' },
+    { key: 'review', n: focus.board.review, bg: 'var(--amb)' },
+    { key: 'done', n: focus.board.done, bg: 'var(--grn)' },
+  ].filter((s) => s.n > 0);
+
+  const places: { name: string; count: string; go: () => void }[] = [
+    { name: 'Notes', count: String(notes.length), go: () => onNavigate('notes') },
+    { name: 'Graph', count: String(linkGraph.edges.length), go: onViewGraph },
+    { name: 'Board', count: String(kanbanCards.length), go: () => onNavigate('kanban') },
+    { name: 'Library', count: String(libraryItems.length), go: () => onNavigate('reading') },
+    { name: 'Tags', count: String(tagCount), go: () => onNavigate('tags') },
+    { name: 'Search', count: '⌘K', go: () => onNavigate('search') },
+  ];
 
   return (
     <div
       className="sb-scroll"
-      style={{ flex: 1, overflowY: 'auto', background: 'var(--bg)', padding: '36px 44px 56px' }}
+      style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: 'var(--bg)', padding: '32px 40px 52px' }}
     >
-      <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 30 }}>
+      <div style={{ maxWidth: 1320, margin: '0 auto' }}>
 
-        {/* ============ Hero: the vault's subject, not a stats readout ============ */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 40 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div
-              style={{
-                fontSize: 11,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: 'var(--t2)',
-                marginBottom: 16,
-              }}
-            >
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · {greeting()}
-            </div>
+        {/* ============ 1. Masthead ============ */}
+        <div
+          style={{
+            borderBottom: '3px double var(--bd2)', paddingBottom: 12,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24,
+          }}
+        >
+          <span
+            className="sb-front-serif"
+            style={{ fontSize: 40, fontWeight: 700, letterSpacing: '0.02em', lineHeight: 1, color: 'var(--t1)' }}
+          >
+            Braindot
+          </span>
+          <span
+            className="sb-fig"
+            style={{ fontSize: 10.5, color: 'var(--t3)', letterSpacing: '0.04em', paddingBottom: 4, textAlign: 'right' }}
+          >
+            {dateline}
+          </span>
+        </div>
 
-            {resume ? (
+        {/* ============ 2. Lead + recently edited ============ */}
+        <div
+          style={{
+            display: 'grid', gridTemplateColumns: 'minmax(440px, 1.55fr) minmax(260px, 1fr)',
+            gap: '0 34px', padding: '22px 0 20px', borderBottom: '1px solid var(--bd)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, paddingRight: 34, borderRight: '1px solid var(--bd)', minWidth: 0 }}>
+            {lead ? (
               <>
-                <div style={{ fontSize: 12, color: 'var(--acc2)', letterSpacing: '0.06em', marginBottom: 9 }}>
-                  pick up where you left off
-                </div>
+                <Kicker text="where you left off" color="var(--acc2)" />
                 <button
-                  onClick={() => onOpenNote(resume.id)}
-                  className="sb-reading"
+                  onClick={() => onOpenNote(lead.id)}
+                  className="sb-front-serif"
                   style={{
-                    display: 'block',
-                    background: 'transparent',
-                    border: 'none',
-                    padding: 0,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: 32,
-                    fontWeight: 700,
-                    letterSpacing: '-0.022em',
-                    lineHeight: 1.15,
-                    color: 'var(--t1)',
-                    marginBottom: 12,
-                    maxWidth: '100%',
+                    display: 'block', background: 'transparent', border: 'none', padding: 0,
+                    textAlign: 'left', cursor: 'pointer', fontSize: 33, lineHeight: 1.1, fontWeight: 700,
+                    letterSpacing: '-0.02em', color: 'var(--t1)', textWrap: 'pretty',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--acc2)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t1)'; }}
                 >
-                  {resume.title}
+                  {lead.title}
                 </button>
                 <p
-                  className="sb-reading"
+                  className="sb-front-serif"
                   style={{
-                    margin: 0,
-                    fontSize: 15,
-                    lineHeight: 1.75,
-                    color: 'var(--t2)',
-                    maxWidth: '62ch',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
+                    margin: 0, fontSize: 15, lineHeight: 1.7, color: 'var(--t2)', maxWidth: '58ch',
+                    textAlign: 'justify', hyphens: 'auto', WebkitHyphens: 'auto',
                   }}
                 >
-                  {excerpt(resume.body) || 'Empty note — start writing.'}
+                  {excerpt(lead.body)}
                 </p>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    marginTop: 16,
-                    fontSize: 10.5,
-                    color: 'var(--t2)',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {resume.status === 'evergreen' && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--grn)' }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--grn)' }} />
-                      evergreen
-                    </span>
-                  )}
-                  <span>{plural(resume.wordCount, 'word')}</span>
-                  <span>{plural(linkGraph.degree.get(resume.id) || 0, 'link')}</span>
-                  {resume.tags.slice(0, 2).map((t) => (
-                    <span key={t}>#{t}</span>
-                  ))}
-                  <span style={{ color: 'var(--t3)' }}>edited {relativeTime(resume.updatedAt)}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 2, flexWrap: 'wrap' }}>
+                  <span className="sb-fig" style={{ fontSize: 10.5, color: 'var(--t3)' }}>
+                    {plural(lead.wordCount, 'word')} · {plural(linkGraph.degree.get(lead.id) || 0, 'link')} ·
+                    {' '}edited {relativeTime(lead.updatedAt)}
+                  </span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <OutlineButton label="study this" onClick={onStudyMode} />
+                    <PrimaryButton label="resume writing" onClick={() => onOpenNote(lead.id)} />
+                  </span>
                 </div>
               </>
             ) : (
               <>
-                <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 10 }}>
+                <div className="sb-front-serif" style={{ fontSize: 33, lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--t1)' }}>
                   Nothing here yet.
                 </div>
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.75, color: 'var(--t2)', maxWidth: '58ch' }}>
+                <p className="sb-front-serif" style={{ margin: 0, fontSize: 15, lineHeight: 1.7, color: 'var(--t2)', maxWidth: '58ch' }}>
                   Braindot gets useful once links start finding each other. Write the first note, or import a folder of
                   markdown you already have.
                 </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
+                  <PrimaryButton label="write the first note" onClick={onCreateNote} />
+                  <OutlineButton label="import markdown" onClick={() => document.getElementById('sb-import-input')?.click()} />
+                </div>
               </>
             )}
           </div>
 
-          {/* Actions + streak */}
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 22 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {resume ? (
-                <>
-                  <SecondaryButton icon={GraduationCap} label="study this" onClick={onStudyMode} />
-                  <SecondaryButton icon={Sparkles} label="ask AI" onClick={onAskAI} />
-                  <PrimaryButton label="resume writing" onClick={() => onOpenNote(resume.id)} />
-                </>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            <Kicker text="recently edited" color="var(--t2)" />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {recent.length === 0 ? (
+                <Empty text="Nothing edited yet." />
               ) : (
-                <PrimaryButton label="write the first note" onClick={onCreateNote} />
+                recent.map((n) => <NoteRow key={n.id} note={n} onOpen={() => onOpenNote(n.id)} />)
               )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1 }}>{streak}</div>
-                <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 3 }}>day streak</div>
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {week.map((d, i) => (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                    <div
-                      title={d.key}
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: 4,
-                        background: d.active ? 'var(--acc)' : 'var(--bg3)',
-                        border: `1px solid ${d.today ? 'var(--acc2)' : 'transparent'}`,
-                      }}
-                    />
-                    <span style={{ fontSize: 9, color: d.today ? 'var(--acc2)' : 'var(--t3)' }}>{d.label}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
 
-        {/* ============ Activity + Today ============ */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18 }}>
-          <Panel title="Activity" meta={`${plural(activity.total, 'event')} · ${activity.activeDays} active days`}>
-            <ActivityHeatmap weeks={activity.weeks} />
-            <div
-              style={{
-                marginTop: 16,
-                paddingTop: 12,
-                borderTop: '1px solid var(--bd)',
-                fontSize: 11,
-                color: 'var(--t2)',
-              }}
-            >
-              {activity.summary}
-            </div>
-          </Panel>
-
-          <Panel
-            title="Today"
-            meta={
-              focus.openCount === 0
-                ? 'nothing open'
-                : `${focus.openCount} open${focus.overdueCount > 0 ? ` · ${focus.overdueCount} overdue` : ''}`
-            }
-          >
-            <FocusPanel focus={focus} onToggleTodo={onToggleTodo} onNavigate={onNavigate} />
-          </Panel>
-        </div>
-
-        {/* ============ Recent + graph ============ */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-          <Panel title="Recently edited" meta={`all ${plural(notes.length, 'note')}`}>
-            {stats.recentlyEdited.length === 0 ? (
-              <Empty text="nothing edited yet" />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {stats.recentlyEdited.slice(0, 6).map((n) => (
-                  <NoteRow key={n.id} note={n} degree={linkGraph.degree.get(n.id) || 0} onOpen={() => onOpenNote(n.id)} />
-                ))}
-              </div>
-            )}
-          </Panel>
-
-          <Panel
-            title="Knowledge graph"
-            action={{ label: 'open graph', onClick: onViewGraph }}
-          >
-            <DashboardGraph
-              graph={layout}
-              noteById={noteById}
-              hoveredNode={hoveredNode}
-              onHover={setHoveredNode}
-              onOpenNote={onOpenNote}
-            />
-          </Panel>
-        </div>
-
-        {/* ============ Vault health — one panel replacing four ============ */}
-        <Panel title="Vault health" meta={health.summary}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-            <HealthColumn label="needs attention">
-              {health.items.length === 0 ? (
-                <Empty text="nothing to fix" />
-              ) : (
-                health.items.map(({ note, reason, color, icon: Icon }) => (
-                  <HoverRow key={note.id} onClick={() => onOpenNote(note.id)}>
-                    <Icon size={12} color={color} style={{ flexShrink: 0 }} />
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 12,
-                        color: 'var(--t1)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {note.title}
-                    </span>
-                    <span style={{ fontSize: 10, color, flexShrink: 0 }}>{reason}</span>
-                  </HoverRow>
-                ))
-              )}
-            </HealthColumn>
-
-            <HealthColumn label="most connected" divider>
-              {hubs.length === 0 ? (
-                <Empty text="no links yet" />
-              ) : (
-                hubs.map(({ note, degree }) => (
-                  <HoverRow key={note.id} onClick={() => onOpenNote(note.id)}>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 12,
-                        color: 'var(--t1)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {note.title}
-                    </span>
-                    <MiniBar pct={(degree / Math.max(hubs[0].degree, 1)) * 100} color="var(--acc)" />
-                    <span style={{ fontSize: 10, color: 'var(--t2)', width: 12, textAlign: 'right', flexShrink: 0 }}>
-                      {degree}
-                    </span>
-                  </HoverRow>
-                ))
-              )}
-            </HealthColumn>
-
-            <HealthColumn label="tags" divider>
-              {tagStats.length === 0 ? (
-                <Empty text="no tags yet" />
-              ) : (
-                tagStats.slice(0, 5).map(([tag, count]) => (
-                  <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 12,
-                        color: tag === 'untagged' ? 'var(--t2)' : 'var(--t1)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {tag === 'untagged' ? 'untagged' : `#${tag}`}
-                    </span>
-                    <MiniBar
-                      pct={(count / maxTagCount) * 100}
-                      color={tag === 'untagged' ? 'var(--t3)' : 'var(--acc)'}
-                    />
-                    <span style={{ fontSize: 10, color: 'var(--t2)', width: 12, textAlign: 'right', flexShrink: 0 }}>
-                      {count}
-                    </span>
-                  </div>
-                ))
-              )}
-            </HealthColumn>
-          </div>
-        </Panel>
-
-        {/* ============ Quiet foot: the numbers, plus the actions with no other home ============ */}
+        {/* ============ 3. Today / Progress / Elsewhere ============ */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            fontSize: 10.5,
-            color: 'var(--t3)',
-            flexWrap: 'wrap',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(380px, 1.2fr) minmax(210px, 1fr) minmax(210px, 1fr)',
+            gap: 0, paddingTop: 22,
           }}
         >
-          <span>{plural(notes.length, 'note')}</span>
-          <span>{plural(linkGraph.edges.length, 'connection')}</span>
-          <span>{plural(stats.totalWords, 'word')}</span>
-          <span>
-            {stats.evergreenCount} evergreen · {stats.draftCount} draft
-          </span>
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <FootLink icon={Plus} label="new note" onClick={onCreateNote} />
-            <FootLink icon={Calendar} label="daily journal" onClick={onCreateJournal} />
-            <FootLink icon={Download} label="export" onClick={onExportVault} />
-            <FootLink
-              icon={Upload}
-              label="import"
-              onClick={() => document.getElementById('sb-import-input')?.click()}
+          {/* ---- Today ---- */}
+          <div style={{ paddingRight: 30, borderRight: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 13, minWidth: 0 }}>
+            <Kicker
+              text="today"
+              color="var(--t2)"
+              trailing={
+                focus.openCount === 0
+                  ? undefined
+                  : `— ${focus.openCount} open${focus.overdueCount > 0 ? ` · ${focus.overdueCount} overdue` : ''}`
+              }
             />
-          </span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {focus.todos.length === 0 ? (
+                <Empty text="Nothing due. The list is clear." />
+              ) : (
+                focus.todos.map(({ todo, overdue, dueToday }, i) => {
+                  const later = !overdue && !dueToday;
+                  return (
+                    <button
+                      key={todo.id}
+                      onClick={() => onToggleTodo(todo.id)}
+                      title="Mark done"
+                      style={{
+                        display: 'flex', alignItems: 'baseline', gap: 10, padding: '7px 0', width: '100%',
+                        background: 'transparent', border: 'none', borderBottom: '1px solid var(--bd)',
+                        fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: 'inherit',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <span className="sb-fig" style={{ fontSize: 9.5, color: 'var(--t3)', flexShrink: 0, width: 15 }}>
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span
+                        style={{
+                          flex: 1, minWidth: 0, fontSize: 12, color: later ? 'var(--t2)' : 'var(--t1)',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {todo.text}
+                      </span>
+                      {(overdue || dueToday) && (
+                        <span
+                          style={{
+                            fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0,
+                            color: overdue ? 'var(--red)' : 'var(--amb)',
+                          }}
+                        >
+                          {overdue ? 'overdue' : 'today'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {focus.boardTotal === 0 ? (
+              <span style={{ fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>No cards on the board.</span>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
+                <span style={{ flex: 1, display: 'flex', height: 5, gap: 2, minWidth: 0 }}>
+                  {boardSegments.map((s) => (
+                    <span key={s.key} title={`${s.n} ${s.key}`} style={{ borderRadius: 2, flex: s.n, background: s.bg }} />
+                  ))}
+                </span>
+                <span className="sb-fig" style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
+                  {focus.board.done} of {focus.boardTotal} done
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* ---- Progress ---- */}
+          <div style={{ padding: '0 30px', borderRight: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            <Kicker text="progress" color="var(--t2)" />
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+              <span
+                className="sb-front-serif sb-fig"
+                style={{ fontSize: 52, lineHeight: 0.86, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--t1)' }}
+              >
+                {streak}
+              </span>
+              {/* Just the label. The fortnight's active-day count is a ruled
+                  fact below, and repeating it here invited the streak and the
+                  bars to contradict each other in front of the reader. */}
+              <span style={{ fontSize: 10.5, color: 'var(--t3)', paddingBottom: 6, lineHeight: 1.5 }}>
+                day streak
+                {streak === 0 && <><br />write today to start one</>}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 44 }}>
+              {fortnight.map((d) => (
+                <span
+                  key={d.key}
+                  title={`${d.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} — ${plural(d.count, 'event')}`}
+                  style={{
+                    flex: 1, borderRadius: 1,
+                    height: d.count === 0 ? 2 : Math.max(3, Math.round((d.count / fortnightPeak) * 44)),
+                    background: d.count === 0 ? 'var(--bg3)' : d.isToday ? 'var(--acc2)' : 'var(--acc)',
+                  }}
+                />
+              ))}
+            </div>
+            <span className="sb-fig" style={{ fontSize: 10, color: 'var(--t3)', letterSpacing: '0.02em' }}>
+              events per day, last fortnight
+            </span>
+
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
+              <Fact label="active days, fortnight" value={`${activeDays} of 14`} />
+              <Fact label="words in notes touched this week" value={weekWords.toLocaleString('en-GB')} />
+              <Fact label="notes evergreen" value={`${stats.evergreenCount} of ${notes.length}`} />
+            </div>
+          </div>
+
+          {/* ---- Elsewhere ---- */}
+          <div style={{ paddingLeft: 30, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            <Kicker text="elsewhere" color="var(--t2)" />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {places.map((p) => (
+                <HoverRow key={p.name} onClick={p.go}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--t1)' }}>{p.name}</span>
+                  <span className="sb-fig" style={{ fontSize: 10.5, color: 'var(--t3)' }}>{p.count}</span>
+                  <span style={{ fontSize: 11, color: 'var(--acc2)' }}>→</span>
+                </HoverRow>
+              ))}
+            </div>
+            <div style={{ marginTop: 'auto', paddingTop: 14, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <FootLink icon={Plus} label="new note" onClick={onCreateNote} />
+              <FootLink icon={Calendar} label="daily journal" onClick={onCreateJournal} />
+              <FootLink icon={Sparkles} label="ask ai" onClick={onAskAI} />
+              <FootLink icon={Download} label="export" onClick={onExportVault} />
+              <FootLink
+                icon={Upload}
+                label="import"
+                onClick={() => document.getElementById('sb-import-input')?.click()}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -687,6 +527,38 @@ export function Dashboard({
   );
 }
 
+/* ---------- Apparatus ---------- */
+
+/** A column's name. Mono, small, letterspaced — it labels, it does not shout. */
+function Kicker({ text, color, trailing }: { text: string; color: string; trailing?: string }) {
+  return (
+    <span style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color }}>
+      {text}
+      {trailing && (
+        <span className="sb-fig" style={{ color: 'var(--t3)', letterSpacing: '0.04em', textTransform: 'none' }}>
+          {' '}
+          {trailing}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** One ruled fact: label left, figure right. */
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 11,
+        padding: '7px 0', borderBottom: '1px solid var(--bd)',
+      }}
+    >
+      <span style={{ color: 'var(--t2)', flex: 1, minWidth: 0 }}>{label}</span>
+      <span className="sb-fig" style={{ color: 'var(--t1)', flexShrink: 0 }}>{value}</span>
+    </div>
+  );
+}
+
 /* ---------- Buttons ---------- */
 
 function PrimaryButton({ label, onClick }: { label: string; onClick: () => void }) {
@@ -694,42 +566,16 @@ function PrimaryButton({ label, onClick }: { label: string; onClick: () => void 
     <button
       onClick={onClick}
       style={{
-        height: 34,
-        padding: '0 16px',
+        height: 30,
+        padding: '0 14px',
         background: 'var(--acc)',
         color: '#fff',
-        border: '1px solid var(--acc)',
-        borderRadius: 6,
-        fontSize: 12.5,
-        fontWeight: 600,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        whiteSpace: 'nowrap',
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--acc2)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--acc)')}
-    >
-      {label}
-      <ArrowRight size={14} />
-    </button>
-  );
-}
-
-function SecondaryButton({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        height: 34,
-        padding: '0 14px',
-        background: 'transparent',
-        color: 'var(--t2)',
-        border: '1px solid var(--bd2)',
-        borderRadius: 6,
+        // No border: it was the accent over itself. Nothing on this page
+        // carries a fill and a border at once.
+        border: 'none',
+        borderRadius: 5,
         fontSize: 12,
+        fontWeight: 600,
         fontFamily: 'inherit',
         cursor: 'pointer',
         display: 'flex',
@@ -737,16 +583,38 @@ function SecondaryButton({ icon: Icon, label, onClick }: { icon: LucideIcon; lab
         gap: 7,
         whiteSpace: 'nowrap',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = 'var(--t1)';
-        e.currentTarget.style.borderColor = 'var(--acc-bd)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = 'var(--t2)';
-        e.currentTarget.style.borderColor = 'var(--bd2)';
-      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--acc2)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--acc)'; }}
     >
-      <Icon size={13} />
+      {label}
+      <ArrowRight size={13} />
+    </button>
+  );
+}
+
+function OutlineButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        height: 30,
+        padding: '0 13px',
+        background: 'transparent',
+        border: '1px solid var(--bd2)',
+        borderRadius: 5,
+        color: 'var(--t2)',
+        fontSize: 12,
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.borderColor = 'var(--acc-bd)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t2)'; e.currentTarget.style.borderColor = 'var(--bd2)'; }}
+    >
+      {label === 'study this' && <GraduationCap size={12} />}
       {label}
     </button>
   );
@@ -777,162 +645,33 @@ function FootLink({ icon: Icon, label, onClick }: { icon: LucideIcon; label: str
   );
 }
 
-/* ---------- Panel shell ---------- */
+/* ---------- Rows ---------- */
 
-function Panel({
-  title,
-  meta,
-  action,
-  children,
-}: {
-  title: string;
-  meta?: string;
-  action?: { label: string; onClick: () => void };
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        background: 'var(--bg1)',
-        border: '1px solid var(--bd)',
-        borderRadius: 8,
-        padding: '16px 18px 18px',
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: 0,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        {/* Sentence case at readable weight — these are headings, not shouty labels. */}
-        <h2 style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)', letterSpacing: '0.02em', margin: 0 }}>
-          {title}
-        </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          {meta && (
-            <span
-              style={{
-                fontSize: 10.5,
-                color: 'var(--t3)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {meta}
-            </span>
-          )}
-          {action && (
-            <button
-              onClick={action.onClick}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--acc2)',
-                fontSize: 10.5,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--t1)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--acc2)')}
-            >
-              {action.label}
-              <ArrowRight size={11} />
-            </button>
-          )}
-        </div>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-    </div>
-  );
-}
-
-function HealthColumn({
-  label,
-  divider,
-  children,
-}: {
-  label: string;
-  divider?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        padding: divider ? '0 0 0 28px' : '0 28px 0 0',
-        marginLeft: divider ? 28 : 0,
-        borderLeft: divider ? '1px solid var(--bd)' : 'none',
-        minWidth: 0,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: 'var(--t2)',
-          marginBottom: 10,
-        }}
-      >
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function MiniBar({ pct, color }: { pct: number; color: string }) {
-  return (
-    <span
-      style={{
-        width: 56,
-        height: 3,
-        background: 'var(--bg3)',
-        borderRadius: 2,
-        flexShrink: 0,
-        overflow: 'hidden',
-        display: 'block',
-      }}
-    >
-      <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: color, borderRadius: 2 }} />
-    </span>
-  );
-}
-
-/* ---------- Small primitives ---------- */
-
-function HoverRow({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+/**
+ * The page's one interactive shape. A rule underneath, never a box around:
+ * nothing here carries both a border and a fill at rest.
+ */
+function HoverRow({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: 10,
+        padding: '8px 0',
+        width: '100%',
         background: 'transparent',
         border: 'none',
-        borderRadius: 5,
-        padding: '7px 8px',
-        margin: '0 -8px',
-        cursor: 'pointer',
-        textAlign: 'left',
+        borderBottom: '1px solid var(--bd)',
         fontFamily: 'inherit',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: 'calc(100% + 16px)',
+        textAlign: 'left',
+        cursor: 'pointer',
+        color: 'inherit',
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg2)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg1)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
       {children}
     </button>
@@ -943,484 +682,27 @@ function Empty({ text }: { text: string }) {
   return <div style={{ fontSize: 11.5, color: 'var(--t3)', padding: '14px 0' }}>{text}</div>;
 }
 
-/* ---------- Note rows ---------- */
-
-function NoteRow({ note, degree, onOpen }: { note: Note; degree: number; onOpen: () => void }) {
+function NoteRow({ note, onOpen }: { note: Note; onOpen: () => void }) {
   return (
-    <button
-      onClick={onOpen}
-      style={{
-        background: 'transparent',
-        border: 'none',
-        borderBottom: '1px solid var(--bd)',
-        borderRadius: 0,
-        padding: '11px 8px',
-        margin: '0 -8px',
-        width: 'calc(100% + 16px)',
-        cursor: 'pointer',
-        textAlign: 'left',
-        fontFamily: 'inherit',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg2)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-    >
+    <HoverRow onClick={onOpen} title={note.title}>
       <span
         title={note.status}
         style={{
-          width: 5,
-          height: 5,
-          borderRadius: '50%',
+          width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
           background: note.status === 'evergreen' ? 'var(--grn)' : 'var(--t3)',
-          flexShrink: 0,
         }}
       />
       <span
         style={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 12.5,
-          color: 'var(--t1)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--t1)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}
       >
         {note.title}
       </span>
-      <span style={{ fontSize: 10.5, color: 'var(--t3)', flexShrink: 0 }}>
-        {plural(note.wordCount, 'word')} · {plural(degree, 'link')}
-      </span>
-      <span style={{ fontSize: 10.5, color: 'var(--t3)', flexShrink: 0, width: 52, textAlign: 'right' }}>
+      <span className="sb-fig" style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
         {relativeTime(note.updatedAt)}
       </span>
-    </button>
-  );
-}
-
-/* ---------- Today / focus ---------- */
-
-interface FocusData {
-  todos: { todo: TodoItem; overdue: boolean; dueToday: boolean }[];
-  openCount: number;
-  overdueCount: number;
-  board: Record<string, number>;
-  boardTotal: number;
-  reading: LibraryItem | null;
-  unread: number;
-}
-
-const PRIORITY_RING: Record<string, string> = {
-  urgent: 'var(--red)',
-  high: 'var(--amb)',
-  medium: 'var(--t3)',
-  low: 'var(--t3)',
-};
-
-function FocusPanel({
-  focus,
-  onToggleTodo,
-  onNavigate,
-}: {
-  focus: FocusData;
-  onToggleTodo: (id: string) => void;
-  onNavigate: (view: 'kanban' | 'reading' | 'search') => void;
-}) {
-  const boardOrder: { key: string; color: string }[] = [
-    { key: 'backlog', color: 'var(--bd2)' },
-    { key: 'in-progress', color: 'var(--acc)' },
-    { key: 'review', color: 'var(--amb)' },
-    { key: 'done', color: 'var(--grn)' },
-  ];
-  const done = focus.board.done || 0;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      {focus.todos.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {focus.todos.map(({ todo, overdue, dueToday }) => (
-            <div
-              key={todo.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '7px 0',
-                fontSize: 12,
-                borderBottom: '1px solid var(--bd)',
-              }}
-            >
-              <button
-                onClick={() => onToggleTodo(todo.id)}
-                aria-label={`complete ${todo.text}`}
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  border: `1.5px solid ${overdue ? 'var(--red)' : PRIORITY_RING[todo.priority] ?? 'var(--t3)'}`,
-                  background: 'transparent',
-                  padding: 0,
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  color: overdue || dueToday ? 'var(--t1)' : 'var(--t2)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {todo.text}
-              </span>
-              {overdue ? (
-                <span style={{ fontSize: 10, color: 'var(--red)', flexShrink: 0 }}>overdue</span>
-              ) : dueToday ? (
-                <span style={{ fontSize: 10, color: 'var(--amb)', flexShrink: 0 }}>today</span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12 }}>
-          <CheckCircle2 size={13} color="var(--grn)" />
-          <span style={{ color: 'var(--t2)' }}>no open tasks</span>
-          <button
-            onClick={() => onNavigate('kanban')}
-            style={{
-              marginLeft: 'auto',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--acc2)',
-              fontSize: 10.5,
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            add one →
-          </button>
-        </div>
-      )}
-
-      {/* Board progress — a single bar, not four labelled counts */}
-      {focus.boardTotal > 0 && (
-        <button
-          onClick={() => onNavigate('kanban')}
-          style={{
-            marginTop: 14,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          <span style={{ flex: 1, display: 'flex', height: 5, borderRadius: 3, overflow: 'hidden', gap: 2 }}>
-            {boardOrder.map((s) =>
-              (focus.board[s.key] || 0) > 0 ? (
-                <span
-                  key={s.key}
-                  title={`${s.key}: ${focus.board[s.key]}`}
-                  style={{ flex: focus.board[s.key], background: s.color, borderRadius: 2 }}
-                />
-              ) : null,
-            )}
-          </span>
-          <span style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
-            {done} of {focus.boardTotal} done
-          </span>
-        </button>
-      )}
-
-      {/* Reading */}
-      <div style={{ marginTop: 'auto', paddingTop: 18 }}>
-        {focus.reading ? (
-          <button
-            onClick={() => onNavigate('reading')}
-            style={{
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              textAlign: 'left',
-              fontFamily: 'inherit',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <BookOpen size={12} color="var(--t2)" style={{ flexShrink: 0 }} />
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: 11.5,
-                  color: 'var(--t2)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {focus.reading.title}
-              </span>
-              <span style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
-                {Math.round(focus.reading.progress)}%
-              </span>
-            </div>
-            <div style={{ height: 3, background: 'var(--bg3)', borderRadius: 2, overflow: 'hidden' }}>
-              <div
-                style={{
-                  height: '100%',
-                  width: `${Math.min(Math.max(focus.reading.progress, 0), 100)}%`,
-                  background: 'var(--t2)',
-                  borderRadius: 2,
-                }}
-              />
-            </div>
-          </button>
-        ) : (
-          <button
-            onClick={() => onNavigate('reading')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              fontSize: 11,
-              color: 'var(--t3)',
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--acc2)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--t3)')}
-          >
-            <BookOpen size={12} />
-            {focus.unread > 0 ? `${plural(focus.unread, 'unread item')} in the library` : 'library is empty'}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Activity heatmap ---------- */
-
-const HEAT_OPACITY = [0, 0.28, 0.5, 0.75, 1];
-
-function heatLevel(count: number, ceiling: number): number {
-  if (count <= 0) return 0;
-  const step = Math.max(ceiling / 4, 1);
-  return Math.min(4, Math.ceil(count / step));
-}
-
-function ActivityHeatmap({ weeks }: { weeks: { key: string; date: Date; count: number; future: boolean }[][] }) {
-  const CELL = 11;
-  const GAP = 3;
-  const PITCH = CELL + GAP;
-  const LEFT = 26;
-  const TOP = 14;
-  const W = LEFT + weeks.length * PITCH - GAP;
-  const H = TOP + 7 * PITCH - GAP;
-
-  const ceiling = Math.max(...weeks.flat().map((d) => d.count), 1);
-
-  const monthLabels: { x: number; label: string }[] = [];
-  let lastMonth = -1;
-  weeks.forEach((col, i) => {
-    const m = col[0].date.getMonth();
-    if (m !== lastMonth) {
-      lastMonth = m;
-      monthLabels.push({ x: LEFT + i * PITCH, label: col[0].date.toLocaleDateString('en-US', { month: 'short' }) });
-    }
-  });
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', width: '100%', maxWidth: W * 1.5 }}>
-      {monthLabels.map((m, i) => (
-        <text key={i} x={m.x} y={9} fontSize={8.5} fill="var(--t2)">
-          {m.label}
-        </text>
-      ))}
-      {[1, 3, 5].map((d) => (
-        <text key={d} x={0} y={TOP + d * PITCH + CELL - 2} fontSize={8.5} fill="var(--t2)">
-          {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][d]}
-        </text>
-      ))}
-      {weeks.map((col, wi) =>
-        col.map((day, di) => {
-          if (day.future) return null;
-          const level = heatLevel(day.count, ceiling);
-          return (
-            <rect
-              key={day.key}
-              x={LEFT + wi * PITCH}
-              y={TOP + di * PITCH}
-              width={CELL}
-              height={CELL}
-              rx={2.5}
-              fill={level === 0 ? 'var(--bg3)' : 'var(--acc)'}
-              fillOpacity={level === 0 ? 1 : HEAT_OPACITY[level]}
-            >
-              <title>{`${plural(day.count, 'event')} on ${day.date.toDateString()}`}</title>
-            </rect>
-          );
-        }),
-      )}
-    </svg>
-  );
-}
-
-/* ---------- Dashboard graph ---------- */
-
-function DashboardGraph({
-  graph,
-  noteById,
-  hoveredNode,
-  onHover,
-  onOpenNote,
-}: {
-  graph: ReturnType<typeof forceDirectedLayout>;
-  noteById: Map<string, Note>;
-  hoveredNode: string | null;
-  onHover: (id: string | null) => void;
-  onOpenNote: (id: string) => void;
-}) {
-  const uid = useId().replace(/:/g, '');
-  const W = 600;
-  const H = 250;
-
-  if (graph.nodes.length === 0) {
-    return <Empty text="no notes yet" />;
-  }
-
-  const padding = 26;
-  const xs = graph.nodes.map((n) => n.x);
-  const ys = graph.nodes.map((n) => n.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const scale = Math.min(
-    (W - padding * 2) / Math.max(maxX - minX, 1),
-    (H - padding * 2) / Math.max(maxY - minY, 1),
-  );
-  const offsetX = (W - (maxX - minX) * scale) / 2 - minX * scale;
-  const offsetY = (H - (maxY - minY) * scale) / 2 - minY * scale;
-  const sx = (x: number) => x * scale + offsetX;
-  const sy = (y: number) => y * scale + offsetY;
-
-  const neighbours = new Set<string>();
-  if (hoveredNode) {
-    for (const e of graph.edges) {
-      if (e.from === hoveredNode) neighbours.add(e.to);
-      if (e.to === hoveredNode) neighbours.add(e.from);
-    }
-  }
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
-        <defs>
-          <radialGradient id={`node-glow-${uid}`}>
-            <stop offset="0%" stopColor="var(--acc)" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="var(--acc)" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
-        {graph.edges.map((e, i) => {
-          const a = graph.nodes.find((n) => n.id === e.from);
-          const b = graph.nodes.find((n) => n.id === e.to);
-          if (!a || !b) return null;
-          const lit = hoveredNode !== null && (e.from === hoveredNode || e.to === hoveredNode);
-          const dim = hoveredNode !== null && !lit;
-          const mx = (sx(a.x) + sx(b.x)) / 2 + (sy(b.y) - sy(a.y)) * 0.08;
-          const my = (sy(a.y) + sy(b.y)) / 2 - (sx(b.x) - sx(a.x)) * 0.08;
-          return (
-            <path
-              key={i}
-              d={`M${sx(a.x)} ${sy(a.y)} Q${mx} ${my} ${sx(b.x)} ${sy(b.y)}`}
-              fill="none"
-              stroke={lit ? 'var(--acc2)' : 'var(--acc-bd)'}
-              strokeWidth={lit ? 1.6 : 0.8}
-              opacity={dim ? 0.15 : lit ? 0.95 : 0.5}
-            />
-          );
-        })}
-
-        {graph.nodes.map((n) => {
-          const note = noteById.get(n.id);
-          const isHovered = hoveredNode === n.id;
-          const isNeighbour = neighbours.has(n.id);
-          const dim = hoveredNode !== null && !isHovered && !isNeighbour;
-          const r = n.radius * (isHovered ? 1.35 : 1);
-          const evergreen = note?.status === 'evergreen';
-          const fill = isHovered ? 'var(--acc2)' : evergreen ? 'var(--grn)' : n.degree > 0 ? 'var(--acc)' : 'var(--bd2)';
-          return (
-            <g
-              key={n.id}
-              style={{ cursor: 'pointer' }}
-              onClick={() => onOpenNote(n.id)}
-              onMouseEnter={() => onHover(n.id)}
-              onMouseLeave={() => onHover(null)}
-            >
-              {isHovered && <circle cx={sx(n.x)} cy={sy(n.y)} r={r * 3.2} fill={`url(#node-glow-${uid})`} />}
-              <circle
-                cx={sx(n.x)}
-                cy={sy(n.y)}
-                r={r}
-                fill={fill}
-                opacity={dim ? 0.25 : 1}
-                style={{ transition: 'r 0.15s, opacity 0.15s' }}
-              />
-              {(isHovered || isNeighbour || n.degree >= 2) && note && (
-                <text
-                  x={sx(n.x) + r + 5}
-                  y={sy(n.y) + 3}
-                  fontSize={10}
-                  fill={isHovered ? 'var(--t1)' : 'var(--t2)'}
-                  opacity={dim ? 0.3 : 1}
-                >
-                  {note.title.length > 20 ? note.title.slice(0, 20) + '…' : note.title}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-
-      <div
-        style={{
-          display: 'flex',
-          gap: 16,
-          marginTop: 8,
-          fontSize: 10,
-          color: 'var(--t3)',
-          justifyContent: 'center',
-        }}
-      >
-        <LegendDot color="var(--grn)" label="evergreen" />
-        <LegendDot color="var(--acc)" label="linked" />
-        <LegendDot color="var(--bd2)" label="orphan" />
-      </div>
-    </div>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
-      {label}
-    </span>
+    </HoverRow>
   );
 }

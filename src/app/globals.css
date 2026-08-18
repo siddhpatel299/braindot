@@ -1064,3 +1064,17 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
 [data-theme="light"] .canvas-area {
   background: radial-gradient(circle, var(--canvas-dot) 0.6px, transparent 0.6px) 0 0/22px 22px;
 }
+
+/* The front page sets its masthead, headline, lead copy and big figures in the
+   paper's serif while every label and count stays mono. Same reason .sb-paper
+   exists: the app-wide "monospace on everything" rule carries !important, and
+   an inline font-family cannot beat it. */
+.sb-front-serif,
+.sb-front-serif * {
+  font-family: 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, serif !important;
+  font-variant-numeric: oldstyle-nums;
+}
+/* Counts, dates and tallies sit in columns and are meant to be compared down
+   the page, so they take lining tabular figures rather than the serif's
+   oldstyle. */
+.sb-fig { font-variant-numeric: lining-nums tabular-nums; }
