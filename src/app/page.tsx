@@ -823,10 +823,26 @@ export default function Home() {
               onCreateBoard={canvas.createBoard}
               onDeleteBoard={canvas.deleteBoard}
               onRenameBoard={canvas.renameBoard}
-              onCreateNoteFromSynthesis={(title, subtitle) => {
-                const n = handleCreateNote();
-                updateNote(n.id, { title, subtitle });
-                showToast('created note from synthesis');
+              onCreateNoteFromCards={(title, subtitle, sourceCardIds) => {
+                // The new note carries its sources: a wiki-link for every note
+                // card it came from and the text of every sticky, so the
+                // synthesis is readable away from the board too.
+                const b = canvas.activeBoard;
+                const sources = (b?.cards ?? []).filter((c) => sourceCardIds.includes(c.id));
+                const lines = sources.map((c) => (c.data.type === 'note'
+                  ? '- [[' + c.data.title + ']]'
+                  : (c.data.text.trim() ? '- > ' + c.data.text.trim().replace(/\s+/g, ' ') : '')))
+                  .filter(Boolean);
+                const body = lines.length
+                  ? '## What this came from\n\n' + lines.join('\n') + '\n\n---\n\n'
+                  : '';
+                // createNote directly, not handleCreateNote: the latter opens
+                // the editor, and promoting from the board should leave you on
+                // the board looking at the card it just put down.
+                const n = createNote(SEED_FOLDER_IDS.resourcesPkm);
+                updateNote(n.id, { title, subtitle, body });
+                showToast('created a note from ' + sources.length + ' cards');
+                return n.id;
               }}
             />
           ) : (

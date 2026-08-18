@@ -125,7 +125,10 @@ export interface Task {
 // ============================================================
 // Canvas types
 // ============================================================
-export type CanvasCardType = 'note' | 'sticky' | 'synthesis';
+/* A card is a note pinned to the table or a sticky you wrote on it. The
+   synthesis card is gone: it was a sticky with a promote button, and promotion
+   is now a selection action that works on any mixture of cards. */
+export type CanvasCardType = 'note' | 'sticky';
 
 export interface CanvasNoteCard {
   type: 'note';
@@ -137,17 +140,12 @@ export interface CanvasNoteCard {
 export interface CanvasSticky {
   type: 'sticky';
   text: string;
-  color: 'amber' | 'green' | 'blue' | 'purple';
+  /** A claim you are making, or an aside you want kept nearby. The selection
+   *  bar sets both; there is no variant the UI cannot reach. */
+  variant: 'claim' | 'aside';
 }
 
-export interface CanvasSynthesisCard {
-  type: 'synthesis';
-  title: string;
-  body: string;
-  linkedNoteIds: string[];
-}
-
-export type CanvasCardData = CanvasNoteCard | CanvasSticky | CanvasSynthesisCard;
+export type CanvasCardData = CanvasNoteCard | CanvasSticky;
 
 export interface CanvasCard {
   id: string;
