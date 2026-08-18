@@ -10,6 +10,10 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // Lets a .ts file import another by its real extension, which is what
+    // Node 22 needs to run one directly (npm run check:svg). Safe only
+    // because noEmit is on, which it is.
+    "allowImportingTsExtensions": true,
     "noImplicitAny": false,
     "esModuleInterop": true,
     "module": "esnext",
