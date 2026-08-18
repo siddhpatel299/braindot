@@ -245,25 +245,45 @@ function IconAction({ label, onClick, children }: {
  * A section head in the Notebooks view: a folder's name, standing over its
  * notes without an indent. Also a drop target, so a note can be filed into a
  * section by dragging it onto the label.
+ *
+ * A section *is* a folder, so it carries the same actions a folder row does in
+ * the tree: add a note, add a subfolder, rename on double-click, delete.
+ * Without them the only way to fill a new section was to make the note
+ * somewhere else and drag it in.
  */
-export function SectionHeader({ name, count, isDragOver, onDragOver, onDragLeave, onDrop }: {
+export function SectionHeader({
+  name, count, isDragOver, onDragOver, onDragLeave, onDrop,
+  onCreateNote, onCreateFolder, onDelete,
+  renaming, renameValue, onRenameChange, onRenameCommit, onRenameCancel, onRenameStart,
+}: {
   name: string;
   count: number;
   isDragOver: boolean;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent) => void;
+  onCreateNote: () => void;
+  onCreateFolder: () => void;
+  onDelete: () => void;
+  renaming: boolean;
+  renameValue: string;
+  onRenameChange: (v: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
+  onRenameStart: () => void;
 }) {
   return (
     <div
+      className="sb-section-header"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      title={`${name} — drag a note here to file it`}
+      onDoubleClick={onRenameStart}
+      title={`${name} — drag a note here to file it, double-click to rename`}
       style={{
         padding: '8px 12px 4px',
         fontSize: 11,
-        textTransform: 'uppercase',
+        textTransform: renaming ? 'none' : 'uppercase',
         letterSpacing: '0.09em',
         color: isDragOver ? 'var(--acc2)' : 'var(--t3)',
         background: isDragOver ? 'var(--acc-bg)' : 'transparent',
@@ -273,10 +293,35 @@ export function SectionHeader({ name, count, isDragOver, onDragOver, onDragLeave
         gap: 5,
       }}
     >
-      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {name}
-      </span>
+      {renaming ? (
+        <input
+          autoFocus
+          value={renameValue}
+          onChange={(e) => onRenameChange(e.target.value)}
+          onBlur={onRenameCommit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onRenameCommit();
+            if (e.key === 'Escape') onRenameCancel();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Rename ${name}`}
+          style={{
+            flex: 1, minWidth: 0, background: 'var(--bg3)', border: '1px solid var(--acc-bd)',
+            color: 'var(--t1)', fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+            padding: '1px 5px', borderRadius: 2, outline: 'none', letterSpacing: '0.04em',
+          }}
+        />
+      ) : (
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {name}
+        </span>
+      )}
       <span style={{ opacity: 0.6 }}>{count || ''}</span>
+      <div className="sb-folder-actions" style={{ display: 'flex', gap: 2 }}>
+        <IconAction label={`New note in ${name}`} onClick={onCreateNote}><Plus size={11} strokeWidth={2} /></IconAction>
+        <IconAction label={`New subfolder in ${name}`} onClick={onCreateFolder}><FolderPlus size={11} strokeWidth={2} /></IconAction>
+        <IconAction label={`Delete ${name}`} onClick={onDelete}><X size={11} strokeWidth={2} /></IconAction>
+      </div>
     </div>
   );
 }

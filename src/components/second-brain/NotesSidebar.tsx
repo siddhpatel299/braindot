@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Folder as FolderIcon, FolderPlus, Tag, Hash, X, Search,
+  Folder as FolderIcon, FolderPlus, Plus, Tag, Hash, X, Search,
   Menu, ChevronLeft, LayoutGrid,
 } from 'lucide-react';
 import { Note, Folder } from '@/types';
@@ -419,6 +419,15 @@ export function NotesSidebar({
               name={folder.name}
               count={sectionNotes.length + deeper.length}
               {...dropTarget(folder.id)}
+              onCreateNote={() => onCreateNote(folder.id)}
+              onCreateFolder={() => onCreateFolder(folder.id)}
+              onDelete={() => onDeleteFolder(folder.id)}
+              renaming={renamingId === folder.id}
+              renameValue={renameValue}
+              onRenameChange={setRenameValue}
+              onRenameCommit={commitRename}
+              onRenameCancel={cancelRename}
+              onRenameStart={() => startRename(folder)}
             />
             {sectionNotes.map((n) => noteRow(n, 0))}
             {deeper.length > 0 && (
@@ -574,6 +583,17 @@ export function NotesSidebar({
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            {/* A note in whatever the panel is currently showing. Without it
+                the only way into a freshly made section was to write the note
+                elsewhere and drag it across. */}
+            {notebooksMode && currentNode && (
+              <HeaderButton
+                label={`New note in ${currentNode.name}`}
+                onClick={() => onCreateNote(currentNode.id)}
+              >
+                <Plus size={13} strokeWidth={2} />
+              </HeaderButton>
+            )}
             <HeaderButton
               label={notebooksMode ? 'New section' : 'New top-level folder'}
               onClick={() => onCreateFolder(notebooksMode ? (currentNode?.id ?? null) : null)}

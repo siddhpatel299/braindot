@@ -822,6 +822,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
    tag inside FileTree; they belong beside the note rules they mirror. */
 .sb-folder-actions { opacity: 0; pointer-events: none; transition: opacity 0.1s; }
 .sb-folder-row:hover .sb-folder-actions,
+.sb-section-header:hover .sb-folder-actions,
 .sb-folder-actions:focus-within { opacity: 0.85; pointer-events: auto; }
 .sb-folder-actions button:hover { opacity: 1; background: var(--bg3); }
 
