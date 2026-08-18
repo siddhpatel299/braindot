@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useConvexAuth } from 'convex/react';
+import { useQuery } from 'convex/react';
 import {
-  KanbanCardItem, TodoItem, CanvasBoard, LibraryItem, Highlight,
+  Task, TaskState, Note, CanvasBoard, LibraryItem, Highlight,
 } from '@/types';
 import { useCollectionSync } from '@/hooks/useCollectionSync';
+import { migrateToTasks } from '@/utils/tasks';
+import { api } from '../../convex/_generated/api';
 
 // ============================================================
 // Generic localStorage hook factory
@@ -61,106 +64,138 @@ const MAX_SYNCED_CONTENT = 900_000;
 // ============================================================
 // Kanban + Todos
 // ============================================================
-const KANBAN_KEY = 'sb-kanban-cards';
-const TODOS_KEY = 'sb-todos';
 
 function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function useKanbanTodos() {
-  const [kanbanCards, setKanbanCards, kanbanHydrated] = useLocalStorage<KanbanCardItem[]>(KANBAN_KEY, []);
-  const [todos, setTodos, todosHydrated] = useLocalStorage<TodoItem[]>(TODOS_KEY, []);
-  const syncEnabled = useSyncEnabled(kanbanHydrated && todosHydrated);
+const TASKS_KEY = 'sb-tasks';
+/** Set once the legacy cards+todos have been folded in, so a task deleted
+ *  after the merge is not resurrected on the next load. */
+const MIGRATED_KEY = 'sb-tasks-migrated-v1';
 
-  useCollectionSync<KanbanCardItem>({
-    table: 'kanbanCards',
+/**
+ * One task collection.
+ *
+ * Replaces useKanbanTodos, which kept two lists that meant the same thing.
+ * On first run it folds `sb-kanban-cards` and `sb-todos` into `sb-tasks`;
+ * migrated ids are derived from the source id (`tk_c_…`, `tk_t_…`), so the
+ * merge is idempotent even if the flag is lost.
+ */
+export function useTasks(notes: Note[]) {
+  const [tasks, setTasks, tasksHydrated] = useLocalStorage<Task[]>(TASKS_KEY, []);
+  const syncEnabled = useSyncEnabled(tasksHydrated);
+  // Latched in an effect rather than assigned during render: the migration
+  // reads it from a callback, never from the render pass.
+  const notesRef = useRef<Note[]>(notes);
+  useEffect(() => { notesRef.current = notes; }, [notes]);
+
+  useCollectionSync<Task>({
+    table: 'tasks',
     enabled: syncEnabled,
-    items: kanbanCards,
-    hydrate: useCallback((items: KanbanCardItem[]) => setKanbanCards(items), [setKanbanCards]),
-    toDoc: useCallback((c: KanbanCardItem) => ({
-      localId: c.id, title: c.title, description: c.description, status: c.status,
-      tags: c.tags, linkedNoteId: c.linkedNoteId, order: c.order,
-      createdAt: c.createdAt, updatedAt: c.updatedAt,
+    items: tasks,
+    hydrate: useCallback((items: Task[]) => setTasks(items), [setTasks]),
+    toDoc: useCallback((t: Task) => ({
+      localId: t.id, title: t.title, state: t.state, when: t.when,
+      effort: t.effort, output: t.output, linkedNoteId: t.linkedNoteId,
+      order: t.order, createdAt: t.createdAt, updatedAt: t.updatedAt,
+      description: t.description, dueDate: t.dueDate ?? null,
     }), []),
-    fromDoc: useCallback((d: Record<string, unknown>): KanbanCardItem => ({
-      id: String(d.localId), title: String(d.title), description: String(d.description ?? ''),
-      status: d.status as KanbanCardItem['status'], tags: (d.tags as string[]) ?? [],
-      linkedNoteId: (d.linkedNoteId as string | null) ?? null, order: Number(d.order ?? 0),
+    fromDoc: useCallback((d: Record<string, unknown>): Task => ({
+      id: String(d.localId), title: String(d.title),
+      state: d.state as Task['state'], when: d.when as Task['when'],
+      effort: d.effort as Task['effort'], output: d.output as Task['output'],
+      linkedNoteId: (d.linkedNoteId as string | null) ?? null,
+      order: Number(d.order ?? 0),
       createdAt: String(d.createdAt), updatedAt: String(d.updatedAt),
+      description: (d.description as string | undefined) || undefined,
+      dueDate: (d.dueDate as string | null) ?? undefined,
     }), []),
   });
 
-  useCollectionSync<TodoItem>({
-    table: 'todos',
-    enabled: syncEnabled,
-    items: todos,
-    hydrate: useCallback((items: TodoItem[]) => setTodos(items), [setTodos]),
-    toDoc: useCallback((t: TodoItem) => ({
-      localId: t.id, text: t.text, done: t.done, priority: t.priority,
-      dueGroup: t.dueGroup, dueDate: t.dueDate, linkedNoteId: t.linkedNoteId,
-      order: t.order, createdAt: t.createdAt,
-    }), []),
-    fromDoc: useCallback((d: Record<string, unknown>): TodoItem => ({
-      id: String(d.localId), text: String(d.text), done: Boolean(d.done),
-      priority: d.priority as TodoItem['priority'],
-      dueGroup: (d.dueGroup as TodoItem['dueGroup']) ?? null,
+  /* ---- one-time merge: localStorage ---- */
+  const migratedRef = useRef(false);
+  useEffect(() => {
+    if (!tasksHydrated || migratedRef.current) return;
+    migratedRef.current = true;
+    try {
+      if (localStorage.getItem(MIGRATED_KEY)) return;
+      const cards = JSON.parse(localStorage.getItem('sb-kanban-cards') || '[]');
+      const todos = JSON.parse(localStorage.getItem('sb-todos') || '[]');
+      if (!Array.isArray(cards) || !Array.isArray(todos)) return;
+      if (cards.length === 0 && todos.length === 0) {
+        localStorage.setItem(MIGRATED_KEY, '1');
+        return;
+      }
+      setTasks((prev) => migrateToTasks(cards, todos, prev, notesRef.current));
+      localStorage.setItem(MIGRATED_KEY, '1');
+    } catch {}
+  }, [tasksHydrated, setTasks]);
+
+  /* ---- one-time merge: the two legacy Convex tables ----
+     Pull only. The rows are left in place as a backup rather than deleted,
+     so a merge that goes wrong loses nothing. */
+  // State, not a ref: whether the legacy tables still need pulling decides a
+  // query argument, so it belongs to the render.
+  const [cloudMerged, setCloudMerged] = useState(false);
+  const wantLegacy = syncEnabled && !cloudMerged;
+  const legacyCards = useQuery(api.functions.pull, wantLegacy ? { table: 'kanbanCards' } : 'skip');
+  const legacyTodos = useQuery(api.functions.pull, wantLegacy ? { table: 'todos' } : 'skip');
+  useEffect(() => {
+    if (!wantLegacy) return;
+    if (legacyCards === undefined || legacyTodos === undefined) return;
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setCloudMerged(true);
+    if (legacyCards.length === 0 && legacyTodos.length === 0) return;
+    const cards = legacyCards.map((d: Record<string, unknown>) => ({
+      id: String(d.localId), title: String(d.title ?? ''),
+      description: (d.description as string) || '', status: String(d.status ?? 'backlog'),
+      linkedNoteId: (d.linkedNoteId as string | null) ?? null, order: Number(d.order ?? 0),
+      createdAt: String(d.createdAt ?? ''), updatedAt: String(d.updatedAt ?? ''),
+    }));
+    const todos = legacyTodos.map((d: Record<string, unknown>) => ({
+      id: String(d.localId), text: String(d.text ?? ''), done: Boolean(d.done),
+      priority: String(d.priority ?? 'medium'), dueGroup: (d.dueGroup as string | null) ?? null,
       dueDate: (d.dueDate as string | null) ?? null,
       linkedNoteId: (d.linkedNoteId as string | null) ?? null,
-      order: Number(d.order ?? 0), createdAt: String(d.createdAt),
-    }), []),
-  });
+      order: Number(d.order ?? 0), createdAt: String(d.createdAt ?? ''),
+    }));
+    setTasks((prev) => migrateToTasks(cards, todos, prev, notesRef.current));
+  }, [wantLegacy, legacyCards, legacyTodos, setTasks]);
 
-  const addKanbanCard = useCallback((card: Partial<KanbanCardItem> & Pick<KanbanCardItem, 'title' | 'status'>) => {
+  const addTask = useCallback((task: Partial<Task> & Pick<Task, 'title'>) => {
     const now = new Date().toISOString();
-    // Fill defaults so every card is complete regardless of call site
-    const newCard: KanbanCardItem = {
-      description: '', tags: [], linkedNoteId: null, order: 0,
-      ...card, id: genId('kc'), createdAt: now, updatedAt: now,
-    };
-    setKanbanCards(prev => [...prev, newCard]);
-    return newCard;
-  }, [setKanbanCards]);
-
-  const moveKanbanCard = useCallback((cardId: string, newStatus: KanbanCardItem['status']) => {
-    setKanbanCards(prev => prev.map(c => c.id === cardId ? { ...c, status: newStatus, updatedAt: new Date().toISOString() } : c));
-  }, [setKanbanCards]);
-
-  const updateKanbanCard = useCallback((cardId: string, patch: Partial<KanbanCardItem>) => {
-    setKanbanCards(prev => prev.map(c => c.id === cardId ? { ...c, ...patch, updatedAt: new Date().toISOString() } : c));
-  }, [setKanbanCards]);
-
-  const deleteKanbanCard = useCallback((cardId: string) => {
-    setKanbanCards(prev => prev.filter(c => c.id !== cardId));
-  }, [setKanbanCards]);
-
-  const addTodo = useCallback((todo: Partial<TodoItem> & Pick<TodoItem, 'text'>) => {
-    const newTodo: TodoItem = {
-      done: false, priority: 'medium', dueGroup: null, dueDate: null,
+    const newTask: Task = {
+      state: 'backlog', when: 'today', effort: 'quick', output: 'none',
       linkedNoteId: null, order: 0,
-      ...todo, id: genId('td'), createdAt: new Date().toISOString(),
+      ...task, id: genId('tk'), createdAt: now, updatedAt: now,
     };
-    setTodos(prev => [...prev, newTodo]);
-    return newTodo;
-  }, [setTodos]);
+    setTasks((prev) => [...prev, { ...newTask, order: prev.length }]);
+    return newTask;
+  }, [setTasks]);
 
-  const toggleTodo = useCallback((id: string) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-  }, [setTodos]);
+  const updateTask = useCallback((id: string, patch: Partial<Task>) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t)));
+  }, [setTasks]);
 
-  const updateTodo = useCallback((id: string, patch: Partial<TodoItem>) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
-  }, [setTodos]);
+  /** Write whichever field the board's columns currently represent. */
+  const moveTask = useCallback((id: string, axis: 'state' | 'when' | 'effort' | 'output', value: string) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, [axis]: value, updatedAt: new Date().toISOString() } : t)));
+  }, [setTasks]);
 
-  const deleteTodo = useCallback((id: string) => {
-    setTodos(prev => prev.filter(t => t.id !== id));
-  }, [setTodos]);
+  const deleteTask = useCallback((id: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }, [setTasks]);
 
-  return {
-    kanbanCards, todos,
-    addKanbanCard, moveKanbanCard, updateKanbanCard, deleteKanbanCard,
-    addTodo, toggleTodo, updateTodo, deleteTodo,
-  };
+  const toggleTask = useCallback((id: string) => {
+    setTasks((prev) => prev.map((t) => {
+      if (t.id !== id) return t;
+      const state: TaskState = t.state === 'done' ? 'doing' : 'done';
+      return { ...t, state, updatedAt: new Date().toISOString() };
+    }));
+  }, [setTasks]);
+
+  return { tasks, addTask, updateTask, moveTask, deleteTask, toggleTask };
 }
 
 // ============================================================

@@ -1,6 +1,6 @@
 'use client';
 
-import { TodoEmbedBlock, TodoItem, Note } from '@/types';
+import { TodoEmbedBlock, Task, Note } from '@/types';
 import { CheckSquare, X, Plus, Check } from 'lucide-react';
 
 interface TodoEmbedProps {
@@ -15,17 +15,25 @@ export function TodoEmbed({ block, onUpdate, onRemove, onOpenNote, notes }: Todo
   const handleToggle = (itemId: string) => {
     onUpdate({
       ...block,
-      items: block.items.map((t) => (t.id === itemId ? { ...t, done: !t.done } : t)),
+      items: block.items.map((t) => (t.id === itemId
+        ? { ...t, state: t.state === 'done' ? 'doing' : 'done' } : t)),
     });
   };
 
   const handleAdd = () => {
-    const newItem: TodoItem = {
+    const now = new Date().toISOString();
+    const newItem: Task = {
       id: 'ti_' + Math.random().toString(36).slice(2, 8),
-      text: 'New task',
-      done: false,
-      priority: 'medium',
-      dueGroup: 'today',
+      title: 'New task',
+      state: 'backlog',
+      // The todo embed is the day's list, so a new line is due today.
+      when: 'today',
+      effort: 'quick',
+      output: 'none',
+      linkedNoteId: null,
+      order: block.items.length,
+      createdAt: now,
+      updatedAt: now,
     };
     onUpdate({ ...block, items: [...block.items, newItem] });
   };
@@ -37,16 +45,20 @@ export function TodoEmbed({ block, onUpdate, onRemove, onOpenNote, notes }: Todo
   const handleRename = (itemId: string, text: string) => {
     onUpdate({
       ...block,
-      items: block.items.map((t) => (t.id === itemId ? { ...t, text } : t)),
+      items: block.items.map((t) => (t.id === itemId ? { ...t, title: text } : t)),
     });
   };
 
-  const PRIORITY_DOT: Record<TodoItem['priority'], string> = {
-    urgent: 'var(--red)',
-    high: 'var(--amb)',
-    medium: 'var(--acc2)',
-    low: 'var(--t3)',
+  /* priority is gone from the model: effort answers the question it was
+     really being used for — what kind of session this needs. */
+  const EFFORT_DOT: Record<Task['effort'], string> = {
+    deep: 'var(--acc)',
+    waiting: 'var(--amb)',
+    quick: 'var(--t3)',
   };
+
+  /* The todo embed is the day's list, so it shows what is due today. */
+  const items = block.items.filter((t) => t.when === 'today');
 
   return (
     <div style={{
@@ -94,7 +106,7 @@ export function TodoEmbed({ block, onUpdate, onRemove, onOpenNote, notes }: Todo
 
       {/* Checklist body */}
       <div style={{ padding: '10px 14px' }}>
-        {block.items.map((item) => (
+        {items.map((item) => (
           <div
             key={item.id}
             style={{
@@ -111,8 +123,8 @@ export function TodoEmbed({ block, onUpdate, onRemove, onOpenNote, notes }: Todo
                 width: 13,
                 height: 13,
                 borderRadius: 3,
-                background: item.done ? 'var(--grn)' : 'transparent',
-                border: `1.5px solid ${item.done ? 'var(--grn)' : 'var(--bd2)'}`,
+                background: item.state === 'done' ? 'var(--grn)' : 'transparent',
+                border: `1.5px solid ${item.state === 'done' ? 'var(--grn)' : 'var(--bd2)'}`,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -121,27 +133,27 @@ export function TodoEmbed({ block, onUpdate, onRemove, onOpenNote, notes }: Todo
                 padding: 0,
               }}
             >
-              {item.done && <Check size={9} color="#0c0c0e" strokeWidth={3} />}
+              {item.done && <Check size={9} color="var(--bg)" strokeWidth={3} />}
             </button>
             <div style={{
               width: 5,
               height: 5,
               borderRadius: '50%',
-              background: PRIORITY_DOT[item.priority],
+              background: EFFORT_DOT[item.effort],
               flexShrink: 0,
             }} />
             <input
-              value={item.text}
+              value={item.title}
               onChange={(e) => handleRename(item.id, e.target.value)}
               style={{
                 flex: 1,
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                color: item.done ? 'var(--t3)' : 'var(--t1)',
+                color: item.state === 'done' ? 'var(--t3)' : 'var(--t1)',
                 fontSize: 12,
                 fontFamily: 'inherit',
-                textDecoration: item.done ? 'line-through' : 'none',
+                textDecoration: item.state === 'done' ? 'line-through' : 'none',
                 caretColor: 'var(--acc2)',
               }}
             />

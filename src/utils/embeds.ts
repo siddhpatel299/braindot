@@ -10,7 +10,7 @@
 //   {json}
 //   ```
 
-import { EmbedBlock, MindMapBlock, KanbanEmbedBlock, TodoEmbedBlock, MindMapNode, KanbanCardItem, TodoItem } from '@/types';
+import { EmbedBlock, MindMapBlock, KanbanEmbedBlock, TodoEmbedBlock, MindMapNode, Task } from '@/types';
 
 export function generateEmbedId(): string {
   return 'emb_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -45,7 +45,7 @@ export function createMindMapBlock(centerLabel: string = 'Central idea'): MindMa
   };
 }
 
-export function createKanbanEmbedBlock(cards?: KanbanCardItem[]): KanbanEmbedBlock {
+export function createKanbanEmbedBlock(cards?: Task[]): KanbanEmbedBlock {
   return {
     id: generateEmbedId(),
     type: 'kanban',

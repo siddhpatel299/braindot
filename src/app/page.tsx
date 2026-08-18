@@ -23,10 +23,10 @@ import { AppDialog, DialogState } from '@/components/second-brain/AppDialog';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
 import { GraphView } from '@/components/second-brain/GraphView';
-import { KanbanTodoPage } from '@/components/second-brain/KanbanTodoPage';
+import { TasksPage } from '@/components/second-brain/TasksPage';
 import { CanvasView } from '@/components/second-brain/CanvasView';
 import { ReadingView } from '@/components/second-brain/ReadingView';
-import { useKanbanTodos, useCanvas, useReading } from '@/hooks/useVaultData';
+import { useTasks, useCanvas, useReading } from '@/hooks/useVaultData';
 
 const TREE_COLLAPSED_KEY = 'second-brain-tree-collapsed';
 const PANEL_COLLAPSED_KEY = 'second-brain-panel-collapsed';
@@ -98,7 +98,7 @@ export default function Home() {
   } = useNotes();
 
   // Kanban + Todos + Canvas + Reading state (localStorage)
-  const kanbanTodos = useKanbanTodos();
+  const taskStore = useTasks(state.notes);
   const canvas = useCanvas();
   const reading = useReading();
 
@@ -759,8 +759,7 @@ export default function Home() {
           <Dashboard
             notes={state.notes}
             streak={state.streak}
-            todos={kanbanTodos.todos}
-            kanbanCards={kanbanTodos.kanbanCards}
+            tasks={taskStore.tasks}
             libraryItems={reading.libraryItems}
             highlights={reading.highlights}
             onOpenNote={handleOpenNote}
@@ -774,7 +773,7 @@ export default function Home() {
             }}
             onExportVault={handleExportVault}
             onImportVault={handleImportVault}
-            onToggleTodo={kanbanTodos.toggleTodo}
+            onToggleTask={taskStore.toggleTask}
             onNavigate={handleIconSelect}
           />
         ) : appView === 'search' ? (
@@ -794,21 +793,15 @@ export default function Home() {
             onBack={() => setAppView('dashboard')}
           />
         ) : appView === 'kanban' ? (
-          <KanbanTodoPage
+          <TasksPage
             notes={state.notes}
-            folders={state.folders}
-            kanbanCards={kanbanTodos.kanbanCards}
-            todos={kanbanTodos.todos}
-            onAddKanbanCard={kanbanTodos.addKanbanCard}
-            onMoveKanbanCard={kanbanTodos.moveKanbanCard}
-            onUpdateKanbanCard={kanbanTodos.updateKanbanCard}
-            onDeleteKanbanCard={kanbanTodos.deleteKanbanCard}
-            onAddTodo={kanbanTodos.addTodo}
-            onToggleTodo={kanbanTodos.toggleTodo}
-            onUpdateTodo={kanbanTodos.updateTodo}
-            onDeleteTodo={kanbanTodos.deleteTodo}
+            tasks={taskStore.tasks}
+            onAddTask={taskStore.addTask}
+            onUpdateTask={taskStore.updateTask}
+            onMoveTask={taskStore.moveTask}
+            onDeleteTask={taskStore.deleteTask}
+            onToggleTask={taskStore.toggleTask}
             onOpenNote={handleOpenNote}
-            onBack={() => setAppView('dashboard')}
           />
         ) : appView === 'canvas' ? (
           canvas.activeBoard ? (

@@ -86,33 +86,40 @@ export const PARA_FOLDERS: { type: ParaType; name: string; description: string }
 // ============================================================
 // Kanban + Todo types
 // ============================================================
-export type KanbanStatus = 'backlog' | 'in-progress' | 'review' | 'done';
+/* One task model, four axes.
+ *
+ * The screen used to run two: a card with status/tags/dueDate and a todo with
+ * done/priority/dueGroup, both carrying linkedNoteId, both meaning "a thing I
+ * have to do". These four fields are the four questions worth asking about
+ * one, and each is a way of grouping the same list rather than a separate
+ * system.
+ */
+export type TaskState = 'backlog' | 'doing' | 'review' | 'done';
+export type TaskWhen = 'overdue' | 'today' | 'week' | 'later';
+export type TaskEffort = 'quick' | 'deep' | 'waiting';
+/** The artefact class a task produces — a bucket, not a note reference, so it
+ *  groups into four columns instead of one column per note. */
+export type TaskOutput = 'drafts' | 'evergreen' | 'marks' | 'none';
 
-export interface KanbanCardItem {
+/** The axes the board can group by. Each is a field name on Task. */
+export type TaskAxis = 'state' | 'when' | 'effort' | 'output';
+
+export interface Task {
   id: string;
   title: string;
-  description: string;
-  status: KanbanStatus;
-  tags: string[];           // colored tag chips (purple, green, amber, blue)
+  state: TaskState;
+  when: TaskWhen;
+  effort: TaskEffort;
+  output: TaskOutput;
   linkedNoteId: string | null;
   order: number;
   createdAt: string;
   updatedAt: string;
-}
-
-export type TodoPriority = 'urgent' | 'high' | 'medium' | 'low';
-export type TodoDueGroup = 'today' | 'tomorrow' | 'week' | 'someday' | null;
-
-export interface TodoItem {
-  id: string;
-  text: string;
-  done: boolean;
-  priority: TodoPriority;
-  dueGroup: TodoDueGroup;
-  dueDate: string | null;   // ISO date
-  linkedNoteId: string | null;
-  order: number;
-  createdAt: string;
+  /** Carried through from imported cards so nothing a user typed is thrown
+   *  away. Nothing groups by it and the redesigned card does not show it. */
+  description?: string;
+  /** Display only. `when` is what groups. */
+  dueDate?: string | null;
 }
 
 // ============================================================

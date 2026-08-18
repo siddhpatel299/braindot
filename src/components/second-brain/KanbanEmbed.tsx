@@ -1,6 +1,6 @@
 'use client';
 
-import { KanbanEmbedBlock, KanbanCardItem } from '@/types';
+import { KanbanEmbedBlock, Task } from '@/types';
 import { KanbanSquare, X, ArrowRight } from 'lucide-react';
 
 interface KanbanEmbedProps {
@@ -9,27 +9,22 @@ interface KanbanEmbedProps {
   onOpenFullBoard: () => void;
 }
 
-const TAG_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  purple: { bg: 'rgba(124,110,247,0.12)', border: 'var(--acc-bd)', text: '#b0a8fb' },
-  green: { bg: 'rgba(52,211,153,0.10)', border: 'var(--grn-bd)', text: '#34d399' },
-  amber: { bg: 'rgba(251,191,36,0.10)', border: 'var(--amb-bd)', text: '#fbbf24' },
-  blue: { bg: 'rgba(96,165,250,0.10)', border: '#1e3a5a', text: '#60a5fa' },
-};
-
-const STATUS_LABELS: Record<string, string> = {
+/* The task model's states. `in-progress` became `doing` when the board and
+   the todo rail were merged into one collection. */
+const STATE_LABELS: Record<string, string> = {
   backlog: 'Backlog',
-  'in-progress': 'In progress',
+  doing: 'Doing',
   review: 'Review',
   done: 'Done',
 };
 
 export function KanbanEmbed({ block, onRemove, onOpenFullBoard }: KanbanEmbedProps) {
   // Group cards by status, max 3 columns
-  const statuses = ['backlog', 'in-progress', 'review', 'done'] as const;
-  const grouped: Record<string, KanbanCardItem[]> = {};
+  const statuses = ['backlog', 'doing', 'review', 'done'] as const;
+  const grouped: Record<string, Task[]> = {};
   for (const s of statuses) grouped[s] = [];
   for (const c of block.cards) {
-    if (grouped[c.status]) grouped[c.status].push(c);
+    if (grouped[c.state]) grouped[c.state].push(c);
   }
   const visibleStatuses = statuses.filter((s) => grouped[s].length > 0).slice(0, 3);
 
@@ -101,10 +96,9 @@ export function KanbanEmbed({ block, onRemove, onOpenFullBoard }: KanbanEmbedPro
               fontWeight: 600,
               marginBottom: 8,
             }}>
-              {STATUS_LABELS[status]}
+              {STATE_LABELS[status]}
             </div>
             {grouped[status].slice(0, 4).map((card) => {
-              const tagColors = card.tag ? TAG_COLORS[card.tag.color] : null;
               return (
                 <div key={card.id} style={{
                   background: 'var(--bg2)',
@@ -113,22 +107,6 @@ export function KanbanEmbed({ block, onRemove, onOpenFullBoard }: KanbanEmbedPro
                   padding: '6px 8px',
                   marginBottom: 5,
                 }}>
-                  {card.tag && tagColors && (
-                    <div style={{
-                      display: 'inline-block',
-                      fontSize: 8,
-                      textTransform: 'uppercase',
-                      color: tagColors.text,
-                      background: tagColors.bg,
-                      border: `1px solid ${tagColors.border}`,
-                      padding: '0 4px',
-                      borderRadius: 2,
-                      marginBottom: 3,
-                      fontWeight: 600,
-                    }}>
-                      {card.tag.label}
-                    </div>
-                  )}
                   <div style={{
                     fontSize: 11,
                     color: 'var(--t1)',

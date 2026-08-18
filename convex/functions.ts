@@ -15,6 +15,10 @@ import { v } from "convex/values";
 const SYNC_TABLES = [
   "notes",
   "folders",
+  "tasks",
+  // Read-only from here on: kanbanCards and todos were merged into `tasks`.
+  // They stay registered so a vault written before the merge can be pulled
+  // once and folded in.
   "kanbanCards",
   "todos",
   "canvasBoards",

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Note, TodoItem, KanbanCardItem, LibraryItem, Highlight } from '@/types';
+import { Note, Task, LibraryItem, Highlight } from '@/types';
 import { relativeTime, plural } from '@/utils/markdown';
 import { LucideIcon } from 'lucide-react';
 import { ArrowRight, Calendar, Download, Upload, Plus, Sparkles, GraduationCap } from 'lucide-react';
@@ -9,8 +9,7 @@ import { ArrowRight, Calendar, Download, Upload, Plus, Sparkles, GraduationCap }
 interface DashboardProps {
   notes: Note[];
   streak: number;
-  todos: TodoItem[];
-  kanbanCards: KanbanCardItem[];
+  tasks: Task[];
   libraryItems: LibraryItem[];
   highlights: Highlight[];
   onOpenNote: (id: string) => void;
@@ -21,7 +20,7 @@ interface DashboardProps {
   onViewGraph: () => void;
   onExportVault: () => void;
   onImportVault: (file: File) => void;
-  onToggleTodo: (id: string) => void;
+  onToggleTask: (id: string) => void;
   /* Widened from kanban/reading/search to the destinations Elsewhere offers.
      No new plumbing: the caller already passes handleIconSelect, which has
      always accepted every one of these. */
@@ -93,8 +92,7 @@ function greeting(): string {
 export function Dashboard({
   notes,
   streak,
-  todos,
-  kanbanCards,
+  tasks,
   libraryItems,
   highlights,
   onOpenNote,
@@ -105,7 +103,7 @@ export function Dashboard({
   onViewGraph,
   onExportVault,
   onImportVault,
-  onToggleTodo,
+  onToggleTask,
   onNavigate,
 }: DashboardProps) {
   /* ---------- link graph: edges + degree, computed once ---------- */
@@ -163,12 +161,11 @@ export function Dashboard({
       bump(n.createdAt);
       if (dayKey(n.updatedAt) !== dayKey(n.createdAt)) bump(n.updatedAt);
     }
-    for (const t of todos) bump(t.createdAt);
-    for (const c of kanbanCards) bump(c.createdAt);
+    for (const t of tasks) bump(t.createdAt);
     for (const h of highlights) bump(h.createdAt);
     for (const l of libraryItems) bump(l.addedAt);
     return { byDay };
-  }, [notes, todos, kanbanCards, highlights, libraryItems]);
+  }, [notes, tasks, highlights, libraryItems]);
 
   /** The last fourteen local days, oldest first. A fortnight is long enough to
    *  show a rhythm and short enough that every bar is a day you remember. */
@@ -201,23 +198,22 @@ export function Dashboard({
   );
 
   const focus = useMemo(() => {
-    const todayK = dayKey(new Date());
-    const open = todos.filter((t) => !t.done);
-    const scored = open
-      .map((t) => {
-        const dueK = t.dueDate ? dayKey(t.dueDate) : null;
-        const overdue = dueK !== null && dueK < todayK;
-        const dueToday = t.dueGroup === 'today' || dueK === todayK;
-        const prio = { urgent: 0, high: 1, medium: 2, low: 3 }[t.priority] ?? 2;
-        return { todo: t, overdue, dueToday, rank: (overdue ? 0 : dueToday ? 1 : 2) * 10 + prio };
-      })
-      .sort((a, b) => a.rank - b.rank);
+    const open = tasks.filter((t) => t.state !== 'done');
+    // Same ranking the todo rail used, now read off the one model: overdue
+    // first, then due today, then everything else; deep work outranks a quick
+    // pass within a band, since it is the thing that needs the sitting.
+    const rank = (t: Task) =>
+      (t.when === 'overdue' ? 0 : t.when === 'today' ? 1 : t.when === 'week' ? 2 : 3) * 10 +
+      (t.effort === 'deep' ? 0 : t.effort === 'waiting' ? 2 : 1);
+    const scored = [...open]
+      .sort((a, b) => rank(a) - rank(b) || a.order - b.order)
+      .map((t) => ({ task: t, overdue: t.when === 'overdue', dueToday: t.when === 'today' }));
 
     const board = {
-      backlog: kanbanCards.filter((c) => c.status === 'backlog').length,
-      'in-progress': kanbanCards.filter((c) => c.status === 'in-progress').length,
-      review: kanbanCards.filter((c) => c.status === 'review').length,
-      done: kanbanCards.filter((c) => c.status === 'done').length,
+      backlog: tasks.filter((t) => t.state === 'backlog').length,
+      doing: tasks.filter((t) => t.state === 'doing').length,
+      review: tasks.filter((t) => t.state === 'review').length,
+      done: tasks.filter((t) => t.state === 'done').length,
     };
 
     return {
@@ -225,10 +221,10 @@ export function Dashboard({
       openCount: open.length,
       overdueCount: scored.filter((s) => s.overdue).length,
       board,
-      boardTotal: kanbanCards.length,
+      boardTotal: tasks.length,
       unread: libraryItems.filter((i) => i.status === 'unread').length,
     };
-  }, [todos, kanbanCards, libraryItems]);
+  }, [tasks, libraryItems]);
 
   const lead = stats.recentlyEdited[0] ?? null;
   const recent = stats.recentlyEdited.slice(0, 5);
@@ -242,7 +238,7 @@ export function Dashboard({
 
   const boardSegments = [
     { key: 'backlog', n: focus.board.backlog, bg: 'var(--bd2)' },
-    { key: 'in-progress', n: focus.board['in-progress'], bg: 'var(--acc)' },
+    { key: 'doing', n: focus.board.doing, bg: 'var(--acc)' },
     { key: 'review', n: focus.board.review, bg: 'var(--amb)' },
     { key: 'done', n: focus.board.done, bg: 'var(--grn)' },
   ].filter((s) => s.n > 0);
@@ -250,7 +246,7 @@ export function Dashboard({
   const places: { name: string; count: string; go: () => void }[] = [
     { name: 'Notes', count: String(notes.length), go: () => onNavigate('notes') },
     { name: 'Graph', count: String(linkGraph.edges.length), go: onViewGraph },
-    { name: 'Board', count: String(kanbanCards.length), go: () => onNavigate('kanban') },
+    { name: 'Board', count: String(tasks.length), go: () => onNavigate('kanban') },
     { name: 'Library', count: String(libraryItems.length), go: () => onNavigate('reading') },
     { name: 'Tags', count: String(tagCount), go: () => onNavigate('tags') },
     { name: 'Search', count: '⌘K', go: () => onNavigate('search') },
@@ -380,12 +376,12 @@ export function Dashboard({
               {focus.todos.length === 0 ? (
                 <Empty text="Nothing due. The list is clear." />
               ) : (
-                focus.todos.map(({ todo, overdue, dueToday }, i) => {
+                focus.todos.map(({ task, overdue, dueToday }, i) => {
                   const later = !overdue && !dueToday;
                   return (
                     <button
-                      key={todo.id}
-                      onClick={() => onToggleTodo(todo.id)}
+                      key={task.id}
+                      onClick={() => onToggleTask(task.id)}
                       title="Mark done"
                       style={{
                         display: 'flex', alignItems: 'baseline', gap: 10, padding: '7px 0', width: '100%',
@@ -404,7 +400,7 @@ export function Dashboard({
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}
                       >
-                        {todo.text}
+                        {task.title}
                       </span>
                       {(overdue || dueToday) && (
                         <span

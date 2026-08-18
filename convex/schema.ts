@@ -45,6 +45,25 @@ export default defineSchema({
     .index("byToken", ["tokenIdentifier"])
     .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
+  /* One task model, four axes. kanbanCards and todos are kept below so a
+     vault written before the merge can still be read once and folded in. */
+  tasks: defineTable({
+    ...byUser,
+    title: v.string(),
+    state: v.string(),
+    when: v.string(),
+    effort: v.string(),
+    output: v.string(),
+    linkedNoteId: v.union(v.string(), v.null()),
+    order: v.number(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    description: v.optional(v.string()),
+    dueDate: v.optional(v.union(v.string(), v.null())),
+  })
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
+
   kanbanCards: defineTable({
     ...byUser,
     title: v.string(),

@@ -37,6 +37,9 @@
   --acc2:     #a79ef5;
   --acc-bg:   #1e1b33;
   --acc-bd:   #3b3480;
+  /* Ink on an accent fill. White in both themes: the accent is dark enough
+     in each that nothing else reads. */
+  --on-acc: #ffffff;
   --grn:      #43c495;
   --grn-bg:   #0e1f18;
   --grn-bd:   #1f4a33;
@@ -78,6 +81,9 @@
   --acc2:     #3b32a8;
   --acc-bg:   #e9e7fa;
   --acc-bd:   #c0baef;
+  /* Ink on an accent fill. White in both themes: the accent is dark enough
+     in each that nothing else reads. */
+  --on-acc: #ffffff;
   --grn:      #0f7a56;
   --grn-bg:   #e2f2ea;
   --grn-bd:   #86ceae;
@@ -119,6 +125,9 @@
   --acc2:     #a79ef5;
   --acc-bg:   #1e1b33;
   --acc-bd:   #3b3480;
+  /* Ink on an accent fill. White in both themes: the accent is dark enough
+     in each that nothing else reads. */
+  --on-acc: #ffffff;
   --grn:      #43c495;
   --grn-bg:   #0e1f18;
   --grn-bd:   #1f4a33;
