@@ -135,6 +135,13 @@ export function ReadingView({
   const [currentChapterIdx, setCurrentChapterIdx] = useState(0);
   const [fontSize, setFontSize] = useState<FontSize>('md');
   const [showToc, setShowToc] = useState(false);
+  /* Contents, marks and search are one surface with three tabs — three ways of
+     asking "where else is there" rather than three separate affordances. */
+  const [apparatusOpen, setApparatusOpen] = useState(false);
+  const [apparatusTab, setApparatusTab] = useState<'contents' | 'marks' | 'search'>('contents');
+  const [bookQuery, setBookQuery] = useState('');
+  /* The chrome goes while you read and comes back on movement. */
+  const [chromeIdle, setChromeIdle] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const tocBtnRef = useRef<HTMLButtonElement>(null);
   const tocPopoverRef = useRef<HTMLDivElement>(null);
@@ -288,6 +295,13 @@ export function ReadingView({
     };
   }, [activeItemId, currentChapterIdx, chapters, currentChapter, onUpdateLibraryItem]);
 
+  /* A chapter starts at its first line, not wherever the last one left you.
+     This lives in an effect rather than in goToChapter so the reset also
+     covers arriving at a chapter by turning past the end of the previous one. */
+  useEffect(() => {
+    if (readerRef.current) readerRef.current.scrollTop = 0;
+  }, [currentChapterIdx, activeItemId]);
+
   // Track scroll position for the progress hairline, and the column width so
   // the margin can re-place its marks after a reflow. Both are passive.
   useEffect(() => {
@@ -369,6 +383,140 @@ export function ReadingView({
   // reader parked past the end, and no extra render is needed to correct it.
   const page = Math.min(pageIndex, Math.max(0, pageCount - 1));
 
+  /* ---------- the gathering strip ----------
+     One stroke per chapter, its width that chapter's real share of the book.
+     Length stands in for pages: the reader has the text, not a pagination,
+     and characters are proportional to pages at a fixed measure. */
+  const gatherings = useMemo(() => {
+    const lengths = chapters.map((c) => Math.max(1, c.content.length));
+    const total = lengths.reduce((a, b) => a + b, 0) || 1;
+    return chapters.map((c, i) => ({
+      idx: c.idx,
+      weight: lengths[i],
+      read: i < currentChapterIdx,
+      // 230 words a minute over ~5.5 characters a word.
+      minutes: Math.max(1, Math.round(lengths[i] / 5.5 / 230)),
+      share: lengths[i] / total,
+      fill: '0%',
+    }));
+  }, [chapters, currentChapterIdx]);
+
+  /** How far through the current chapter you are, as the strip draws it. */
+  const chapterFill = useMemo(() => {
+    const within = readMode === 'pages'
+      ? (pageCount > 1 ? (page + 1) / pageCount : 1)
+      : scrollProgress;
+    return `${Math.round(Math.min(1, Math.max(0, within)) * 100)}%`;
+  }, [readMode, page, pageCount, scrollProgress]);
+
+  const gatheringsDrawn = useMemo(
+    () => gatherings.map((g) => (g.idx === currentChapterIdx ? { ...g, fill: chapterFill } : g)),
+    [gatherings, currentChapterIdx, chapterFill],
+  );
+
+  /** Minutes left in the book, from this point on. */
+  const minutesLeft = useMemo(() => {
+    let m = 0;
+    for (const g of gatherings) {
+      if (g.idx < currentChapterIdx) continue;
+      if (g.idx === currentChapterIdx) {
+        m += g.minutes * (1 - parseInt(chapterFill, 10) / 100);
+      } else m += g.minutes;
+    }
+    return Math.round(m);
+  }, [gatherings, currentChapterIdx, chapterFill]);
+
+  const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
+
+  /* Derived, not synced: an open panel or menu suppresses the fade, and
+     nothing has to be written back when either of them closes. */
+  const chromeHidden = chromeIdle && !apparatusOpen && !showTypeMenu;
+
+  /** Marks made in the chapter you are finishing. Highlights record a page
+      rather than a chapter, so this counts the ones whose text is in it. */
+  const chapterMarkCount = useMemo(() => {
+    if (!currentChapter) return 0;
+    const hay = currentChapter.content;
+    return itemHighlights.filter((h) => h.text && hay.includes(h.text)).length;
+  }, [currentChapter, itemHighlights]);
+
+  /* The chrome fades while you read and returns on any movement. It never
+     fades while a panel or a menu is open, or there would be no way back to
+     the control you were reaching for. */
+  useEffect(() => {
+    if (!activeItemId) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const wake = () => {
+      setChromeIdle((idle) => (idle ? false : idle));
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setChromeIdle(true), 2600);
+    };
+    wake();
+    window.addEventListener('mousemove', wake);
+    window.addEventListener('keydown', wake);
+    window.addEventListener('wheel', wake, { passive: true });
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('mousemove', wake);
+      window.removeEventListener('keydown', wake);
+      window.removeEventListener('wheel', wake);
+    };
+  }, [activeItemId, apparatusOpen, showTypeMenu]);
+
+  /* Escape closes the panel before it does anything else. */
+  useEffect(() => {
+    if (!apparatusOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) { el.blur(); return; }
+      setApparatusOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [apparatusOpen]);
+
+  const positionMeta = readMode === 'pages'
+    ? `p ${page + 1}/${pageCount} · ${hm(minutesLeft)} left`
+    : `${hm(minutesLeft)} left`;
+
+  const positionTitle = currentChapter
+    ? `${currentChapter.title} — chapter ${currentChapterIdx + 1} of ${chapters.length}, `
+      + `about ${hm(gatherings[currentChapterIdx]?.minutes ?? 0)} long · ${hm(minutesLeft)} left in the book`
+      + ' — open contents, marks and search'
+    : 'Open contents, marks and search';
+
+  /** Search within the book: which chapters carry the phrase, and where. */
+  const bookHits = useMemo(() => {
+    const q = bookQuery.trim().toLowerCase();
+    if (!q) return [] as { idx: number; chapter: string; before: string; match: string; after: string }[];
+    const out: { idx: number; chapter: string; before: string; match: string; after: string }[] = [];
+    for (const c of chapters) {
+      const hay = c.content.toLowerCase();
+      let from = 0;
+      while (out.length < 40) {
+        const at = hay.indexOf(q, from);
+        if (at === -1) break;
+        out.push({
+          idx: c.idx,
+          chapter: c.title,
+          before: `…${c.content.slice(Math.max(0, at - 34), at).replace(/\s+/g, ' ')}`,
+          match: c.content.slice(at, at + q.length),
+          after: `${c.content.slice(at + q.length, at + q.length + 44).replace(/\s+/g, ' ')}…`,
+        });
+        from = at + q.length;
+      }
+      if (out.length >= 40) break;
+    }
+    return out;
+  }, [bookQuery, chapters]);
+
+  /** At the end of a chapter, and at the end of the book. */
+  const atChapterEnd = readMode === 'pages'
+    ? pageCount > 0 && page >= pageCount - 1
+    : scrollProgress > 0.985;
+  const atBookEnd = atChapterEnd && currentChapterIdx >= chapters.length - 1;
+
   const turnPage = useCallback((dir: 1 | -1) => {
     setPageIndex((stored) => {
       const i = Math.min(stored, Math.max(0, pageCount - 1));
@@ -405,7 +553,6 @@ export function ReadingView({
     setCurrentChapterIdx(idx);
     setPageIndex(0);
     setShowToc(false);
-    if (readerRef.current) readerRef.current.scrollTop = 0;
   }, []);
 
   const goToPrevChapter = useCallback(() => {
@@ -731,14 +878,17 @@ export function ReadingView({
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+      {/* The shared header belongs to the library, not to the book. While one
+          is open the reader carries its own single 34px row, and stacking the
+          two put a title bar above a chrome bar above the page — the thing the
+          reader was supposed to stop doing. Everything on it is either in the
+          reader chrome (library, marks) or a library-level action you reach by
+          closing the book. */}
+      {!activeItem && (
       <ViewHeader
         icon={BookOpen}
-        title={activeItem ? activeItem.title : 'Reading'}
-        facts={
-          activeItem
-            ? [activeItem.author, `${Math.round(activeItem.progress)}%`].filter(Boolean).join(' · ')
-            : `${plural(libraryItems.length, 'item')} in the library`
-        }
+        title="Reading"
+        facts={`${plural(libraryItems.length, 'item')} in the library`}
       >
         <HeaderButton
           icon={Library}
@@ -770,6 +920,7 @@ export function ReadingView({
         <HeaderButton icon={FileText} label="papers" onClick={() => openFeed('papers')} />
         <HeaderButton icon={Plus} label="add source" accent onClick={() => setShowImport(true)} />
       </ViewHeader>
+      )}
 
       {/* Reader-first layout — rails only when asked for */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
@@ -872,16 +1023,39 @@ export function ReadingView({
             />
           ) : activeItem ? (
             <>
-              {/* One row of reader chrome. It replaced ten controls — two
-                  chapter arrows, a title, two font buttons, a progress widget
-                  and three highlighter colours — sitting above a surface whose
-                  only job is to be read. The colours moved to the moment of
-                  highlighting; progress became the hairline below. */}
+              {/* ONE ROW. 34px, and it fades to nothing while you read.
+                  What replaced the progress bar is the gathering strip: one
+                  stroke per chapter, its width that chapter's real share of
+                  the book, the way the gatherings of a bound book show on the
+                  spine. Read chapters are inked, the one you are in fills to
+                  where you are. It says where you are, how long this chapter
+                  runs and how much book is left in one object — and clicking
+                  it opens the same information at full size. */}
               <div style={{
-                height: 32, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
-                display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, flexShrink: 0,
+                height: 34, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
+                display: 'flex', alignItems: 'center', padding: '0 6px', gap: 4, flexShrink: 0,
                 position: 'relative',
+                opacity: chromeHidden ? 0 : 1,
+                pointerEvents: chromeHidden ? 'none' : 'auto',
+                transition: 'opacity 220ms ease',
               }}>
+                <button
+                  onClick={() => setActiveItemId(null)}
+                  title="Close the book and go back to the library"
+                  style={{
+                    height: 24, padding: '0 9px 0 7px', borderRadius: 4, background: 'transparent',
+                    border: 'none', color: 'var(--t2)', cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', gap: 6, flexShrink: 0, fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; }}
+                >
+                  <Library size={13} strokeWidth={1.9} />
+                  <span style={{ fontSize: 10.5 }}>library</span>
+                </button>
+
+                <span style={{ width: 1, height: 15, background: 'var(--bd)', margin: '0 2px', flexShrink: 0 }} />
+
                 <ReaderIconButton
                   icon={ChevronLeft}
                   label={readMode === 'pages' ? 'Previous page  ←' : 'Previous chapter'}
@@ -893,32 +1067,41 @@ export function ReadingView({
 
                 <button
                   ref={tocBtnRef}
-                  onClick={() => setShowToc((v) => !v)}
+                  onClick={() => setApparatusOpen((o) => !o)}
                   disabled={chapters.length === 0}
-                  title="Contents"
+                  title={positionTitle}
                   style={{
-                    flex: 1, minWidth: 0, height: 24, borderRadius: 4,
-                    background: showToc ? 'var(--bg3)' : 'transparent',
-                    border: 'none',
-                    color: showToc ? 'var(--t1)' : 'var(--t2)',
+                    flex: 1, minWidth: 0, height: 26, borderRadius: 4,
+                    background: apparatusOpen ? 'var(--bg2)' : 'transparent',
+                    border: 'none', color: 'var(--t2)',
                     cursor: chapters.length === 0 ? 'default' : 'pointer', padding: '0 8px',
-                    display: 'flex', alignItems: 'center', gap: 7,
-                    fontSize: 11.5, fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit', textAlign: 'left',
                   }}
-                  onMouseEnter={(e) => { if (!showToc) e.currentTarget.style.background = 'var(--bg2)'; }}
-                  onMouseLeave={(e) => { if (!showToc) e.currentTarget.style.background = 'transparent'; }}
+                  onMouseEnter={(e) => { if (!apparatusOpen) e.currentTarget.style.background = 'var(--bg2)'; }}
+                  onMouseLeave={(e) => { if (!apparatusOpen) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <List size={12} style={{ flexShrink: 0, opacity: 0.75 }} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
-                    {currentChapter?.title || activeItem.title}
+                  <span style={{ display: 'flex', alignItems: 'stretch', gap: 1, width: 132, height: 10, flexShrink: 0 }}>
+                    {gatheringsDrawn.map((g) => (
+                      <span
+                        key={g.idx}
+                        style={{
+                          flex: g.weight, minWidth: 2, borderRadius: 1, overflow: 'hidden', display: 'block',
+                          background: g.read ? 'var(--t2)' : 'var(--bg3)',
+                        }}
+                      >
+                        <span style={{ display: 'block', height: '100%', width: g.fill, background: 'var(--acc)' }} />
+                      </span>
+                    ))}
                   </span>
-                  {chapters.length > 1 && (
-                    <span style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-                      {readMode === 'pages'
-                        ? `page ${page + 1}/${pageCount} · ${currentChapterIdx + 1} of ${chapters.length}`
-                        : `${currentChapterIdx + 1} of ${chapters.length}`}
-                    </span>
-                  )}
+                  <span style={{
+                    flex: 1, minWidth: 0, fontSize: 11.5,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {currentChapter?.title ?? activeItem.title}
+                  </span>
+                  <span className="sb-fig" style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
+                    {positionMeta}
+                  </span>
                 </button>
 
                 <ReaderIconButton
@@ -934,28 +1117,19 @@ export function ReadingView({
 
                 {/* Scroll or read it as a book. */}
                 <button
-                  onClick={() => changeReadMode(readMode === 'pages' ? 'scroll' : 'pages')}
+                  onClick={() => setReadMode((m) => (m === 'pages' ? 'scroll' : 'pages'))}
                   title={readMode === 'pages' ? 'Switch to scrolling' : 'Read as pages'}
-                  aria-pressed={readMode === 'pages'}
                   style={{
                     height: 24, padding: '0 8px', borderRadius: 4, flexShrink: 0,
                     background: readMode === 'pages' ? 'var(--acc-bg)' : 'transparent',
-                    border: 'none',
-                    color: readMode === 'pages' ? 'var(--acc2)' : 'var(--t2)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-                    fontFamily: 'inherit',
+                    border: 'none', color: readMode === 'pages' ? 'var(--acc2)' : 'var(--t2)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit',
                   }}
-                  onMouseEnter={(e) => { if (readMode !== 'pages') e.currentTarget.style.background = 'var(--bg2)'; }}
-                  onMouseLeave={(e) => { if (readMode !== 'pages') e.currentTarget.style.background = 'transparent'; }}
                 >
-                  {readMode === 'pages' ? <BookOpen size={12} /> : <AlignJustify size={12} />}
+                  <BookOpen size={12} strokeWidth={1.9} />
                   <span style={{ fontSize: 10.5 }}>{readMode === 'pages' ? 'Pages' : 'Scroll'}</span>
                 </button>
 
-                <span style={{ width: 1, height: 15, background: 'var(--bd)', margin: '0 2px', flexShrink: 0 }} />
-
-                {/* Text size is a preference, so it lives in a menu that names
-                    its options rather than two buttons you press repeatedly. */}
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <button
                     onClick={() => setShowTypeMenu((v) => !v)}
@@ -1004,91 +1178,213 @@ export function ReadingView({
                     </>
                   )}
                 </div>
-              </div>
 
-              {/* Where you are in the chapter, as a hairline rather than a
-                  widget. It reads the scroll position, so it moves as you
-                  read instead of only when you change chapter. */}
-              <div style={{ height: 2, background: 'var(--bg2)', flexShrink: 0 }}>
-                <div style={{
-                  height: '100%',
-                  width: `${Math.round((readMode === 'pages'
-                    ? (pageCount > 1 ? (page + 1) / pageCount : 1)
-                    : scrollProgress) * 100)}%`,
-                  background: 'var(--acc)',
-                  transition: 'width 90ms linear',
-                }} />
-              </div>
-
-              {/* TOC dropdown */}
-              {showToc && chapters.length > 0 && (
-                <div
-                  ref={tocPopoverRef}
-                  className="sb-fade-in"
+                <button
+                  onClick={() => { setApparatusOpen(true); setApparatusTab('marks'); }}
+                  title="Your marks"
                   style={{
-                    position: 'absolute',
-                    top: 42, left: 48, width: 320, maxWidth: 'calc(100% - 96px)',
-                    background: 'var(--bg2)',
-                    border: '1px solid var(--bd2)',
-                    borderRadius: 6,
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
-                    zIndex: 250,
-                    maxHeight: 360,
-                    display: 'flex', flexDirection: 'column',
-                    overflow: 'hidden',
+                    height: 24, padding: '0 8px', borderRadius: 4, flexShrink: 0,
+                    background: apparatusOpen && apparatusTab === 'marks' ? 'var(--acc-bg)' : 'transparent',
+                    border: 'none', color: apparatusOpen && apparatusTab === 'marks' ? 'var(--acc2)' : 'var(--t2)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit',
                   }}
                 >
-                  <div style={{
-                    padding: '8px 12px', borderBottom: '1px solid var(--bd)',
-                    fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em',
-                    color: 'var(--t3)', fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  }}>
-                    <span>table of contents · {chapters.length} {activeItem.type === 'pdf' ? 'pages' : 'chapters'}</span>
-                    <button onClick={() => setShowToc(false)} style={{
-                      background: 'transparent', border: 'none', color: 'var(--t3)',
-                      cursor: 'pointer', padding: 0, display: 'flex',
-                    }}><X size={11} /></button>
-                  </div>
-                  <div className="sb-scroll" style={{ flex: 1, overflowY: 'auto', padding: 4 }}>
-                    {chapters.map((c) => {
-                      const active = c.idx === currentChapterIdx;
-                      return (
+                  <Highlighter size={12} strokeWidth={1.9} />
+                  <span className="sb-fig" style={{ fontSize: 10.5 }}>{itemHighlights.length}</span>
+                </button>
+              </div>
+
+              {/* CONTENTS · MARKS · SEARCH, one surface.
+                  Three ways of asking the same question — where else is there —
+                  so they are three tabs of one panel rather than three
+                  affordances. It comes from the left, the end of a book its
+                  contents live at, and the strip above is its collapsed form. */}
+              {apparatusOpen && chapters.length > 0 && (
+                <>
+                  <div onClick={() => setApparatusOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 240 }} />
+                  <div
+                    ref={tocPopoverRef}
+                    className="sb-fade-in"
+                    style={{
+                      position: 'absolute', top: 34, left: 0, bottom: 0, width: 300, zIndex: 250,
+                      background: 'var(--bg1)', borderRight: '1px solid var(--bd)',
+                      boxShadow: '14px 0 30px -18px rgba(0,0,0,0.5)',
+                      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                    }}
+                  >
+                    <div style={{
+                      height: 30, flexShrink: 0, display: 'flex', alignItems: 'stretch',
+                      borderBottom: '1px solid var(--bd)', padding: '0 4px',
+                    }}>
+                      {([
+                        { id: 'contents' as const, label: 'Contents', count: String(chapters.length) },
+                        { id: 'marks' as const, label: 'Marks', count: String(itemHighlights.length) },
+                        { id: 'search' as const, label: 'Search', count: '' },
+                      ]).map((t) => (
                         <button
-                          key={c.idx}
-                          onClick={() => goToChapter(c.idx)}
+                          key={t.id}
+                          onClick={() => setApparatusTab(t.id)}
                           style={{
-                            width: '100%', textAlign: 'left',
-                            padding: '7px 10px', borderRadius: 3,
-                            background: active ? 'var(--acc-bg)' : 'transparent',
-                            border: 'none',
-                            borderLeft: active ? '2px solid var(--acc)' : '2px solid transparent',
-                            color: active ? 'var(--acc2)' : 'var(--t2)',
-                            fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: 8,
-                            transition: 'background 0.1s, color 0.1s',
+                            height: 29, padding: '0 10px', background: 'transparent', border: 'none',
+                            borderBottom: `2px solid ${apparatusTab === t.id ? 'var(--acc)' : 'transparent'}`,
+                            color: apparatusTab === t.id ? 'var(--t1)' : 'var(--t2)',
+                            fontFamily: 'inherit', fontSize: 10.5,
+                            fontWeight: apparatusTab === t.id ? 600 : 400,
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
                           }}
-                          onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; } }}
-                          onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; } }}
                         >
-                          <span style={{
-                            fontSize: 9, color: 'var(--t3)', width: 24, flexShrink: 0,
-                            fontVariantNumeric: 'tabular-nums',
-                          }}>
-                            {String(c.idx + 1).padStart(2, '0')}
-                          </span>
-                          <span style={{
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-                            fontWeight: active ? 600 : 400,
-                          }}>
-                            {c.title}
-                          </span>
-                          {active && <span style={{ fontSize: 9, color: 'var(--acc)', flexShrink: 0 }}>reading</span>}
+                          {t.label}
+                          <span className="sb-fig" style={{ color: 'var(--t3)' }}>{t.count}</span>
                         </button>
-                      );
-                    })}
+                      ))}
+                      <div style={{ flex: 1 }} />
+                      <button
+                        onClick={() => setApparatusOpen(false)}
+                        title="Close  Esc"
+                        aria-label="Close"
+                        style={{
+                          width: 24, height: 24, alignSelf: 'center', borderRadius: 4, background: 'transparent',
+                          border: 'none', color: 'var(--t3)', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                        }}
+                      >
+                        <X size={12} strokeWidth={2} />
+                      </button>
+                    </div>
+
+                    {apparatusTab === 'contents' && (
+                      <div className="sb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 0 14px' }}>
+                        {chapters.map((c) => {
+                          const active = c.idx === currentChapterIdx;
+                          return (
+                            <button
+                              key={c.idx}
+                              onClick={() => { goToChapter(c.idx); setApparatusOpen(false); }}
+                              style={{
+                                width: '100%', textAlign: 'left', padding: '7px 12px',
+                                background: active ? 'var(--acc-bg)' : 'transparent', border: 'none',
+                                color: active ? 'var(--acc2)' : 'var(--t2)',
+                                fontSize: 11.5, fontFamily: 'inherit', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: 9,
+                              }}
+                              onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--bg2)'; }}
+                              onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              <span style={{
+                                width: 14, height: 8, flexShrink: 0, borderRadius: 1, overflow: 'hidden', display: 'block',
+                                background: c.idx < currentChapterIdx ? 'var(--t2)' : 'var(--bg3)',
+                              }}>
+                                <span style={{
+                                  display: 'block', height: '100%',
+                                  width: c.idx === currentChapterIdx ? chapterFill : '0%',
+                                  background: 'var(--acc)',
+                                }} />
+                              </span>
+                              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {c.title}
+                              </span>
+                              <span className="sb-fig" style={{ fontSize: 9.5, color: 'var(--t3)', flexShrink: 0 }}>
+                                {gatherings[c.idx]?.minutes}m
+                              </span>
+                              {c.idx < currentChapterIdx && (
+                                <span style={{ fontSize: 10, color: 'var(--grn)', flexShrink: 0 }}>✓</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {apparatusTab === 'marks' && (
+                      <div className="sb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 14px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {itemHighlights.length === 0 ? (
+                          <div style={{ fontSize: 10.5, lineHeight: 1.6, color: 'var(--t3)', textWrap: 'pretty' }}>
+                            Nothing marked in this one yet. Select any passage and it lands in the
+                            margin, beside the line it came from.
+                          </div>
+                        ) : itemHighlights.map((h) => (
+                          <button
+                            key={h.id}
+                            onClick={() => { setApparatusOpen(false); if (h.noteId) onOpenNote(h.noteId); }}
+                            style={{
+                              width: '100%', textAlign: 'left', background: 'transparent', border: 'none',
+                              borderLeft: `2px solid ${HIGHLIGHT_BORDER[(h.color as HighlightColor) || 'yellow']}`,
+                              padding: '1px 0 1px 10px', fontFamily: 'inherit', cursor: 'pointer', display: 'block',
+                            }}
+                          >
+                            <span style={{ display: 'block', fontSize: 10.5, lineHeight: 1.55, color: 'var(--t2)' }}>
+                              “{h.text}”
+                            </span>
+                            {h.noteId && (
+                              <span style={{ display: 'block', marginTop: 5, fontSize: 10, lineHeight: 1.5, color: 'var(--acc2)' }}>
+                                ¶ kept as a note
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {apparatusTab === 'search' && (
+                      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 7, height: 30, margin: '6px 8px 2px',
+                          padding: '0 8px', borderRadius: 4, background: 'var(--bg2)',
+                          border: `1px solid ${bookQuery ? 'var(--acc-bd)' : 'var(--bd)'}`, flexShrink: 0,
+                        }}>
+                          <Search size={12} color="var(--t3)" strokeWidth={2} />
+                          <input
+                            autoFocus
+                            value={bookQuery}
+                            onChange={(e) => setBookQuery(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Escape') setBookQuery(''); }}
+                            placeholder="find in this book"
+                            aria-label="Search within this book"
+                            style={{
+                              flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none',
+                              color: 'var(--t1)', fontSize: 11.5, fontFamily: 'inherit', caretColor: 'var(--acc2)',
+                            }}
+                          />
+                          <span className="sb-fig" style={{ fontSize: 10, color: 'var(--t3)' }}>
+                            {bookQuery ? bookHits.length : ''}
+                          </span>
+                        </div>
+                        <div className="sb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 0 16px' }}>
+                          {bookQuery && bookHits.length === 0 ? (
+                            <div style={{ padding: '10px 14px', fontSize: 10.5, color: 'var(--t3)' }}>
+                              Nothing in this book matches “{bookQuery}”.
+                            </div>
+                          ) : bookHits.map((h, i) => (
+                            <button
+                              key={`${h.idx}-${i}`}
+                              onClick={() => { goToChapter(h.idx); setApparatusOpen(false); }}
+                              style={{
+                                width: '100%', textAlign: 'left', background: 'transparent', border: 'none',
+                                padding: '8px 14px', fontFamily: 'inherit', cursor: 'pointer', display: 'block',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg2)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              <span style={{
+                                display: 'block', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: 'var(--t3)', marginBottom: 4,
+                              }}>
+                                {h.chapter}
+                              </span>
+                              <span style={{ display: 'block', fontSize: 10.5, lineHeight: 1.55, color: 'var(--t3)' }}>
+                                {h.before}
+                                <span style={{ color: 'var(--t1)', background: 'var(--acc-bg)', padding: '0 2px', borderRadius: 2 }}>
+                                  {h.match}
+                                </span>
+                                {h.after}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                </>
               )}
 
               {/* The page. Paged reading lays the chapter into columns and
@@ -1157,6 +1453,81 @@ export function ReadingView({
                 </div>
               )}
 
+              {/* THE END OF A CHAPTER, AND THE END OF THE BOOK.
+                  Previously nothing happened at either: the text simply
+                  stopped, which reads as a rendering fault rather than an
+                  ending. It sits below the surface rather than inside the
+                  flow, so the column measurement that drives paged reading is
+                  untouched. */}
+              {/* Not gated on the chrome fade: reaching the end is the moment
+                  you have stopped reading and want the way onward, so hiding
+                  it with the chrome hid it exactly when it was wanted. */}
+              {atChapterEnd && chapters.length > 0 && (
+                <div style={{
+                  flexShrink: 0, borderTop: '1px solid var(--bd)', background: 'var(--bg1)',
+                  padding: '11px 22px 13px', display: 'flex', alignItems: 'center', gap: 14,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 9.5, letterSpacing: '0.13em', textTransform: 'uppercase',
+                      color: atBookEnd ? 'var(--grn)' : 'var(--t3)', fontWeight: 600, marginBottom: 5,
+                    }}>
+                      {atBookEnd ? 'You finished it' : `End of ${currentChapter?.title ?? 'this chapter'}`}
+                    </div>
+                    <div className="sb-fig" style={{ fontSize: 10.5, lineHeight: 1.6, color: 'var(--t3)' }}>
+                      {atBookEnd
+                        ? `${plural(chapters.length, 'chapter')} · ${plural(itemHighlights.length, 'mark')} · ${activeItem.author || 'unattributed'}`
+                        : `about ${hm(gatherings[currentChapterIdx]?.minutes ?? 0)} · `
+                          + `${plural(chapterMarkCount, 'mark')} · ${hm(minutesLeft)} left in the book`}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    {itemHighlights.length > 0 && (
+                      <button
+                        onClick={() => { setApparatusOpen(true); setApparatusTab('marks'); }}
+                        style={{
+                          height: 28, padding: '0 11px', borderRadius: 5, background: 'transparent',
+                          border: '1px solid var(--bd2)', color: 'var(--t2)', fontFamily: 'inherit',
+                          fontSize: 10.5, cursor: 'pointer', whiteSpace: 'nowrap',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.borderColor = 'var(--acc-bd)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t2)'; e.currentTarget.style.borderColor = 'var(--bd2)'; }}
+                      >
+                        {atBookEnd ? 'see all your marks' : 'marks from this chapter'}
+                      </button>
+                    )}
+                    {atBookEnd ? (
+                      <button
+                        onClick={() => setActiveItemId(null)}
+                        style={{
+                          height: 28, padding: '0 13px', borderRadius: 5, background: 'var(--acc)',
+                          border: 'none', color: 'var(--on-acc)', fontFamily: 'inherit',
+                          fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--acc2)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--acc)'; }}
+                      >
+                        back to the library
+                      </button>
+                    ) : (
+                      <button
+                        onClick={goToNextChapter}
+                        style={{
+                          height: 28, padding: '0 13px', borderRadius: 5, background: 'var(--acc-bg)',
+                          border: '1px solid var(--acc-bd)', color: 'var(--acc2)', fontFamily: 'inherit',
+                          fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 8, maxWidth: 300,
+                        }}
+                      >
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {chapters[currentChapterIdx + 1]?.title ?? 'Next'}
+                        </span>
+                        <ChevronRight size={13} strokeWidth={2} style={{ flexShrink: 0 }} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               {/* Choose the colour as you mark the passage — that is when you
                   know what the mark means. It used to be a mode set in the
                   toolbar beforehand. */}
