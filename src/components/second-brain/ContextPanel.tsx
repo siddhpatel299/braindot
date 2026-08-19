@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Note } from '@/types';
 import { generateSuggestions, relativeTime, formatDate, extractWikiLinks } from '@/utils/markdown';
-import { forceDirectedLayout } from '@/utils/graph';
+import { radialNeighbourhood } from '@/utils/graph';
 import { ArrowUpRight, FileText, Library, GraduationCap, LucideIcon } from 'lucide-react';
 import { AIChat, AIMode } from './AIChat';
 import { FormatPanel } from './FormatPanel';
@@ -571,17 +571,13 @@ function GraphPanel({
     }
   }
 
-  // Use force-directed layout
-  const layout = useMemo(() => {
-    return forceDirectedLayout(
-      allNotes.map((n) => n.id),
-      edges,
-      note.id,
-      W,
-      H,
-      300,
-    );
-  }, [allNotes, edges, note.id]);
+  /* A radial neighbourhood, not a simulation: for a dozen nodes around one
+     subject the force pass bought nothing, and centring on the current note is
+     the point here rather than the bug it was on the full map. */
+  const layout = useMemo(
+    () => radialNeighbourhood(allNotes.map((n) => n.id), edges, note.id, W, H),
+    [allNotes, edges, note.id],
+  );
 
   const nodeMap = new Map(layout.nodes.map((n) => [n.id, n]));
 

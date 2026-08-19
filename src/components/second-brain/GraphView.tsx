@@ -1,17 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Note, Folder, TAG_COLORS } from '@/types';
-import { forceDirectedLayout } from '@/utils/graph';
+import { Note, Folder } from '@/types';
 import { plural } from '@/utils/markdown';
+import { getHeat } from '@/utils/heat';
 import {
-  getHeat, getNodeRadius, getEdgeStyle, curvedPath, formatTime, formatShortDate,
-  HEAT_STYLES, HeatLevel,
-} from '@/utils/heat';
-import {
-  Search, X, Tag, Folder as FolderIcon, Hash, ArrowRight, Network, Activity, Flame, ChevronDown,
-} from 'lucide-react';
-import { ViewHeader, ViewEmptyState } from './ViewHeader';
+  Point, RADIUS, TIERS, SpatialHash, boundsOf, buildEdges, circleArc, degreeMap,
+  adjacency, seedLayout, tierOf, UNLINKED, Cluster,
+} from '@/utils/graph';
+import { Search, X, Network, RotateCcw, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { ViewHeader } from './ViewHeader';
 
 interface GraphViewProps {
   notes: Note[];
@@ -20,713 +18,782 @@ interface GraphViewProps {
   onBack: () => void;
 }
 
-type ColorMode = 'activity' | 'tag' | 'links';
-type ShowMode = 'all' | 'hot' | 'orphans';
+/** Pins only, keyed by note id — not a snapshot of every coordinate. A full
+ *  snapshot was discarded wholesale the moment one note was added. */
+const PIN_KEY = 'sb-graph-pins';
 
-// localStorage key for graph positions
-const POS_KEY = 'second-brain-graph-positions';
+const MIN_ZOOM = 0.12;
+const MAX_ZOOM = 3.2;
+/** The foot of the surface always carries the overlay row, so it is not map. */
+const FOOT_RESERVE = 78;
 
+/** Drawn radius is additive, never clamped: `Math.max(RADIUS, k/zoom)` flattens
+ *  the whole size ramp to one dot the moment the floor passes the largest true
+ *  radius. Hit-testing keeps using true RADIUS. */
+const drawR = (degree: number, zoom: number) => RADIUS(degree) + 0.9 / zoom;
+
+interface LabelBox { x1: number; y1: number; x2: number; y2: number }
+
+/**
+ * The vault as a map.
+ *
+ * Three decisions carry this at 500+ notes. Layout is cluster-seeded and
+ * derived on demand, so selecting a note cannot rearrange the vault — the old
+ * view passed the selection into the simulation, re-ran it, and wrote the
+ * result over the saved positions, which destroyed your spatial memory of the
+ * map every time you inspected anything. Nodes are four bucketed paths rather
+ * than 500 elements, with hit-testing done mathematically against a spatial
+ * hash. Type lives in an unscaled HTML overlay, so labels stay legible at every
+ * zoom instead of scaling with the content.
+ */
 export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps) {
-  const [colorMode, setColorMode] = useState<ColorMode>('activity');
-  const [showMode, setShowMode] = useState<ShowMode>('all');
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [svgDims, setSvgDims] = useState({ width: 800, height: 600 });
+  const [zoom, setZoom] = useState(0.34);
+  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const [dims, setDims] = useState({ w: 1000, h: 600 });
+  const [sel, setSel] = useState<string | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [pos, setPos] = useState<Record<string, Point>>({});
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [pinned, setPinned] = useState<Record<string, Point>>({});
+  const [reseed, setReseed] = useState(0);
+  const [panning, setPanning] = useState(false);
 
-  // Measure available space
-  useEffect(() => {
-    const measure = () => {
-      const el = svgRef.current?.parentElement;
-      if (el) setSvgDims({ width: el.clientWidth, height: el.clientHeight });
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<null | {
+    kind: 'node' | 'pan';
+    id?: string; ox?: number; oy?: number;
+    cx?: number; cy?: number; pan?: Point; moved?: boolean;
+  }>(null);
+  const fittedRef = useRef(false);
+  /* Latched in an effect, never assigned during render: the layout reads it
+     from a callback, so it must not be a render-phase write. */
+  const pinnedRef = useRef(pinned);
+  useEffect(() => { pinnedRef.current = pinned; }, [pinned]);
 
-  // Build edges from wiki-links (deduplicated)
-  const allEdges = useMemo(() => {
-    const titleToId = new Map<string, string>();
-    for (const n of notes) {
-      titleToId.set(n.title.toLowerCase(), n.id);
-      titleToId.set(n.filename.toLowerCase().replace(/\.md$/, ''), n.id);
-    }
-    const edges: { from: string; to: string }[] = [];
-    const seen = new Set<string>();
-    for (const n of notes) {
-      const re = /\[\[([^\]]+)\]\]/g;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(n.body)) !== null) {
-        const targetId = titleToId.get(m[1].toLowerCase());
-        if (targetId && targetId !== n.id) {
-          const key = [n.id, targetId].sort().join('→');
-          if (!seen.has(key)) {
-            seen.add(key);
-            edges.push({ from: n.id, to: targetId });
-          }
-        }
-      }
-    }
-    return edges;
-  }, [notes]);
-
-  // Compute heat for each note
-  const heatMap = useMemo(() => {
-    const m = new Map<string, HeatLevel>();
-    for (const n of notes) m.set(n.id, getHeat(n.updatedAt));
-    return m;
-  }, [notes]);
-
-  // Filter notes based on showMode
-  const filteredNotes = useMemo(() => {
-    if (showMode === 'all') return notes;
-    if (showMode === 'orphans') {
-      const connected = new Set<string>();
-      for (const e of allEdges) { connected.add(e.from); connected.add(e.to); }
-      return notes.filter((n) => !connected.has(n.id) || n.backlinks.length === 0);
-    }
-    // hot only: hot + warm nodes + their direct neighbors
-    const hotIds = new Set<string>();
-    for (const n of notes) {
-      const h = heatMap.get(n.id);
-      if (h === 'hot' || h === 'warm') hotIds.add(n.id);
-    }
-    // Add neighbors
-    for (const e of allEdges) {
-      if (hotIds.has(e.from)) hotIds.add(e.to);
-      if (hotIds.has(e.to)) hotIds.add(e.from);
-    }
-    return notes.filter((n) => hotIds.has(n.id));
-  }, [notes, showMode, allEdges, heatMap]);
-
-  const filteredNoteIds = useMemo(() => new Set(filteredNotes.map((n) => n.id)), [filteredNotes]);
-  const filteredEdges = useMemo(() => {
-    return allEdges.filter((e) => filteredNoteIds.has(e.from) && filteredNoteIds.has(e.to));
-  }, [allEdges, filteredNoteIds]);
-
-  // Load/save positions from localStorage
-  const savedPositions = useMemo(() => {
-    try {
-      const raw = localStorage.getItem(POS_KEY);
-      return raw ? JSON.parse(raw) as Record<string, { x: number; y: number }> : null;
-    } catch { return null; }
-  }, []);
-
-  // Compute layout (use saved positions if available)
-  const layout = useMemo(() => {
-    const nodeIds = filteredNotes.map((n) => n.id);
-    if (savedPositions && nodeIds.every((id) => savedPositions[id])) {
-      // Use saved positions
-      return {
-        nodes: nodeIds.map((id) => ({
-          id,
-          label: id,
-          x: savedPositions[id].x,
-          y: savedPositions[id].y,
-          vx: 0, vy: 0, radius: 6, isCurrent: false, degree: 0,
-        })),
-        edges: filteredEdges,
-      };
-    }
-    return forceDirectedLayout(nodeIds, filteredEdges, selectedNode, svgDims.width, svgDims.height - 20, 500);
-  }, [filteredNotes, filteredEdges, selectedNode, svgDims, savedPositions]);
-
-  // Save positions after layout settles
-  useEffect(() => {
-    if (layout.nodes.length === 0) return;
-    const positions: Record<string, { x: number; y: number }> = {};
-    for (const n of layout.nodes) positions[n.id] = { x: n.x, y: n.y };
-    try { localStorage.setItem(POS_KEY, JSON.stringify(positions)); } catch { /* ignore */ }
-  }, [layout]);
-
-  const nodeMap = useMemo(() => new Map(layout.nodes.map((n) => [n.id, n])), [layout]);
+  /* ---------- the graph itself ---------- */
+  const edges = useMemo(() => buildEdges(notes), [notes]);
+  const degree = useMemo(() => degreeMap(notes, edges), [notes, edges]);
+  const adj = useMemo(() => adjacency(edges), [edges]);
   const noteById = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes]);
 
-  // Compute stats
-  const stats = useMemo(() => {
-    let hot = 0, warm = 0, month = 0, cold = 0;
-    for (const n of notes) {
-      const h = heatMap.get(n.id) || 'cold';
-      if (h === 'hot') hot++;
-      else if (h === 'warm') warm++;
-      else if (h === 'month') month++;
-      else cold++;
-    }
-    return { hot, warm, month, cold, total: notes.length, edges: allEdges.length };
-  }, [notes, heatMap, allEdges]);
+  /** The note *set*, not the notes' contents: editing a body should not move
+   *  the map, but adding or removing a note should. */
+  const vaultSignature = useMemo(
+    () => `${notes.length}:${edges.length}:${notes.map((n) => n.id).join(',')}`,
+    [notes, edges.length],
+  );
 
-  // Get node color based on colorMode
-  const getNodeColor = useCallback((noteId: string): string => {
-    const note = noteById.get(noteId);
-    if (!note) return '#2e2e44';
-    if (colorMode === 'activity') {
-      const heat = heatMap.get(noteId) || 'cold';
-      return HEAT_STYLES[heat].color;
-    }
-    if (colorMode === 'tag') {
-      if (note.tags.length > 0) {
-        const tag = note.tags[0];
-        return TAG_COLORS[tag]?.color || '#534AB7';
-      }
-      return '#534AB7';
-    }
-    // links mode — quartile coloring
-    const bl = note.backlinks.length;
-    if (bl >= 8) return '#b0a8fb';
-    if (bl >= 4) return '#7c6ef7';
-    if (bl >= 1) return '#534AB7';
-    return '#2e2e44';
-  }, [colorMode, heatMap, noteById]);
-
-  // Animation refs
-  const animRef = useRef<number>(0);
-  const hotNodeIds = useMemo(() => {
-    return filteredNotes.filter((n) => {
-      const h = heatMap.get(n.id);
-      return h === 'hot' || h === 'warm';
-    }).map((n) => n.id);
-  }, [filteredNotes, heatMap]);
-
-  // Pulse animation using requestAnimationFrame
+  /* ---------- pins ---------- */
   useEffect(() => {
-    if (hotNodeIds.length === 0) return;
-    let t = 0;
-    const svg = svgRef.current;
-    if (!svg) return;
+    try {
+      const raw = localStorage.getItem(PIN_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, Point>;
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
+      setPinned(parsed && typeof parsed === 'object' ? parsed : {});
+    } catch { /* a corrupt key is not worth failing the view over */ }
+  }, []);
 
-    const animate = () => {
-      t += 0.025;
-      for (const nodeId of hotNodeIds) {
-        const heat = heatMap.get(nodeId);
-        if (!heat) continue;
-        const ring = svg.querySelector(`[data-pulse-ring="${nodeId}"]`) as SVGCircleElement | null;
-        if (!ring) continue;
-        const note = noteById.get(nodeId);
-        const baseR = note ? getNodeRadius(note.backlinks.length, heat) : 6;
-        if (heat === 'hot') {
-          const scale = 1 + Math.sin(t) * 0.18;
-          ring.setAttribute('r', String((baseR + 4) * scale));
-          ring.setAttribute('opacity', String(0.12 + Math.sin(t) * 0.06));
-        } else if (heat === 'warm') {
-          const scale = 1 + Math.sin(t + Math.PI) * 0.10;
-          ring.setAttribute('r', String((baseR + 4) * scale));
-          ring.setAttribute('opacity', String(0.10 + Math.sin(t + Math.PI) * 0.04));
+  /** Drop pins for notes that no longer exist, so a deleted note cannot leave
+   *  a coordinate behind for an id that will never come back.
+   *
+   *  Reads the state, not the ref: the ref is latched by its own effect, which
+   *  has not run yet the first time this one does, so a ref read here sees the
+   *  empty initial value and prunes nothing. */
+  useEffect(() => {
+    const ids = Object.keys(pinned);
+    const live = ids.filter((id) => noteById.has(id));
+    if (live.length === ids.length) return;
+    const next: Record<string, Point> = {};
+    for (const id of live) next[id] = pinned[id];
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setPinned(next);
+    try { localStorage.setItem(PIN_KEY, JSON.stringify(next)); } catch {}
+  }, [noteById, pinned]);
+
+  const savePins = useCallback((next: Record<string, Point>) => {
+    setPinned(next);
+    try { localStorage.setItem(PIN_KEY, JSON.stringify(next)); } catch {}
+  }, []);
+
+  /* ---------- layout, derived on demand ----------
+     Depends on the note set and the re-derive button, and on nothing else.
+     Selection, hover, search, pan and zoom are all absent from this list on
+     purpose: that is the whole fix. */
+  useEffect(() => {
+    const r = seedLayout(notes, edges, folders, pinnedRef.current);
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setPos(r.pos);
+    setClusters(r.clusters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vaultSignature, reseed, folders]);
+
+  const hash = useMemo(() => new SpatialHash(pos), [pos]);
+
+  /* ---------- measurement ---------- */
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setDims((cur) => (cur.w === r.width && cur.h === r.height ? cur : { w: r.width, h: r.height }));
+    };
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', measure); };
+  }, []);
+
+  /* ---------- view ---------- */
+  const fit = useCallback(() => {
+    const b = boundsOf(pos);
+    const pad = 54;
+    const usableH = Math.max(120, dims.h - FOOT_RESERVE);
+    const z = Math.max(MIN_ZOOM, Math.min(1.2, Math.min(
+      (dims.w - pad * 2) / Math.max(1, b.maxX - b.minX),
+      (usableH - pad * 2) / Math.max(1, b.maxY - b.minY),
+    )));
+    setZoom(z);
+    setPan({
+      x: (dims.w - (b.maxX - b.minX) * z) / 2 - b.minX * z,
+      y: (usableH - (b.maxY - b.minY) * z) / 2 - b.minY * z,
+    });
+  }, [pos, dims]);
+
+  // Fit once, when the first layout and a real size are both in hand. The
+  // guard means this runs exactly once per mount, not on every measurement.
+  useEffect(() => {
+    if (fittedRef.current) return;
+    if (dims.w < 10 || Object.keys(pos).length === 0) return;
+    fittedRef.current = true;
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    fit();
+  }, [dims, pos, fit]);
+
+  const zoomAt = useCallback((next: number, cx: number, cy: number) => {
+    const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, next));
+    setZoom((cur) => {
+      if (z === cur) return cur;
+      setPan((p) => ({ x: cx - (cx - p.x) * (z / cur), y: cy - (cy - p.y) * (z / cur) }));
+      return z;
+    });
+  }, []);
+
+  const zoomBy = (f: number) => zoomAt(zoom * f, dims.w / 2, dims.h / 2);
+
+  const flyTo = useCallback((id: string, z?: number) => {
+    const p = pos[id];
+    if (!p) return;
+    const nz = z ?? Math.max(zoom, 1.1);
+    setSel(id);
+    setZoom(nz);
+    setPan({ x: dims.w / 2 - p.x * nz, y: (dims.h - FOOT_RESERVE) / 2 - p.y * nz });
+  }, [pos, zoom, dims]);
+
+  const toWorld = useCallback((clientX: number, clientY: number): Point => {
+    const r = surfaceRef.current?.getBoundingClientRect();
+    if (!r) return { x: 0, y: 0 };
+    return { x: (clientX - r.left - pan.x) / zoom, y: (clientY - r.top - pan.y) / zoom };
+  }, [pan, zoom]);
+
+  const pick = useCallback((clientX: number, clientY: number): string | null => {
+    const w = toWorld(clientX, clientY);
+    return hash.nearest(w.x, w.y, pos, degree, 6 / zoom);
+  }, [hash, pos, degree, zoom, toWorld]);
+
+  /* ---------- pointer ---------- */
+  const onMouseDown = (e: React.MouseEvent) => {
+    const id = pick(e.clientX, e.clientY);
+    if (id) {
+      const w = toWorld(e.clientX, e.clientY);
+      const p = pos[id];
+      drag.current = { kind: 'node', id, ox: w.x - p.x, oy: w.y - p.y, moved: false };
+      setSel(id);
+    } else {
+      drag.current = { kind: 'pan', cx: e.clientX, cy: e.clientY, pan: { ...pan } };
+      setPanning(true);
+    }
+  };
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      const d = drag.current;
+      if (!d) return;
+      if (d.kind === 'pan') {
+        setPan({ x: d.pan!.x + (e.clientX - d.cx!), y: d.pan!.y + (e.clientY - d.cy!) });
+        return;
+      }
+      const w = toWorld(e.clientX, e.clientY);
+      d.moved = true;
+      setPos((cur) => ({ ...cur, [d.id!]: { x: w.x - d.ox!, y: w.y - d.oy! } }));
+    };
+    const up = () => {
+      const d = drag.current;
+      // Moving a node by hand is what pins it; the pin records where you put it.
+      if (d?.kind === 'node' && d.moved && d.id) {
+        const p = pos[d.id];
+        if (p) savePins({ ...pinnedRef.current, [d.id]: { x: p.x, y: p.y } });
+      }
+      drag.current = null;
+      setPanning(false);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  }, [toWorld, pos, savePins]);
+
+  const onWheel = (e: React.WheelEvent) => {
+    const r = surfaceRef.current?.getBoundingClientRect();
+    if (!r) return;
+    if (e.ctrlKey || e.metaKey) {
+      zoomAt(zoom * (1 - e.deltaY * 0.0016), e.clientX - r.left, e.clientY - r.top);
+    } else {
+      setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+    }
+  };
+
+  /* ---------- keyboard ---------- */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
+        if (e.key === 'Escape') el.blur();
+        return;
+      }
+      if (e.key === 'Escape') { setSel(null); setQuery(''); }
+      if (e.key === 'f') fit();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fit]);
+
+  /* ---------- selection, search ---------- */
+  const q = query.trim().toLowerCase();
+  const hits = useMemo(
+    () => (q ? notes.filter((n) => n.title.toLowerCase().includes(q)) : []),
+    [q, notes],
+  );
+  const hitIds = useMemo(() => new Set(hits.map((n) => n.id)), [hits]);
+  const selNote = sel ? noteById.get(sel) ?? null : null;
+  const neighbourIds = useMemo(
+    () => (selNote ? adj.get(selNote.id) ?? new Set<string>() : new Set<string>()),
+    [selNote, adj],
+  );
+
+  const dimmed = useCallback((id: string) => {
+    if (q) return !hitIds.has(id);
+    if (selNote) return id !== selNote.id && !neighbourIds.has(id);
+    return false;
+  }, [q, hitIds, selNote, neighbourIds]);
+
+  /* ---------- geometry for the renderer ---------- */
+  const edgePath = useMemo(() => {
+    let d = '';
+    for (const e of edges) {
+      const a = pos[e.from], b = pos[e.to];
+      if (!a || !b) continue;
+      d += `M${a.x.toFixed(1)} ${a.y.toFixed(1)}L${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    }
+    return d;
+  }, [edges, pos]);
+
+  const hotPath = useMemo(() => {
+    if (!selNote) return '';
+    let d = '';
+    for (const e of edges) {
+      if (e.from !== selNote.id && e.to !== selNote.id) continue;
+      const a = pos[e.from], b = pos[e.to];
+      if (!a || !b) continue;
+      d += `M${a.x.toFixed(1)} ${a.y.toFixed(1)}L${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    }
+    return d;
+  }, [selNote, edges, pos]);
+
+  const tierPaths = useMemo(() => {
+    const bright = ['', '', '', ''];
+    const faded = ['', '', '', ''];
+    for (const n of notes) {
+      const p = pos[n.id];
+      if (!p) continue;
+      const deg = degree.get(n.id) ?? 0;
+      const arc = circleArc(p.x, p.y, drawR(deg, zoom));
+      if (dimmed(n.id)) faded[tierOf(deg)] += arc;
+      else bright[tierOf(deg)] += arc;
+    }
+    return { bright, faded };
+  }, [notes, pos, degree, zoom, dimmed]);
+
+  /* ---------- rings ---------- */
+  const rings = useMemo(() => {
+    const out: { id: string; x: number; y: number; r: number; stroke: string; sw: number; op: number }[] = [];
+    const push = (id: string, stroke: string, extra: number, sw: number, op: number) => {
+      const p = pos[id];
+      if (!p) return;
+      out.push({ id: `${id}-${stroke}`, x: p.x, y: p.y, r: drawR(degree.get(id) ?? 0, zoom) + extra, stroke, sw, op });
+    };
+    // Recency is all that survives of the old heat ramp: a thin amber ring.
+    for (const n of notes) {
+      if (getHeat(n.updatedAt) === 'hot' && !dimmed(n.id)) push(n.id, 'var(--amb)', 2.6, 1 / zoom, 0.5);
+    }
+    for (const id of Object.keys(pinned)) if (pos[id]) push(id, 'var(--t2)', 4, 1 / zoom, 0.5);
+    for (const n of hits.slice(0, 60)) push(n.id, 'var(--acc2)', 4.5, 1.6 / zoom, 0.9);
+    if (hover) push(hover, 'var(--t1)', 3.5, 1.4 / zoom, 0.8);
+    if (selNote) push(selNote.id, 'var(--acc2)', 5.5, 2 / zoom, 1);
+    return out;
+  }, [notes, pos, degree, zoom, pinned, hits, hover, selNote, dimmed]);
+
+  /* ---------- labels: one occupancy list, claimed in priority order ---------- */
+  const labels = useMemo(() => {
+    const sx = (x: number) => x * zoom + pan.x;
+    const sy = (y: number) => y * zoom + pan.y;
+    const inView = (x: number, y: number, m: number) => x > -m && x < dims.w + m && y > -m && y < dims.h + m;
+
+    const taken: LabelBox[] = [];
+    const PAD = 3;
+    const free = (b: LabelBox) => !taken.some((t) => b.x1 < t.x2 && b.x2 > t.x1 && b.y1 < t.y2 && b.y2 > t.y1);
+
+    const nodeLabels: { id: string; title: string; x: number; y: number; size: number; op: number }[] = [];
+    const placeLabels: { id: string; name: string; x: number; y: number; size: number }[] = [];
+
+    const pushNode = (n: Note, size: number, op: number, force: boolean) => {
+      const p = pos[n.id];
+      if (!p) return;
+      const deg = degree.get(n.id) ?? 0;
+      const x = sx(p.x);
+      const y = sy(p.y) + drawR(deg, zoom) * zoom + 4;
+      if (!inView(x, y, 90)) return;
+      const title = n.title.length > 34
+        ? `${n.title.slice(0, 33).replace(/[\s,;:.]+$/, '')}…`
+        : n.title;
+      const w = title.length * size * 0.5;
+      const h = size * 1.3;
+      const box = { x1: x - w / 2 - PAD, x2: x + w / 2 + PAD, y1: y - PAD, y2: y + h + PAD };
+      if (!force && !free(box)) return;
+      taken.push(box);
+      nodeLabels.push({ id: n.id, title, x: Math.round(x), y: Math.round(y), size, op });
+    };
+
+    /* A territory with no name on it is worse than two labels sitting close, so
+       a place name shifts to clear a collision but is never dropped. */
+    const pushPlace = (id: string, name: string, wx: number, wy: number, size: number) => {
+      const w = name.length * size * 0.78;
+      const h = size * 1.35;
+      const offsets = [0, -20, 20, -38, 38];
+      for (let i = 0; i < offsets.length; i++) {
+        const x = sx(wx);
+        const y = sy(wy) + offsets[i];
+        if (!inView(x, y, 130)) return;
+        const box = { x1: x - w / 2 - PAD, x2: x + w / 2 + PAD, y1: y - h / 2 - PAD, y2: y + h / 2 + PAD };
+        const last = i === offsets.length - 1;
+        if (!free(box) && !last) continue;
+        taken.push(box);
+        placeLabels.push({ id, name, x: Math.round(x), y: Math.round(y), size });
+        return;
+      }
+    };
+
+    if (selNote) pushNode(selNote, 14, 1, true);
+    if (hover && hover !== sel) {
+      const h = noteById.get(hover);
+      if (h) pushNode(h, 13, 1, true);
+    }
+
+    if (zoom < 1.5) {
+      for (const c of clusters) {
+        if (c.noteIds.length === 0) continue;
+        if (c.id === UNLINKED) {
+          pushPlace(c.id, `Unlinked · ${c.noteIds.length}`, c.centre.x, c.centre.y - 46 / zoom, 12);
+        } else {
+          pushPlace(c.id, c.name, c.centre.x, c.centre.y, zoom < 0.45 ? 15 : 12);
         }
       }
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animRef.current);
-  }, [hotNodeIds, heatMap, noteById]);
-
-  // Helpers
-  const getNodeFill = (noteId: string): string => {
-    const note = noteById.get(noteId);
-    if (!note) return '#2e2e44';
-    if (colorMode === 'activity') {
-      const heat = heatMap.get(noteId) || 'cold';
-      return HEAT_STYLES[heat].color;
     }
-    return getNodeColor(noteId);
-  };
 
-  const hasGlow = (noteId: string): boolean => {
-    if (colorMode !== 'activity') return false;
-    const heat = heatMap.get(noteId);
-    return heat === 'hot' || heat === 'warm';
-  };
+    const minDeg = zoom < 0.5 ? 12 : zoom < 0.9 ? 6 : zoom < 1.6 ? 3 : 1;
+    const budget = 48;
+    const ranked = notes
+      .filter((n) => (degree.get(n.id) ?? 0) >= minDeg)
+      .sort((a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0));
+    for (const n of ranked) {
+      if (nodeLabels.length >= budget) break;
+      if (dimmed(n.id)) continue;
+      pushNode(n, zoom < 0.9 ? 11 : 12.5, 0.85, false);
+    }
+    return { nodeLabels, placeLabels };
+  }, [notes, pos, degree, zoom, pan, dims, clusters, selNote, hover, sel, noteById, dimmed]);
 
-  const hasPulse = (noteId: string): boolean => {
-    if (colorMode !== 'activity') return false;
-    const heat = heatMap.get(noteId);
-    return heat === 'hot' || heat === 'warm';
-  };
-
-  const orphanCount = useMemo(() => {
-    const connected = new Set<string>();
-    for (const e of allEdges) { connected.add(e.from); connected.add(e.to); }
-    return notes.filter((n) => !connected.has(n.id)).length;
-  }, [notes, allEdges]);
-
-  const header = (
-    <ViewHeader
-      icon={Network}
-      title="Graph"
-      facts={`${plural(notes.length, 'note')} · ${plural(allEdges.length, 'link')} · ${plural(orphanCount, 'orphan')}`}
-    >
-      {/* Colour-by and the filter belong here, not in a 260px control panel. */}
-      <HeaderSelect
-        value={colorMode}
-        onChange={(v) => setColorMode(v as ColorMode)}
-        options={[
-          { id: 'activity', label: 'colour by edit recency' },
-          { id: 'tag', label: 'colour by tag' },
-          { id: 'links', label: 'colour by link count' },
-        ]}
-      />
-      <HeaderSelect
-        value={showMode}
-        onChange={(v) => setShowMode(v as ShowMode)}
-        options={[
-          { id: 'all', label: 'all notes' },
-          { id: 'hot', label: 'recently edited' },
-          { id: 'orphans', label: 'orphans only' },
-        ]}
-      />
-    </ViewHeader>
+  /* ---------- facts and copy ---------- */
+  const unlinkedCount = useMemo(
+    () => notes.filter((n) => (degree.get(n.id) ?? 0) === 0).length,
+    [notes, degree],
   );
+  const hubCount = useMemo(
+    () => notes.filter((n) => (degree.get(n.id) ?? 0) >= 8).length,
+    [notes, degree],
+  );
+
+  const facts = notes.length === 0
+    ? 'no notes yet'
+    : `${plural(notes.length, 'note')} · ${plural(edges.length, 'link')} · ${unlinkedCount} unlinked`;
+
+  const keyLine = notes.length < 50
+    ? `${notes.length} notes, ${edges.length} links. A map needs about fifty before it tells you `
+      + 'anything you did not already know — until then this is a sketch, and that is fine.'
+    : `Bigger and brighter means more links. ${hubCount} notes carry eight or more; `
+      + `${unlinkedCount} have none and sit in the band below the map. Drag a note to pin it where you put it.`;
+
+  const neighbours = useMemo(() => {
+    if (!selNote) return [];
+    return [...neighbourIds]
+      .map((id) => noteById.get(id))
+      .filter((n): n is Note => !!n)
+      .sort((a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0))
+      .slice(0, 12);
+  }, [selNote, neighbourIds, noteById, degree]);
 
   if (notes.length === 0) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
-        {header}
-        <ViewEmptyState
-          icon={Network}
-          heading="Too few notes to draw."
-          body="The graph starts saying something at around twenty notes with a few links each. Link two notes with [[double brackets]] and the shape appears on its own."
-          primaryLabel="back to notes"
-          onPrimary={onBack}
-          secondary="no setup — the graph is generated from your links"
-        />
-      </div>
-    );
-  }
-
-  if (filteredNotes.length === 0) {
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
-        {header}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t2)', fontSize: 13 }}>
-          No notes match this filter.
-        </div>
+        <ViewHeader icon={Network} title="Graph" />
+        <EmptyVault onBack={onBack} />
       </div>
     );
   }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
-      {header}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-      {/* Main canvas: the graph */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--bg)', minWidth: 0 }}>
-        <svg
-          ref={svgRef}
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${svgDims.width} ${svgDims.height}`}
-          style={{ display: 'block' }}
-        >
-          {/* Edges */}
-          {layout.edges.map((e, i) => {
-            const a = nodeMap.get(e.from);
-            const b = nodeMap.get(e.to);
-            if (!a || !b) return null;
-            const fromHeat = heatMap.get(e.from) || 'cold';
-            const toHeat = heatMap.get(e.to) || 'cold';
-            const edgeStyle = colorMode === 'activity' ? getEdgeStyle(fromHeat, toHeat) : { stroke: 'var(--acc-bd)', strokeWidth: 0.8 };
-            const isHighlighted = hoveredNode && (e.from === hoveredNode || e.to === hoveredNode) ||
-                                  selectedNode && (e.from === selectedNode || e.to === selectedNode);
-            const path = curvedPath(a.x, a.y, b.x, b.y);
-            return (
-              <path
-                key={i}
-                d={path}
-                fill="none"
-                stroke={isHighlighted ? 'var(--acc)' : edgeStyle.stroke}
-                strokeWidth={isHighlighted ? 1.8 : edgeStyle.strokeWidth}
-                strokeDasharray={edgeStyle.dashArray}
-                opacity={isHighlighted ? 0.95 : 0.5}
-              />
-            );
-          })}
-
-          {/* Nodes */}
-          {layout.nodes.map((n) => {
-            const note = noteById.get(n.id);
-            if (!note) return null;
-            const heat = heatMap.get(n.id) || 'cold';
-            const r = getNodeRadius(note.backlinks.length, heat);
-            const fill = getNodeFill(n.id);
-            const glow = hasGlow(n.id);
-            const pulse = hasPulse(n.id);
-            const isHovered = hoveredNode === n.id;
-            const isSelected = selectedNode === n.id;
-            const showLabel = r >= 8 || isHovered || isSelected;
-            const heatStyle = HEAT_STYLES[heat];
-            const labelColor = colorMode === 'activity' ? heatStyle.labelColor : 'var(--t3)';
-
-            return (
-              <g
-                key={n.id}
-                style={{ cursor: 'pointer' }}
-                // Click inspects, double-click opens. Clicking used to jump
-                // straight into the editor, which left no way to look at a node
-                // without leaving the graph.
-                onClick={() => setSelectedNode(n.id)}
-                onDoubleClick={() => onOpenNote(n.id)}
-                onMouseEnter={() => setHoveredNode(n.id)}
-                onMouseLeave={() => setHoveredNode(null)}
-              >
-                {/* Soft glow halo (concentric circle, no filter) */}
-                {glow && (
-                  <circle
-                    cx={n.x}
-                    cy={n.y}
-                    r={r + (heat === 'hot' ? 6 : 4)}
-                    fill={fill}
-                    opacity={heat === 'hot' ? 0.15 : 0.10}
-                  />
-                )}
-                {/* Pulse ring (only for hot/warm in activity mode) */}
-                {pulse && (
-                  <circle
-                    cx={n.x}
-                    cy={n.y}
-                    r={r + 4}
-                    fill={heat === 'hot' ? 'rgba(176,168,251,0.14)' : 'rgba(124,110,247,0.10)'}
-                    data-pulse-ring={n.id}
-                  />
-                )}
-                {/* Main node */}
-                <circle
-                  cx={n.x}
-                  cy={n.y}
-                  r={isHovered || isSelected ? r * 1.3 : r}
-                  fill={fill}
-                  opacity={isHovered || isSelected ? 1 : 0.88}
-                  stroke={heat === 'cold' && colorMode === 'activity' ? '#333338' : 'none'}
-                  strokeWidth={heat === 'cold' && colorMode === 'activity' ? 1 : 0}
-                  style={{ transition: 'r 0.15s, opacity 0.15s' }}
-                />
-                {/* Label */}
-                {showLabel && (
-                  <text
-                    x={n.x}
-                    y={n.y + r + 12}
-                    textAnchor="middle"
-                    fontSize={9}
-                    fill={isHovered || isSelected ? 'var(--t1)' : labelColor}
-                    fontFamily="JetBrains Mono"
-                    fontWeight={isHovered || isSelected ? 600 : 400}
-                    pointerEvents="none"
-                  >
-                    {note.title.slice(0, 20)}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-
-        {/* Hover tooltip */}
-        {hoveredNode && noteById.get(hoveredNode) && (
-          <NodeTooltip note={noteById.get(hoveredNode)!} heat={heatMap.get(hoveredNode) || 'cold'} />
-        )}
-
-        {/* One sentence instead of two legend boxes. The ramp is monotonic, so
-            "brighter = more recent" is the whole key. */}
+      <ViewHeader icon={Network} title="Graph" facts={facts}>
         <div style={{
-          position: 'absolute', left: 18, bottom: 16, maxWidth: '52ch',
-          fontSize: 11, lineHeight: 1.7, color: 'var(--t3)', pointerEvents: 'none',
+          display: 'flex', alignItems: 'center', gap: 7, height: 28, padding: '0 10px',
+          background: 'var(--bg2)', border: `1px solid ${q ? 'var(--acc-bd)' : 'var(--bd)'}`, borderRadius: 5,
         }}>
-          {colorMode === 'activity' && <>Brighter nodes were edited more recently. </>}
-          {colorMode === 'tag' && <>Node colour is the note&rsquo;s first tag. </>}
-          {colorMode === 'links' && <>Brighter and larger nodes have more backlinks. </>}
-          <span style={{ color: 'var(--t2)' }}>
-            {stats.hot > 0 ? `${plural(stats.hot, 'note')} touched today; ` : ''}
-            {orphanCount > 0
-              ? `${plural(orphanCount, 'note')} with no links at all sit unattached at the edges.`
-              : 'every note is connected to at least one other.'}
+          <Search size={12} color="var(--t3)" strokeWidth={1.9} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && hits.length) flyTo(hits[0].id, 1.4);
+              if (e.key === 'Escape') setQuery('');
+            }}
+            placeholder="find in the map…"
+            aria-label="Find a note in the map"
+            style={{
+              width: 150, background: 'transparent', border: 'none', outline: 'none',
+              color: 'var(--t1)', fontFamily: 'inherit', fontSize: 11, caretColor: 'var(--acc2)',
+            }}
+          />
+          <span className="sb-fig" style={{ fontSize: 9.5, color: 'var(--t3)', minWidth: 34, textAlign: 'right' }}>
+            {q ? (hits.length ? `${hits.length} found` : 'none') : ''}
           </span>
         </div>
-      </div>
-
-      {/* Right: inspector for the selected node — the thing you actually want
-          after clicking, rather than a panel of controls you set once. */}
-      <NodeInspector
-        note={selectedNode ? noteById.get(selectedNode) ?? null : null}
-        allNotes={notes}
-        heat={selectedNode ? heatMap.get(selectedNode) ?? 'cold' : 'cold'}
-        edges={allEdges}
-        noteById={noteById}
-        onClear={() => setSelectedNode(null)}
-        onOpenNote={onOpenNote}
-        onSelectNote={setSelectedNode}
-      />
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Header select ---------- */
-
-function HeaderSelect({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { id: string; label: string }[];
-}) {
-  return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          height: 28,
-          padding: '0 26px 0 11px',
-          borderRadius: 5,
-          border: '1px solid var(--bd2)',
-          background: 'transparent',
-          color: 'var(--t2)',
-          fontSize: 11,
-          fontFamily: 'inherit',
-          cursor: 'pointer',
-          appearance: 'none',
-          outline: 'none',
-        }}
-      >
-        {options.map((o) => (
-          <option key={o.id} value={o.id} style={{ background: 'var(--bg2)', color: 'var(--t1)' }}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={11}
-        color="var(--t3)"
-        style={{ position: 'absolute', right: 9, pointerEvents: 'none' }}
-      />
-    </div>
-  );
-}
-
-/* ---------- Node inspector ---------- */
-
-function NodeInspector({
-  note,
-  allNotes,
-  heat,
-  edges,
-  noteById,
-  onClear,
-  onOpenNote,
-  onSelectNote,
-}: {
-  note: Note | null;
-  allNotes: Note[];
-  heat: HeatLevel;
-  edges: { from: string; to: string }[];
-  noteById: Map<string, Note>;
-  onClear: () => void;
-  onOpenNote: (id: string) => void;
-  onSelectNote: (id: string) => void;
-}) {
-  const neighbours = useMemo(() => {
-    if (!note) return [];
-    const ids = new Set<string>();
-    for (const e of edges) {
-      if (e.from === note.id) ids.add(e.to);
-      if (e.to === note.id) ids.add(e.from);
-    }
-    return Array.from(ids).map((id) => noteById.get(id)).filter((n): n is Note => Boolean(n));
-  }, [note, edges, noteById]);
-
-  return (
-    <div
-      style={{
-        width: 300,
-        minWidth: 300,
-        flexShrink: 0,
-        background: 'var(--bg1)',
-        borderLeft: '1px solid var(--bd)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          height: 40,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '0 16px',
-          borderBottom: '1px solid var(--bd)',
-        }}
-      >
-        <span
+        <span style={{ width: 1, height: 20, background: 'var(--bd)', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <GraphBtn label="Zoom out" onClick={() => zoomBy(1 / 1.18)}><ZoomOut size={14} strokeWidth={1.9} /></GraphBtn>
+          <span className="sb-fig" style={{ fontSize: 11, color: 'var(--t2)', minWidth: 42, textAlign: 'center' }}>
+            {Math.round(zoom * 100)}%
+          </span>
+          <GraphBtn label="Zoom in" onClick={() => zoomBy(1.18)}><ZoomIn size={14} strokeWidth={1.9} /></GraphBtn>
+          <GraphBtn label="Fit the whole vault" onClick={fit}><Maximize size={14} strokeWidth={1.9} /></GraphBtn>
+        </div>
+        <button
+          onClick={() => setReseed((r) => r + 1)}
+          title="Re-derive the layout — pinned notes stay put"
           style={{
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            background: note ? HEAT_STYLES[heat].color : 'var(--bd2)',
+            height: 28, padding: '0 11px', background: 'transparent', border: '1px solid var(--bd2)',
+            borderRadius: 5, color: 'var(--t2)', fontFamily: 'inherit', fontSize: 11, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
           }}
-        />
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: note ? 'var(--t1)' : 'var(--t3)' }}>
-          {note ? 'selected' : 'nothing selected'}
-        </span>
-        {note && (
-          <button
-            onClick={onClear}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.borderColor = 'var(--acc-bd)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t2)'; e.currentTarget.style.borderColor = 'var(--bd2)'; }}
+        >
+          <RotateCcw size={12} strokeWidth={1.9} />
+          re-derive
+        </button>
+      </ViewHeader>
+
+      <div
+        ref={surfaceRef}
+        onMouseDown={onMouseDown}
+        onMouseMove={(e) => { if (!drag.current) { const id = pick(e.clientX, e.clientY); if (id !== hover) setHover(id); } }}
+        onMouseLeave={() => setHover(null)}
+        onDoubleClick={(e) => { const id = pick(e.clientX, e.clientY); if (id) onOpenNote(id); }}
+        onWheel={onWheel}
+        style={{
+          flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', background: 'var(--bg)',
+          cursor: panning ? 'grabbing' : hover ? 'pointer' : 'default',
+        }}
+      >
+        <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, display: 'block' }}>
+          <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+            {/* Every stroke inside the scaled group divides by zoom: a stroke
+                authored in world units disappears when you zoom out. */}
+            <path
+              d={edgePath} fill="none" stroke="var(--bd)"
+              strokeWidth={(q || selNote ? 0.6 : 0.8) / zoom}
+              opacity={q || selNote ? 0.18 : 0.5}
+            />
+            {hotPath && <path d={hotPath} fill="none" stroke="var(--acc)" strokeWidth={1.6 / zoom} opacity={0.85} />}
+            {TIERS.map((t, i) => tierPaths.faded[i] && (
+              <path
+                key={`f${i}`} d={tierPaths.faded[i]} fill={t.fill}
+                stroke={t.stroke} strokeWidth={t.hollow ? 1.2 / zoom : 0} opacity={0.14}
+              />
+            ))}
+            {TIERS.map((t, i) => tierPaths.bright[i] && (
+              <path
+                key={`b${i}`} d={tierPaths.bright[i]} fill={t.fill}
+                stroke={t.stroke} strokeWidth={t.hollow ? 1.2 / zoom : 0} opacity={0.92}
+              />
+            ))}
+            {rings.map((r) => (
+              <circle key={r.id} cx={r.x} cy={r.y} r={r.r} fill="none" stroke={r.stroke} strokeWidth={r.sw} opacity={r.op} />
+            ))}
+          </g>
+        </svg>
+
+        {/* Type is an unscaled overlay, so it stays 11–15px at every zoom. */}
+        {labels.placeLabels.map((p) => (
+          <span
+            key={p.id}
+            className="sb-front-serif"
             style={{
-              marginLeft: 'auto',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--t3)',
-              fontSize: 10.5,
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-              padding: 0,
+              position: 'absolute', left: p.x, top: p.y, transform: 'translate(-50%,-50%)',
+              fontSize: p.size, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: 'var(--t2)', pointerEvents: 'none', whiteSpace: 'nowrap',
             }}
           >
-            clear
-          </button>
-        )}
-      </div>
+            {p.name}
+          </span>
+        ))}
+        {labels.nodeLabels.map((n) => (
+          <span
+            key={n.id}
+            className="sb-front-serif"
+            style={{
+              position: 'absolute', left: n.x, top: n.y, transform: 'translate(-50%,0)',
+              fontSize: n.size, lineHeight: 1.2, color: 'var(--t2)', opacity: n.op,
+              pointerEvents: 'none', whiteSpace: 'nowrap', textShadow: '0 1px 3px var(--bg)',
+            }}
+          >
+            {n.title}
+          </span>
+        ))}
 
-      {!note ? (
-        <div style={{ padding: '20px 16px', fontSize: 11.5, lineHeight: 1.7, color: 'var(--t3)' }}>
-          Click any node to see what it links to, what links back, and how long since you touched it.
-        </div>
-      ) : (
-        <div
-          className="sb-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}
-        >
-          <div>
-            <div
-              className="sb-reading"
-              style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.25, marginBottom: 8 }}
-            >
-              {note.title}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, color: 'var(--t3)', flexWrap: 'wrap' }}>
-              {note.status === 'evergreen' && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--grn)' }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--grn)' }} />
-                  evergreen
-                </span>
-              )}
-              <span>{plural(note.wordCount, 'word')}</span>
-              <span style={{ color: HEAT_STYLES[heat].activityColor }}>{HEAT_STYLES[heat].activityString}</span>
-            </div>
-          </div>
-
-          {note.subtitle && (
-            <p className="sb-reading" style={{ fontSize: 12.5, lineHeight: 1.7, color: 'var(--t2)', margin: 0 }}>
-              {note.subtitle}
-            </p>
-          )}
-
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--t2)', marginBottom: 10 }}>
-              connected · {neighbours.length}
-            </div>
-            {neighbours.length === 0 ? (
-              <div style={{ fontSize: 11.5, color: 'var(--t3)' }}>
-                Nothing links here yet. This note is one of the orphans.
-              </div>
+        {/* The card and the legend share one bottom row, so they cannot land on
+            each other the way two separately-anchored overlays did. */}
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 14, padding: '0 16px',
+          display: 'flex', alignItems: 'flex-end', gap: 14, pointerEvents: 'none',
+        }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+            {selNote ? (
+              <NoteCard
+                note={selNote}
+                degree={degree.get(selNote.id) ?? 0}
+                cluster={clusters.find((c) => c.noteIds.includes(selNote.id))?.name ?? 'unfiled'}
+                neighbours={neighbours}
+                degreeOf={(id) => degree.get(id) ?? 0}
+                pinnedHere={!!pinned[selNote.id]}
+                onClose={() => setSel(null)}
+                onOpen={() => onOpenNote(selNote.id)}
+                onGo={(id) => flyTo(id)}
+                onTogglePin={() => {
+                  const next = { ...pinned };
+                  if (next[selNote.id]) delete next[selNote.id];
+                  else if (pos[selNote.id]) next[selNote.id] = { ...pos[selNote.id] };
+                  savePins(next);
+                }}
+              />
             ) : (
-              neighbours.slice(0, 8).map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => onSelectNote(n.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 9,
-                    padding: '7px 0',
-                    borderBottom: '1px solid var(--bd)',
-                    fontSize: 12,
-                    width: '100%',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottomWidth: 1,
-                    borderBottomStyle: 'solid',
-                    borderBottomColor: 'var(--bd)',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    textAlign: 'left',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: '50%',
-                      background: n.status === 'evergreen' ? 'var(--grn)' : 'var(--bd2)',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t2)' }}>
-                    {n.title}
-                  </span>
-                </button>
-              ))
+              <span style={{ maxWidth: '56ch', fontSize: 11, lineHeight: 1.75, color: 'var(--t3)' }}>
+                {keyLine}
+              </span>
             )}
           </div>
-
-          <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => onOpenNote(note.id)}
-              style={{
-                flex: 1,
-                height: 32,
-                borderRadius: 5,
-                background: 'var(--acc)',
-                border: '1px solid var(--acc)',
-                color: '#fff',
-                fontSize: 11.5,
-                fontWeight: 600,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 7,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--acc2)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--acc)')}
-            >
-              open note <ArrowRight size={12} />
-            </button>
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-            {allNotes.length} notes in the vault
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 9, letterSpacing: '0.13em', textTransform: 'uppercase', color: 'var(--t3)' }}>
+              Links
+            </span>
+            {[...TIERS].reverse().map((t, i) => (
+              <span key={t.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{
+                  width: [5, 7, 9, 12][i], height: [5, 7, 9, 12][i], borderRadius: '50%',
+                  background: t.hollow ? 'transparent' : t.fill,
+                  border: `1px solid ${t.hollow ? t.stroke : t.fill}`,
+                }} />
+                <span className="sb-fig" style={{ fontSize: 9, color: 'var(--t3)' }}>{t.label}</span>
+              </span>
+            ))}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-function NodeTooltip({ note, heat }: { note: Note; heat: HeatLevel }) {
-  const heatStyle = HEAT_STYLES[heat];
+/* ============================================================
+   Pieces
+   ============================================================ */
+
+function GraphBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick} title={label} aria-label={label}
+      style={{
+        width: 30, height: 30, borderRadius: 4, background: 'transparent', border: '1px solid var(--bd2)',
+        color: 'var(--t3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.borderColor = 'var(--acc-bd)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; e.currentTarget.style.borderColor = 'var(--bd2)'; }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function NoteCard({
+  note, degree, cluster, neighbours, degreeOf, pinnedHere, onClose, onOpen, onGo, onTogglePin,
+}: {
+  note: Note; degree: number; cluster: string; neighbours: Note[];
+  degreeOf: (id: string) => number; pinnedHere: boolean;
+  onClose: () => void; onOpen: () => void; onGo: (id: string) => void; onTogglePin: () => void;
+}) {
+  const days = Math.floor((Date.now() - new Date(note.updatedAt).getTime()) / 86400000);
+  const meta = [
+    plural(degree, 'link'),
+    plural(note.wordCount, 'word'),
+    note.status === 'evergreen' ? 'evergreen' : null,
+    days <= 0 ? 'edited today' : `edited ${days}d ago`,
+    cluster.toLowerCase(),
+  ].filter(Boolean).join(' · ');
+
   return (
     <div style={{
-      position: 'absolute', bottom: 16, left: 16,
-      background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 5,
-      padding: '10px 14px', fontSize: 12, color: 'var(--t1)',
-      pointerEvents: 'none', maxWidth: 320,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+      width: 330, background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 8,
+      boxShadow: '0 14px 40px rgba(0,0,0,0.5)', pointerEvents: 'auto',
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
-      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>{note.title}</div>
-      {note.subtitle && (
-        <div style={{ color: 'var(--t3)', fontStyle: 'italic', marginBottom: 6, fontSize: 11 }}>{note.subtitle}</div>
-      )}
-      <div style={{ color: 'var(--t3)', fontSize: 11, display: 'flex', gap: 10 }}>
-        <span>{plural(note.backlinks.length, 'backlink')}</span>
-        <span>·</span>
-        <span>{plural(note.wordCount, 'word')}</span>
-        {note.tags.length > 0 && <><span>·</span><span>{note.tags.map((t) => `#${t}`).join(' ')}</span></>}
+      <div style={{ padding: '13px 15px 11px', display: 'flex', flexDirection: 'column', gap: 7, borderBottom: '1px solid var(--bd)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+          <span className="sb-front-serif" style={{
+            flex: 1, minWidth: 0, fontSize: 17, lineHeight: 1.25, fontWeight: 700,
+            letterSpacing: '-0.01em', color: 'var(--t1)', textWrap: 'pretty',
+          }}>
+            {note.title}
+          </span>
+          <button
+            onClick={onClose} aria-label="Close"
+            style={{
+              width: 20, height: 20, flexShrink: 0, background: 'transparent', border: 'none',
+              color: 'var(--t3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; }}
+          >
+            <X size={12} strokeWidth={2.2} />
+          </button>
+        </div>
+        <span className="sb-fig" style={{ fontSize: 10, color: 'var(--t3)', letterSpacing: '0.02em' }}>{meta}</span>
       </div>
-      <div style={{ color: heatStyle.activityColor, fontSize: 10, marginTop: 4, fontWeight: 600 }}>
-        {heatStyle.activityString}
+
+      <div className="sb-scroll" style={{ maxHeight: 168, overflowY: 'auto', padding: '4px 15px 8px' }}>
+        <span style={{
+          display: 'block', fontSize: 9, letterSpacing: '0.13em', textTransform: 'uppercase',
+          color: 'var(--t3)', padding: '9px 0 3px',
+        }}>
+          {neighbours.length ? `connects to ${neighbours.length}` : 'nothing links here yet'}
+        </span>
+        {neighbours.map((nb) => (
+          <button
+            key={nb.id}
+            onClick={() => onGo(nb.id)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'baseline', gap: 8, padding: '6px 0',
+              background: 'transparent', border: 'none', borderBottom: '1px solid var(--bd)',
+              fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+          >
+            <span style={{
+              width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
+              background: nb.status === 'evergreen' ? 'var(--grn)' : 'var(--bd2)',
+            }} />
+            <span className="sb-front-serif" style={{
+              flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--t2)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {nb.title}
+            </span>
+            <span className="sb-fig" style={{ fontSize: 9, color: 'var(--t3)' }}>{degreeOf(nb.id)}</span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ padding: '10px 15px 12px', borderTop: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 7 }}>
+        <button
+          onClick={onOpen}
+          style={{
+            flex: 1, height: 29, background: 'var(--acc)', border: 'none', borderRadius: 5,
+            color: 'var(--on-acc)', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--acc2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--acc)'; }}
+        >
+          open note
+        </button>
+        <button
+          onClick={onTogglePin}
+          title="A pin keeps this note where you put it when the layout is re-derived"
+          style={{
+            height: 29, padding: '0 10px', borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: 10.5, whiteSpace: 'nowrap',
+            background: pinnedHere ? 'var(--acc-bg)' : 'transparent',
+            border: `1px solid ${pinnedHere ? 'var(--acc-bd)' : 'var(--bd2)'}`,
+            color: pinnedHere ? 'var(--acc2)' : 'var(--t2)',
+          }}
+        >
+          {pinnedHere ? 'unpin' : 'pin here'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EmptyVault({ onBack }: { onBack: () => void }) {
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <div style={{ maxWidth: 390, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 11 }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: 8, background: 'var(--acc-bg)', border: '1px solid var(--acc-bd)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 5,
+        }}>
+          <Network size={16} color="var(--acc2)" strokeWidth={1.75} />
+        </div>
+        <span className="sb-front-serif" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.3, color: 'var(--t1)' }}>
+          Nothing to map yet.
+        </span>
+        <span style={{ fontSize: 11.5, lineHeight: 1.8, color: 'var(--t2)' }}>
+          There is nothing to set up — the map is drawn from your links. Write a few notes, join two of
+          them with <span style={{ color: 'var(--acc2)' }}>[[double brackets]]</span>, and the shape appears on its own.
+        </span>
+        <button
+          onClick={onBack}
+          style={{
+            height: 32, padding: '0 14px', marginTop: 5, background: 'var(--acc)', border: 'none',
+            borderRadius: 5, color: 'var(--on-acc)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--acc2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--acc)'; }}
+        >
+          back to notes
+        </button>
+        <span style={{ fontSize: 10.5, color: 'var(--t3)', lineHeight: 1.7 }}>
+          Around fifty notes is when it starts to show you something.
+        </span>
       </div>
     </div>
   );
