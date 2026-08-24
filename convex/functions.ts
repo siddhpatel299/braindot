@@ -24,6 +24,7 @@ const SYNC_TABLES = [
   "canvasBoards",
   "libraryItems",
   "highlights",
+  "bookmarks",
   "appState",
 ] as const;
 

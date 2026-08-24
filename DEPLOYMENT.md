@@ -16,7 +16,8 @@ Convex functions/schema are pushed to your Convex deployment.
 
 **What's left — just the Vercel project (steps 4–5 below):**
 1. Import the repo at vercel.com.
-2. Add env vars: `CONVEX_DEPLOY_KEY` (prod key), `OPENAI_API_KEY`, `OPENAI_MODEL`.
+2. Add env vars: `CONVEX_DEPLOY_KEY` (prod key), `OPENAI_API_KEY`, `OPENAI_MODEL`,
+   `RATE_LIMIT_SECRET` (see below — the same value goes on Convex too).
 3. Deploy, then set `SITE_URL` on Convex prod to the real Vercel URL.
 
 The dev environment still uses a _preview_ key in `.env.local` (ephemeral,
@@ -47,11 +48,41 @@ Keep your `prod:...` deploy key handy — you'll paste it into Vercel below.
    | `CONVEX_DEPLOY_KEY`  | your `prod:...` key from step 1         |
    | `OPENAI_API_KEY`     | your real `sk-...` key (or omit for now)|
    | `OPENAI_MODEL`       | `gpt-4o-mini` (optional)               |
+   | `RATE_LIMIT_SECRET`  | a long random string — see below        |
 
    Do **not** set `NEXT_PUBLIC_CONVEX_URL` — the Convex deploy injects it.
 
 4. **Deploy.** Vercel runs `convex deploy` (pushing your backend to
    production) and builds the site with the right Convex URL baked in.
+
+### 4b. `RATE_LIMIT_SECRET` — required, on both sides
+
+The AI routes (`/api/ai/ask`, `/api/reading/edition`) spend your OpenAI
+budget, so they are metered per account, with a smaller free allowance for
+demo-mode visitors. The counters live in Convex, because each Vercel request
+may land on a different instance and an in-process counter would let the limit
+through several times over.
+
+The web server proves to Convex that a request really came from it — and that
+the quota key in it was not invented by a browser — with a shared secret. It
+has to be the **same value in both places**:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Put that value in **Vercel** (`RATE_LIMIT_SECRET`) and on **Convex**:
+
+```bash
+npx convex env set RATE_LIMIT_SECRET <the-same-value>
+```
+
+If it is missing from either side the AI endpoints answer 503 rather than
+running unmetered — an endpoint that cannot be counted is the one you least
+want left open. Everything else in the app is unaffected.
+
+For local development, put the same variable in `.env.local` and run the
+`convex env set` above against your dev deployment.
 
 ### 5. Finalize the auth URL
 
@@ -68,7 +99,8 @@ and redeploys the frontend. One `git push` ships everything.
 
 ## Local development
 
-`.env.local` holds your dev config (preview Convex URL + `OPENAI_API_KEY`).
+`.env.local` holds your dev config (preview Convex URL, `OPENAI_API_KEY`,
+`RATE_LIMIT_SECRET`).
 `bun run dev` runs the site against the dev deployment. To push backend
 changes to the dev deployment: `bun run convex:deploy`.
 

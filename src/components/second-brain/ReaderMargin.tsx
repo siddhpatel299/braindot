@@ -13,6 +13,8 @@ interface ReaderMarginProps {
   revision: string;
   onCapture: (highlight: Highlight) => void;
   onDelete: (id: string) => void;
+  /** Write a line of your own against the passage. */
+  onNote: (id: string, note: string) => void;
 }
 
 const GAP = 10;
@@ -28,10 +30,13 @@ const GAP = 10;
  * the one thing they could not see.
  */
 export function ReaderMargin({
-  highlights, proseRef, scrollRef, revision, onCapture, onDelete,
+  highlights, proseRef, scrollRef, revision, onCapture, onDelete, onNote,
 }: ReaderMarginProps) {
   const noteRefs = useRef(new Map<string, HTMLDivElement>());
   const [ready, setReady] = useState(false);
+  /** Which mark is being annotated, and the text so far. */
+  const [writing, setWriting] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
 
   // Position after paint: the marks' tops come from the rendered passages and
   // their heights from the rendered notes, so both have to exist first.
@@ -98,7 +103,59 @@ export function ReaderMargin({
           title="Go to this passage"
         >
           <div className="sb-margin-note-text">{hl.text}</div>
+
+          {/* One line of your own. Most marginalia is a sentence, and the only
+              things on offer were a silent highlight or a whole note. */}
+          {writing === hl.id ? (
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onBlur={() => { onNote(hl.id, draft.trim()); setWriting(null); }}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Escape') { e.preventDefault(); setWriting(null); }
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  onNote(hl.id, draft.trim());
+                  setWriting(null);
+                }
+              }}
+              rows={2}
+              placeholder="a line of your own"
+              aria-label="Write a note against this passage"
+              style={{
+                width: '100%', marginTop: 5, background: 'var(--bg3)',
+                border: '1px solid var(--acc-bd)', borderRadius: 3, padding: '3px 5px',
+                color: 'var(--t1)', fontFamily: 'inherit', fontSize: 10, lineHeight: 1.45,
+                resize: 'none', outline: 'none', caretColor: 'var(--acc2)',
+              }}
+            />
+          ) : hl.note ? (
+            <div
+              onClick={(e) => { e.stopPropagation(); setWriting(hl.id); setDraft(hl.note ?? ''); }}
+              title="Click to edit"
+              style={{ marginTop: 5, fontSize: 10, lineHeight: 1.5, color: 'var(--t3)', cursor: 'text' }}
+            >
+              {hl.note}
+            </div>
+          ) : null}
+
           <div style={{ display: 'flex', gap: 8, marginTop: 5 }}>
+            {!hl.note && writing !== hl.id && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setWriting(hl.id); setDraft(''); }}
+                style={{
+                  background: 'transparent', border: 'none', padding: 0, color: 'var(--t3)',
+                  fontSize: 9.5, fontFamily: 'inherit', cursor: 'pointer', letterSpacing: '0.04em',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--acc2)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; }}
+              >
+                add a line
+              </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); onCapture(hl); }}
               style={{

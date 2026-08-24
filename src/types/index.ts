@@ -189,6 +189,9 @@ export interface CanvasBoard {
 // ============================================================
 // Reading / Library types
 // ============================================================
+import type { ReadingPosition } from '@/utils/readingPosition';
+export type { ReadingPosition };
+
 export type LibraryItemType = 'epub' | 'pdf' | 'rss' | 'url' | 'paper' | 'news';
 export type LibraryItemStatus = 'unread' | 'reading' | 'done';
 
@@ -201,11 +204,27 @@ export interface LibraryItem {
   content: string;       // extracted text
   excerpt: string;
   status: LibraryItemStatus;
-  progress: number;      // 0-100
+  progress: number;      // 0-100, for the shelf's progress bar
   coverUrl: string | null;
   addedAt: string;
   updatedAt: string;
   highlights: string[];  // highlight IDs
+  /** Where you stopped, precisely enough to resume on another device.
+   *  Optional: a book added before this existed has none, and falls back to
+   *  the chapter `progress` implies. See utils/readingPosition.ts. */
+  position?: ReadingPosition;
+}
+
+/** A place in a book worth coming back to. Unlike a highlight, it marks a
+ *  location rather than a passage, and carries a name you chose. */
+export interface Bookmark {
+  id: string;
+  libraryItemId: string;
+  chapter: number;
+  charOffset: number;
+  /** What the reader called it, or the opening words if they named nothing. */
+  label: string;
+  createdAt: string;
 }
 
 export type HighlightColor = 'yellow' | 'purple' | 'green';
@@ -213,9 +232,16 @@ export type HighlightColor = 'yellow' | 'purple' | 'green';
 export interface Highlight {
   id: string;
   libraryItemId: string;
+  /** Set once the mark has been promoted into a note of its own. */
   noteId: string | null;
   text: string;
   color: HighlightColor;
   page: number | null;
   createdAt: string;
+  /** A line of your own against the passage.
+   *
+   *  Marginalia is mostly one sentence, and there was nowhere to put one: a
+   *  mark could be silent or become a whole note, with nothing in between.
+   *  Optional, so every mark written before this stays valid. */
+  note?: string;
 }

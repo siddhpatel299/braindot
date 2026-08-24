@@ -23,7 +23,7 @@ export const TEMPLATE_FOLDERS: Folder[] = [
   { id: SEED_FOLDER_IDS.journal, name: 'Journal', parentId: SEED_FOLDER_IDS.resources, createdAt: now, expanded: false },
 ];
 
-export const TEMPLATE_NOTES: Note[] = [
+export const TEMPLATE_NOTES: Note[] = ([
   {
     id: 'tpl_welcome',
     filename: 'welcome-to-braindot.md',
@@ -188,4 +188,4 @@ Use [[wiki-links]] to connect this note to other notes. For example, link to [[w
     folderId: SEED_FOLDER_IDS.resourcesPkm,
     pinned: false,
   },
-].map(n => ({ ...n, wordCount: countWords(n.body) }));
+] satisfies Note[]).map((n) => ({ ...n, wordCount: countWords(n.body) }));

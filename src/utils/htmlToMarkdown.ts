@@ -19,7 +19,8 @@ function getService(): TurndownService {
   });
 
   // Drop noise that carries no reading value
-  td.remove(['script', 'style', 'noscript', 'iframe', 'head', 'meta', 'link', 'button', 'svg']);
+  // Cast because turndown types the list as HTML tags and 'svg' is an SVG one.
+  td.remove(['script', 'style', 'noscript', 'iframe', 'head', 'meta', 'link', 'button', 'svg'] as unknown as (keyof HTMLElementTagNameMap)[]);
 
   // Strikethrough (turndown core doesn't cover <del>/<s>)
   td.addRule('strikethrough', {

@@ -1,3 +1,5 @@
+import { authHeaders } from '@/lib/authToken';
+
 // Client helper for the streaming /api/ai/ask endpoint.
 // Errors arrive as JSON with a non-200 status; success is a plain-text
 // token stream. onDelta receives the FULL text accumulated so far.
@@ -20,7 +22,7 @@ export async function streamAsk(
 ): Promise<string> {
   const res = await fetch('/api/ai/ask', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload),
     signal,
   });

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { guard, HOUR, DAY } from '@/lib/apiGuard';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+/** Enough for a working session, and a fraction of what a script would want.
+ *  The trial allowance is a handful a day — enough to see what it does. */
+const ASK_QUOTA = { user: 60, userWindowMs: HOUR, anon: 5, anonWindowMs: DAY };
 
 interface ContextNote {
   title: string;
@@ -162,6 +167,11 @@ export async function POST(req: NextRequest) {
     if (!body.question || !body.question.trim()) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
     }
+
+    // After the shape checks so a malformed request does not cost anyone a
+    // unit, and before anything reaches OpenAI.
+    const allowed = await guard(req, 'ask', ASK_QUOTA);
+    if (!allowed.ok) return allowed.response;
 
     if (apiKey === 'mock') {
       return new Response(mockStream(body.scope), {

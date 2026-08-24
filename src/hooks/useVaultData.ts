@@ -4,32 +4,74 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useConvexAuth } from 'convex/react';
 import { useQuery } from 'convex/react';
 import {
-  Task, TaskState, Note, CanvasBoard, LibraryItem, Highlight,
+  Task, TaskState, Note, CanvasBoard, LibraryItem, Highlight, Bookmark,
 } from '@/types';
 import { useCollectionSync } from '@/hooks/useCollectionSync';
 import { migrateToTasks } from '@/utils/tasks';
+import { writeLocal, reportStorageFailure } from '@/utils/storageHealth';
+import { syncContent, rejoinContent, deleteContent } from '@/utils/libraryContent';
 import { api } from '../../convex/_generated/api';
 
 // ============================================================
 // Generic localStorage hook factory
 // ============================================================
-function useLocalStorage<T>(key: string, initialValue: T) {
+/**
+ * Somewhere else to put the bulky part of a collection.
+ *
+ * localStorage holds about 5MB for the whole origin, which is generous for
+ * notes and hopeless for book text. A collection that carries something big
+ * supplies these three, and the big part goes to IndexedDB while localStorage
+ * keeps a copy of the record with that field emptied.
+ */
+interface HeavyField<T> {
+  /** The value as it should be written to localStorage — big part removed. */
+  lighten: (value: T) => T;
+  /** Put the big part somewhere with room. */
+  persist: (value: T) => Promise<void>;
+  /** Reunite the two halves after a load. */
+  rejoin: (value: T) => Promise<T>;
+}
+
+function useLocalStorage<T>(key: string, initialValue: T, heavy?: HeavyField<T>) {
   const [value, setValue] = useState<T>(initialValue);
   const [hydrated, setHydrated] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Kept in a ref so the save effect does not re-run when a caller passes a
+  // fresh object literal on every render.
+  const heavyRef = useRef(heavy);
+  heavyRef.current = heavy;
+
   // Load on mount — localStorage hydration is intentionally a synchronous
   // setState in an effect
   useEffect(() => {
+    let cancelled = false;
     /* eslint-disable react-hooks/set-state-in-effect */
+    let loaded: T | null = null;
     try {
       const raw = localStorage.getItem(key);
-      if (raw) {
-        setValue(JSON.parse(raw));
-      }
-    } catch {}
-    setHydrated(true);
+      if (raw) loaded = JSON.parse(raw) as T;
+    } catch {
+      // Unreadable or corrupt — start from the initial value rather than
+      // leaving the app with nothing to render.
+    }
+
+    const rejoin = heavyRef.current?.rejoin;
+    if (loaded !== null && rejoin) {
+      // The bulky half lives in IndexedDB, so hydration finishes a tick later.
+      // `hydrated` already gates cloud sync, which is what needs to wait.
+      const light = loaded;
+      setValue(light);
+      rejoin(light)
+        .then((full) => { if (!cancelled) setValue(full); })
+        .catch(() => { /* keep the light copy — better than an empty shelf */ })
+        .finally(() => { if (!cancelled) setHydrated(true); });
+    } else {
+      if (loaded !== null) setValue(loaded);
+      setHydrated(true);
+    }
     /* eslint-enable react-hooks/set-state-in-effect */
+    return () => { cancelled = true; };
   }, [key]);
 
   // Debounced save
@@ -39,7 +81,16 @@ function useLocalStorage<T>(key: string, initialValue: T) {
     saveTimer.current = setTimeout(() => {
       // Skip writes while signing out — the vault keys were just cleared
       if ((window as unknown as { __sbSignout?: boolean }).__sbSignout) return;
-      try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+      const h = heavyRef.current;
+      if (h) {
+        // Order matters: the bulky half first, so a crash between the two
+        // leaves content without a record rather than a record pointing at
+        // content that was never written.
+        h.persist(value).catch((err) => reportStorageFailure(key, err));
+        writeLocal(key, h.lighten(value));
+      } else {
+        writeLocal(key, value);
+      }
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [value, key, hydrated]);
@@ -210,7 +261,7 @@ export function useCanvas() {
 
   // Older saves predate zoom/pan on the board — default them or every
   // coordinate in CanvasView becomes NaN.
-  const boards = rawBoards.map((b) => ({ zoom: 1, panX: 0, panY: 0, ...b }));
+  const boards = rawBoards.map((b) => ({ ...b, zoom: b.zoom ?? 1, panX: b.panX ?? 0, panY: b.panY ?? 0 }));
 
   useCollectionSync<CanvasBoard>({
     table: 'canvasBoards',
@@ -341,11 +392,33 @@ export function useCanvas() {
 // ============================================================
 const LIBRARY_KEY = 'sb-library-items';
 const HIGHLIGHTS_KEY = 'sb-highlights';
+const BOOKMARKS_KEY = 'sb-bookmarks';
+
+/**
+ * Book text goes to IndexedDB; the shelf keeps everything else.
+ *
+ * The whole extracted text of an epub sat in localStorage, against a ~5MB
+ * budget shared with every note, task and canvas. A few books filled it and
+ * every subsequent save of anything threw — silently, until now.
+ *
+ * Defined at module scope so it is one stable object rather than a new literal
+ * on each render.
+ */
+const LIBRARY_HEAVY: HeavyField<LibraryItem[]> = {
+  // Covers go too. Once the text was gone they were what filled the budget:
+  // a shelf-sized JPEG as a data URL is 20–60KB, so a couple of hundred books
+  // was still enough to run out, for pictures.
+  lighten: (items) => items.map((i) => ({ ...i, content: '', coverUrl: null })),
+  persist: (items) => syncContent(items),
+  rejoin: (items) => rejoinContent(items),
+};
 
 export function useReading() {
-  const [libraryItems, setLibraryItems, libraryHydrated] = useLocalStorage<LibraryItem[]>(LIBRARY_KEY, []);
+  const [libraryItems, setLibraryItems, libraryHydrated] =
+    useLocalStorage<LibraryItem[]>(LIBRARY_KEY, [], LIBRARY_HEAVY);
   const [highlights, setHighlights, highlightsHydrated] = useLocalStorage<Highlight[]>(HIGHLIGHTS_KEY, []);
-  const syncEnabled = useSyncEnabled(libraryHydrated && highlightsHydrated);
+  const [bookmarks, setBookmarks, bookmarksHydrated] = useLocalStorage<Bookmark[]>(BOOKMARKS_KEY, []);
+  const syncEnabled = useSyncEnabled(libraryHydrated && highlightsHydrated && bookmarksHydrated);
 
   useCollectionSync<LibraryItem>({
     table: 'libraryItems',
@@ -358,6 +431,9 @@ export function useReading() {
       excerpt: i.excerpt ?? '', status: i.status, progress: i.progress,
       coverUrl: i.coverUrl, highlights: i.highlights ?? [],
       createdAt: i.addedAt, updatedAt: i.updatedAt,
+      // Undefined rather than null: the field is optional in the schema, and
+      // a book never opened has no position to report.
+      position: i.position ?? undefined,
     }), []),
     fromDoc: useCallback((d: Record<string, unknown>): LibraryItem => ({
       id: String(d.localId), title: String(d.title),
@@ -368,6 +444,7 @@ export function useReading() {
       coverUrl: (d.coverUrl as string | null) ?? null,
       highlights: (d.highlights as string[]) ?? [],
       addedAt: String(d.createdAt), updatedAt: String(d.updatedAt),
+      position: (d.position as LibraryItem['position']) ?? undefined,
     }), []),
   });
 
@@ -379,14 +456,48 @@ export function useReading() {
     toDoc: useCallback((h: Highlight) => ({
       localId: h.id, libraryItemId: h.libraryItemId, noteId: h.noteId,
       text: h.text, color: h.color, page: h.page, createdAt: h.createdAt,
+      note: h.note ?? '',
     }), []),
     fromDoc: useCallback((d: Record<string, unknown>): Highlight => ({
       id: String(d.localId), libraryItemId: String(d.libraryItemId),
       noteId: (d.noteId as string | null) ?? null, text: String(d.text ?? ''),
       color: d.color as Highlight['color'], page: (d.page as number | null) ?? null,
       createdAt: String(d.createdAt),
+      note: (d.note as string | undefined) || undefined,
     }), []),
   });
+
+  useCollectionSync<Bookmark>({
+    table: 'bookmarks',
+    enabled: syncEnabled,
+    items: bookmarks,
+    hydrate: useCallback((items: Bookmark[]) => setBookmarks(items), [setBookmarks]),
+    toDoc: useCallback((b: Bookmark) => ({
+      localId: b.id, libraryItemId: b.libraryItemId, chapter: b.chapter,
+      charOffset: b.charOffset, label: b.label, createdAt: b.createdAt,
+    }), []),
+    fromDoc: useCallback((d: Record<string, unknown>): Bookmark => ({
+      id: String(d.localId), libraryItemId: String(d.libraryItemId),
+      chapter: Number(d.chapter ?? 0), charOffset: Number(d.charOffset ?? 0),
+      label: String(d.label ?? ''), createdAt: String(d.createdAt),
+    }), []),
+  });
+
+  const addBookmark = useCallback((bookmark: Omit<Bookmark, 'id' | 'createdAt'>) => {
+    const newBookmark: Bookmark = {
+      ...bookmark, id: genId('bm'), createdAt: new Date().toISOString(),
+    };
+    setBookmarks(prev => [...prev, newBookmark]);
+    return newBookmark;
+  }, [setBookmarks]);
+
+  const deleteBookmark = useCallback((id: string) => {
+    setBookmarks(prev => prev.filter(b => b.id !== id));
+  }, [setBookmarks]);
+
+  const renameBookmark = useCallback((id: string, label: string) => {
+    setBookmarks(prev => prev.map(b => (b.id === id ? { ...b, label } : b)));
+  }, [setBookmarks]);
 
   const addLibraryItem = useCallback((item: Omit<LibraryItem, 'id' | 'addedAt' | 'updatedAt' | 'highlights'>) => {
     const now = new Date().toISOString();
@@ -402,7 +513,11 @@ export function useReading() {
   const deleteLibraryItem = useCallback((id: string) => {
     setLibraryItems(prev => prev.filter(i => i.id !== id));
     setHighlights(prev => prev.filter(h => h.libraryItemId !== id));
-  }, [setLibraryItems, setHighlights]);
+    setBookmarks(prev => prev.filter(b => b.libraryItemId !== id));
+    // The next save would collect this anyway, but reclaiming the megabyte now
+    // is the point of the exercise.
+    void deleteContent(id);
+  }, [setLibraryItems, setHighlights, setBookmarks]);
 
   const addHighlight = useCallback((highlight: Omit<Highlight, 'id' | 'createdAt'>) => {
     const newHighlight: Highlight = { ...highlight, id: genId('hl'), createdAt: new Date().toISOString() };
@@ -424,5 +539,6 @@ export function useReading() {
     libraryItems, highlights,
     addLibraryItem, updateLibraryItem, deleteLibraryItem,
     addHighlight, updateHighlight, deleteHighlight,
+    bookmarks, addBookmark, deleteBookmark, renameBookmark,
   };
 }

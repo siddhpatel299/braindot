@@ -6,6 +6,7 @@ import { Note, Folder, ParaType } from '@/types';
 import { SEED_NOTES, SEED_FOLDERS, SEED_FOLDER_IDS, generateNoteId, generateFolderId } from '@/utils/seedData';
 import { computeBacklinks, countWords, todayKey } from '@/utils/markdown';
 import { useCollectionSync } from '@/hooks/useCollectionSync';
+import { writeLocal } from '@/utils/storageHealth';
 
 const STORAGE_KEY = 'second-brain-state-v2';
 const LEGACY_KEY = 'second-brain-state-v1';
@@ -164,7 +165,10 @@ Use [[wiki-links]] to connect this note to other notes. For example, link to [[w
 function saveLocalState(state: PersistedState) {
   // Skip writes while signing out — the vault keys were just cleared
   if ((window as unknown as { __sbSignout?: boolean }).__sbSignout) return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  // Reported rather than swallowed: this is every note the reader has written,
+  // and a save that quietly did not happen is the one failure worth
+  // interrupting them for.
+  writeLocal(STORAGE_KEY, state);
 }
 
 function loadUIState(): UIState {
@@ -180,7 +184,13 @@ function loadUIState(): UIState {
 }
 
 function saveUIState(ui: UIState) {
-  try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(ui)); } catch {}
+  // Which tabs were open is a preference, not the reader's work — losing it
+  // is not worth a message, but it still gets logged rather than vanishing.
+  try {
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify(ui));
+  } catch (err) {
+    console.warn('[storage] could not save open tabs:', err instanceof Error ? err.message : err);
+  }
 }
 
 // ============================================================

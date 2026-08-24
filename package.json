@@ -8,7 +8,11 @@
     "start": "next start -p 3000",
     "lint": "eslint .",
     "convex:deploy": "convex deploy --preview-name dev --typecheck disable -y",
-    "check:svg": "node src/utils/svgContract.test.ts"
+    "check:svg": "node src/utils/svgContract.test.ts",
+    "check:ssrf": "node src/utils/urlGuard.test.ts",
+    "check:storage": "node src/utils/storageHealth.test.ts",
+    "check:position": "node src/utils/readingPosition.test.ts",
+    "test": "npm run check:svg && npm run check:ssrf && npm run check:storage && npm run check:position"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",

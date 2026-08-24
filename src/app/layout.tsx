@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { StorageAlert } from "@/components/second-brain/StorageAlert";
 import { ConvexClientProvider } from "@/lib/convex";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <ConvexClientProvider>{children}</ConvexClientProvider>
+        <StorageAlert />
         <Toaster />
       </body>
     </html>

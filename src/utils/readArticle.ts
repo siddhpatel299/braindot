@@ -4,8 +4,20 @@
 // dozen stories instead of making a dozen HTTP requests to itself.
 
 import { decodeEntities, htmlToMarkdownBlocks, tagText } from '@/utils/serverHtml';
+import { isPubliclyFetchable, guardedFetch } from '@/utils/urlGuard';
+
+// Re-exported because the article route answers 400 from it before doing any
+// network work.
+export { isPubliclyFetchable } from '@/utils/urlGuard';
 
 const FETCH_TIMEOUT_MS = 12_000;
+/** Identify honestly. Sites that would rather not be read by software should
+ *  be able to tell. */
+const READER_HEADERS = {
+  'user-agent': 'Mozilla/5.0 (compatible; BraindotReader/1.0; +https://braindot.app)',
+  accept: 'text/html,application/xhtml+xml',
+  'accept-language': 'en',
+};
 const MAX_BYTES = 3_000_000;
 /** Below this, whatever came back is navigation and cookie banners, not an article. */
 const MIN_ARTICLE_CHARS = 600;
@@ -24,30 +36,6 @@ export interface ArticleRead {
   content: string;
   /** 'json-ld' when the publisher shipped the text, 'markup' when scraped. */
   via?: 'json-ld' | 'markup';
-}
-
-/**
- * Refuse anything that is not a public web page.
- *
- * This fetches a URL the caller supplies, so without this it would happily
- * read the machine's own network on request — cloud metadata services and
- * internal hosts included.
- */
-export function isPubliclyFetchable(raw: string): { ok: true; url: URL } | { ok: false; reason: string } {
-  let url: URL;
-  try { url = new URL(raw); } catch { return { ok: false, reason: 'That does not look like a web address.' }; }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return { ok: false, reason: 'Only http and https addresses can be read.' };
-  }
-  const host = url.hostname.toLowerCase();
-  const blocked =
-    host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal') ||
-    host === '::1' || host === '[::1]' ||
-    /^127\./.test(host) || /^10\./.test(host) || /^0\./.test(host) ||
-    /^192\.168\./.test(host) || /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host);
-  if (blocked) return { ok: false, reason: 'That address is on a private network.' };
-  return { ok: true, url };
 }
 
 /** Chrome that sits around an article and is never part of it. */
@@ -147,17 +135,9 @@ export async function readArticle(target: string): Promise<ArticleRead> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(check.url, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        // Identify honestly. Sites that would rather not be read by software
-        // should be able to tell.
-        'user-agent': 'Mozilla/5.0 (compatible; BraindotReader/1.0; +https://braindot.app)',
-        accept: 'text/html,application/xhtml+xml',
-        'accept-language': 'en',
-      },
-    });
+    const fetched = await guardedFetch(check.url, controller.signal, READER_HEADERS);
+    if (!fetched.ok) return fail(check.url.toString(), fetched.reason);
+    const { res } = fetched;
 
     if (!res.ok) {
       return fail(check.url.toString(), `The site returned ${res.status}. It may block automated readers.`);

@@ -118,6 +118,31 @@ export default defineSchema({
     highlights: v.array(v.string()),
     createdAt: v.string(),
     updatedAt: v.string(),
+    /** Where the reader stopped, precisely enough to resume elsewhere.
+     *  Optional so a book synced before this field existed still validates.
+     *  `progress` above stays as the shelf's percentage; this is the position
+     *  the reader is actually returned to. */
+    position: v.optional(
+      v.object({
+        chapter: v.number(),
+        charOffset: v.number(),
+        // The later of two devices wins, so the timestamp travels with it.
+        updatedAt: v.string(),
+      }),
+    ),
+  })
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
+
+  // Named places in a book. Separate from highlights: a highlight is a passage
+  // the reader marked, a bookmark is somewhere they mean to return to.
+  bookmarks: defineTable({
+    ...byUser,
+    libraryItemId: v.string(),
+    chapter: v.number(),
+    charOffset: v.number(),
+    label: v.string(),
+    createdAt: v.string(),
   })
     .index("byToken", ["tokenIdentifier"])
     .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
@@ -130,6 +155,9 @@ export default defineSchema({
     color: v.string(),
     page: v.union(v.number(), v.null()),
     createdAt: v.string(),
+    /** A line of the reader's own against the passage. Optional so marks
+        written before the field existed still validate. */
+    note: v.optional(v.string()),
   })
     .index("byToken", ["tokenIdentifier"])
     .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
@@ -142,4 +170,26 @@ export default defineSchema({
   })
     .index("byToken", ["tokenIdentifier"])
     .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
+
+  // ============================================================
+  // Rate limiting for the paid endpoints
+  //
+  // Not per-user data and deliberately outside `byUser`: the whole point is
+  // to count requests that have no signed-in user behind them. One row per
+  // key, rewritten in place as windows roll over, so the table grows with the
+  // number of distinct callers rather than the number of calls.
+  // ============================================================
+  rateLimits: defineTable({
+    /** "u:<userId>:<bucket>" for a signed-in caller, "a:<hashedIp>:<bucket>"
+     *  for an anonymous one. The IP is hashed — an address is personal data
+     *  and nothing here needs to read it back. */
+    key: v.string(),
+    /** Start of the fixed window this count belongs to, in epoch ms. */
+    windowStart: v.number(),
+    count: v.number(),
+    /** When this row stops meaning anything, for the sweep to find. */
+    expiresAt: v.number(),
+  })
+    .index("byKey", ["key"])
+    .index("byExpiry", ["expiresAt"]),
 });

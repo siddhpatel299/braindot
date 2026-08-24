@@ -4,6 +4,12 @@ import { decodeEntities, htmlToMarkdownBlocks } from '@/utils/serverHtml';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+/** Time allowed for reading pages, well inside maxDuration so the response
+ *  itself still has room to be built and sent. */
+const PDF_TIME_BUDGET_MS = 40_000;
+/** A backstop for pathological files, not a judgement about book length. */
+const HARD_PAGE_CAP = 2000;
+
 
 /**
  * Find the cover image inside an epub and return it as a small data URL.
@@ -93,6 +99,9 @@ export async function POST(req: NextRequest) {
     let author = 'Unknown';
     let chapters: { title: string; content: string }[] = [];
     let totalPages = 1;
+    // How many pages were actually read, so the caller can say when a book
+    // arrived incomplete instead of letting the reader discover it 30 pages in.
+    let pagesRead = 0;
     let coverUrl: string | null = null;
 
     if (fileName.endsWith('.epub')) {
@@ -169,9 +178,20 @@ export async function POST(req: NextRequest) {
         const pdf = await loadingTask.promise;
         totalPages = pdf.numPages;
 
-        // Extract text from first 20 pages (to avoid timeout on huge PDFs)
-        const maxPages = Math.min(pdf.numPages, 30);
+        // Read until the budget runs out rather than stopping at a fixed page.
+        //
+        // This was `Math.min(pdf.numPages, 30)`, so every PDF became its first
+        // thirty pages and said nothing about it — a 400-page book imported,
+        // looked fine on the shelf, and ended a tenth of the way in. The cap
+        // was there to stop the route timing out, which is a question about
+        // seconds, not pages: a text-only page costs a few milliseconds, so
+        // hundreds fit comfortably inside the budget below.
+        const startedAt = Date.now();
+        const maxPages = Math.min(pdf.numPages, HARD_PAGE_CAP);
+        let lastPageRead = 0;
         for (let i = 1; i <= maxPages; i++) {
+          if (Date.now() - startedAt > PDF_TIME_BUDGET_MS) break;
+          lastPageRead = i;
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
           const text = textContent.items
@@ -188,10 +208,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Try to get title from metadata
-        const meta = await pdf.getMetadata();
-        if (meta?.info?.Title) title = meta.info.Title;
-        if (meta?.info?.Author) author = meta.info.Author;
+        // pdf.js types `info` as a bare Object, so the fields it actually
+        // carries have to be named here to be read.
+        const info = (await pdf.getMetadata())?.info as
+          | { Title?: string; Author?: string }
+          | undefined;
+        if (info?.Title) title = info.Title;
+        if (info?.Author) author = info.Author;
+
+        // The loop may have stopped early, so report what was read, not the cap.
+        pagesRead = lastPageRead;
 
         if (chapters.length === 0) {
           chapters.push({ title: title, content: `# ${title}\n\n*No extractable text found in this PDF. It may be a scanned document.*` });
@@ -211,6 +237,9 @@ export async function POST(req: NextRequest) {
       coverUrl,
       content: fullContent || `# ${title}\n\n*No content could be extracted from this file.*`,
       totalPages,
+      pagesRead: pagesRead || totalPages,
+      /** True when the file holds more than what came back. */
+      truncated: pagesRead > 0 && pagesRead < totalPages,
       chapters: chapters.length,
     });
   } catch (err: unknown) {

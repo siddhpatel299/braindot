@@ -3,9 +3,14 @@ import OpenAI from 'openai';
 import { collectNews, type FeedItem } from '../news/route';
 import { readArticle } from '@/utils/readArticle';
 import { EDITION_MARKER, EDITION_TEXT_MARKER } from '@/utils/serverHtml';
+import { guard, DAY } from '@/lib/apiGuard';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+
+/** A paper is a thing you read once a day, so this is not a tight cap — it is
+ *  a ceiling on what a loop could spend overnight. */
+const EDITION_QUOTA = { user: 5, userWindowMs: DAY, anon: 1, anonWindowMs: DAY };
 
 /** How many stories the paper carries, and how the sections are laid out. */
 const PLAN = {
@@ -292,6 +297,12 @@ ${[0, 1, 2].map((c) => [0, 1, 2, 3, 4, 5, 6, 7, 8].map((r) =>
 }
 
 export async function POST(req: NextRequest) {
+  // The most expensive thing the app can be asked to do — a dozen page fetches
+  // and a summarising call each — so the allowance is counted in editions per
+  // day rather than calls per hour.
+  const allowed = await guard(req, 'edition', EDITION_QUOTA);
+  if (!allowed.ok) return allowed.response;
+
   let sections: string[] = ['world', 'business', 'tech', 'science'];
   try {
     const body = await req.json();

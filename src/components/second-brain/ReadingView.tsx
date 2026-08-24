@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
-import { Note, LibraryItem, Highlight } from '@/types';
+import { Note, LibraryItem, Highlight, Bookmark } from '@/types';
 import { renderMarkdownHtml } from '@/utils/markdownHtml';
 import {
-  Search, Plus, BookOpen, FileText, Rss, Link as LinkIcon, X,
+  Search, Plus, BookOpen, FileText, Rss, Link as LinkIcon, X, BookmarkPlus,
   Highlighter, StickyNote, Sparkles, ArrowRight, Type, List,
   Upload, ArrowUpRight, RefreshCw, Loader2, Globe,
   ChevronLeft, ChevronRight, Minus, Menu, Library, AlignJustify, Newspaper,
@@ -16,6 +16,12 @@ import { ReaderMargin } from './ReaderMargin';
 import { Bookshelf } from './Bookshelf';
 import { DailyPaper, type Edition, type PaperStory } from './DailyPaper';
 import { EDITION_MARKER } from '@/utils/serverHtml';
+import {
+  offsetAtViewportTop, scrollToOffset, isWorthRestoring, newerPosition,
+  type ReadingPosition,
+} from '@/utils/readingPosition';
+import { authHeaders } from '@/lib/authToken';
+import { toast } from '@/hooks/use-toast';
 
 interface ReadingViewProps {
   libraryItems: LibraryItem[];
@@ -30,6 +36,9 @@ interface ReadingViewProps {
   onUpdateHighlight: (id: string, patch: Partial<Highlight>) => void;
   onDeleteHighlight: (id: string) => void;
   onCreateNoteFromHighlight: (highlight: Highlight, sourceTitle: string) => void;
+  bookmarks: Bookmark[];
+  onAddBookmark: (bookmark: Omit<Bookmark, 'id' | 'createdAt'>) => Bookmark;
+  onDeleteBookmark: (id: string) => void;
 }
 
 type TabFilter = 'all' | 'books' | 'papers' | 'news';
@@ -115,6 +124,7 @@ export function ReadingView({
   onAddLibraryItem, onUpdateLibraryItem, onDeleteLibraryItem,
   onAddHighlight, onUpdateHighlight, onDeleteHighlight,
   onCreateNoteFromHighlight,
+  bookmarks, onAddBookmark, onDeleteBookmark,
 }: ReadingViewProps) {
   const [search, setSearch] = useState('');
   const [tabFilter, setTabFilter] = useState<TabFilter>('all');
@@ -138,7 +148,7 @@ export function ReadingView({
   /* Contents, marks and search are one surface with three tabs — three ways of
      asking "where else is there" rather than three separate affordances. */
   const [apparatusOpen, setApparatusOpen] = useState(false);
-  const [apparatusTab, setApparatusTab] = useState<'contents' | 'marks' | 'search'>('contents');
+  const [apparatusTab, setApparatusTab] = useState<'contents' | 'marks' | 'places' | 'search'>('contents');
   const [bookQuery, setBookQuery] = useState('');
   /* The chrome goes while you read and comes back on movement. */
   const [chromeIdle, setChromeIdle] = useState(false);
@@ -201,6 +211,14 @@ export function ReadingView({
     [highlights, activeItemId],
   );
 
+  /** Places kept in this book, in reading order rather than when they were made. */
+  const itemBookmarks = useMemo(
+    () => bookmarks
+      .filter((b) => b.libraryItemId === activeItemId)
+      .sort((a, b) => (a.chapter - b.chapter) || (a.charOffset - b.charOffset)),
+    [bookmarks, activeItemId],
+  );
+
   // Split the item's content into chapters by lines that are exactly `---`.
   // Each chapter is a { idx, title, content } where the title is extracted
   // from the first `# …` heading in the segment, or falls back to
@@ -261,46 +279,251 @@ export function ReadingView({
   // including the progress it had just saved — so the page jumped back to the
   // top while you were reading it.
   const restoredFor = useRef<string | null>(null);
+  /** Set while reopening, so the offset is applied once the chapter paints. */
+  const pendingOffset = useRef<number | null>(null);
+  /** The position this device opened the book at, to compare against arrivals. */
+  const restoredFrom = useRef<ReadingPosition | null>(null);
+  /** True once the reader has scrolled or turned a page themselves. */
+  const readerMoved = useRef(false);
+  /** The timestamp of the last position THIS device wrote.
+   *
+   *  Without it the restore effect cannot tell a position arriving from
+   *  another device from the one it just saved itself — and treating its own
+   *  write as a remote arrival re-restores on every save, which drags the
+   *  page back to the top a few times a second. */
+  const ourLastWrite = useRef<string | null>(null);
+  /** Set around a programmatic scroll, so restoring a position is not mistaken
+   *  for the reader moving. */
+  const scrollingProgrammatically = useRef(false);
+
+  // Closing a book ends its restore. Without this, reopening it in the same
+  // session took the "already open" branch below, decided the stored position
+  // was one this device had just written, and left the reader on page one.
+  useEffect(() => {
+    if (activeItemId) return;
+    restoredFor.current = null;
+    readerMoved.current = false;
+    restoredFrom.current = null;
+    pendingOffset.current = null;
+  }, [activeItemId]);
+
   useEffect(() => {
     if (!activeItemId || chapters.length === 0) return;
-    if (restoredFor.current === activeItemId) return;
+
+    const incoming = activeItem?.position;
+    if (restoredFor.current === activeItemId) {
+      // Already open. A position arriving from another device is worth acting
+      // on only while this reader has not started reading — otherwise a phone
+      // left open on chapter two would drag them backwards mid-sentence.
+      //
+      // This is the cold-open race: the book renders from local state before
+      // the cloud pull lands, so without this you resume where this device
+      // last was rather than where you actually stopped.
+      if (readerMoved.current || !incoming) return;
+      // Our own save, echoed back through state. Not news.
+      if (incoming.updatedAt === ourLastWrite.current) return;
+      if (newerPosition(restoredFrom.current, incoming) !== incoming) return;
+      restoredFrom.current = incoming;
+      const target = Math.min(chapters.length - 1, Math.max(0, incoming.chapter));
+      setCurrentChapterIdx(target);
+      pendingOffset.current = incoming.charOffset;
+      return;
+    }
+
     restoredFor.current = activeItemId;
+    readerMoved.current = false;
+    restoredFrom.current = incoming ?? null;
+
+    const pos = activeItem?.position;
+    if (isWorthRestoring(pos) && pos) {
+      // The exact place, from whichever device was last reading.
+      const target = Math.min(chapters.length - 1, Math.max(0, pos.chapter));
+      setCurrentChapterIdx(target);
+      pendingOffset.current = pos.charOffset;
+      return;
+    }
+
+    // No stored position: a book from before this existed, or one only ever
+    // read on a build that wrote the percentage. Fall back to the chapter the
+    // percentage implies — coarse, but it is what that book has.
     const saved = activeItem?.progress ?? 0;
     const idx = saved > 0
       ? Math.min(chapters.length - 1, Math.max(0, Math.round((saved / 100) * chapters.length) - 1))
       : 0;
     setCurrentChapterIdx(idx);
+    pendingOffset.current = null;
     if (readerRef.current) readerRef.current.scrollTop = 0;
-  }, [activeItemId, activeItem?.progress, chapters.length]);
+  }, [activeItemId, activeItem?.position, activeItem?.progress, chapters.length]);
+
+  // Apply the pending offset once the chapter is on screen. Laying out a long
+  // chapter can take more than one frame, so this retries for a short while
+  // rather than assuming the first attempt can measure anything.
+  useEffect(() => {
+    if (pendingOffset.current === null) return;
+    const prose = proseRef.current;
+    const scroller = readerRef.current;
+    if (!prose || !scroller) return;
+
+    let done = false;
+    const attempt = () => {
+      const offset = pendingOffset.current;
+      if (done || offset === null) return;
+      scrollingProgrammatically.current = true;
+      const landed = scrollToOffset(prose, scroller, offset);
+      // Cleared on a later turn so the scroll event this caused is not counted
+      // as the reader moving.
+      setTimeout(() => { scrollingProgrammatically.current = false; }, 0);
+      if (landed) {
+        done = true;
+        pendingOffset.current = null;
+        observer.disconnect();
+      }
+    };
+
+    // The reliable signal that a chapter has finished laying out is its own
+    // size settling — not a frame count. A long chapter reflows several times
+    // as fonts and images resolve, and each of those is another chance to put
+    // the reader back where they were.
+    const observer = new ResizeObserver(attempt);
+    observer.observe(prose);
+    attempt();
+
+    // Belt and braces for the case where the size never changes because the
+    // chapter was already laid out.
+    const ladder = [0, 32, 100, 250, 600, 1200, 2500].map((ms) => setTimeout(attempt, ms));
+    const giveUp = setTimeout(() => {
+      if (!done) pendingOffset.current = null; // leave them at the chapter top
+    }, 4000);
+
+    return () => {
+      done = true;
+      observer.disconnect();
+      ladder.forEach(clearTimeout);
+      clearTimeout(giveUp);
+    };
+  }, [activeItemId, currentChapterIdx, currentChapter?.content]);
 
   // Persist reading progress whenever the chapter changes.
   const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedProgress = useRef<{ id: string; pct: number; status: string } | null>(null);
-  useEffect(() => {
+  const savedProgress = useRef<{ id: string; pct: number; status: string; charOffset: number } | null>(null);
+  /** Write the current place. Shared by the debounce and the exit flush. */
+  const savePosition = useCallback(() => {
     if (!activeItemId || chapters.length === 0 || !currentChapter) return;
-    if (progressTimer.current) clearTimeout(progressTimer.current);
-    progressTimer.current = setTimeout(() => {
+    // Nothing is worth writing until this book has been put back where it was.
+    //
+    // A book opens at the top, so the first save after opening would record
+    // "at the beginning" — overwriting the place another device had stored
+    // before the reader had done anything at all. Waiting for the restore to
+    // settle is what makes the position survive being opened elsewhere.
+    if (restoredFor.current !== activeItemId) return;
+    if (pendingOffset.current !== null) return;
+    {
       const pct = Math.min(100, Math.round(((currentChapterIdx + 1) / chapters.length) * 100));
       const status = pct >= 100 ? 'done' : 'reading';
+      // Where in the chapter, so another device resumes at the line rather
+      // than at the chapter heading. Measured from the rendered text, so it
+      // means the same thing on a phone as on a desktop.
+      const prose = proseRef.current;
+      const scroller = readerRef.current;
+      const charOffset = prose && scroller ? offsetAtViewportTop(prose, scroller) : 0;
+
       // Write only on a real change. An unconditional write replaced the item
       // object on every pass, which is what turned this into a loop.
       if (savedProgress.current?.id === activeItemId
         && savedProgress.current.pct === pct
-        && savedProgress.current.status === status) return;
-      savedProgress.current = { id: activeItemId, pct, status };
-      onUpdateLibraryItem(activeItemId, { progress: pct, status });
-    }, 400);
+        && savedProgress.current.status === status
+        && savedProgress.current.charOffset === charOffset) return;
+      savedProgress.current = { id: activeItemId, pct, status, charOffset };
+      const position = {
+        chapter: currentChapterIdx,
+        charOffset,
+        updatedAt: new Date().toISOString(),
+      };
+      ourLastWrite.current = position.updatedAt;
+      onUpdateLibraryItem(activeItemId, { progress: pct, status, position });
+    }
+  }, [activeItemId, currentChapterIdx, chapters, currentChapter, onUpdateLibraryItem]);
+
+  useEffect(() => {
+    if (progressTimer.current) clearTimeout(progressTimer.current);
+    progressTimer.current = setTimeout(savePosition, 400);
     return () => {
       if (progressTimer.current) clearTimeout(progressTimer.current);
     };
-  }, [activeItemId, currentChapterIdx, chapters, currentChapter, onUpdateLibraryItem]);
+  }, [savePosition, scrollProgress]);
+
+  // Closing the tab, switching apps, or navigating away should not cost the
+  // last few hundred milliseconds of reading. `pagehide` is the one that fires
+  // reliably on mobile Safari, where a backgrounded tab may never come back.
+  useEffect(() => {
+    const flush = () => savePosition();
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHide);
+      // Leaving the reader is itself a moment worth recording.
+      flush();
+    };
+  }, [savePosition]);
+
+
+  /**
+   * Keep this place.
+   *
+   * Named from the opening words at the top of the screen — the reader is
+   * looking at them, so it is the label they would have written, and it means
+   * a place can be kept with one click instead of a dialog.
+   */
+  const dropBookmark = useCallback(() => {
+    if (!activeItemId || !currentChapter) return;
+    const prose = proseRef.current;
+    const scroller = readerRef.current;
+    const charOffset = prose && scroller ? offsetAtViewportTop(prose, scroller) : 0;
+
+    const text = prose?.textContent ?? '';
+    // Start at a word, not wherever the offset happened to land — an offset is
+    // a character position, so it lands mid-word about as often as not, and a
+    // place called "ntence to give the paragraph" is no use to anyone.
+    const from = text.slice(charOffset, charOffset + 120);
+    const wordStart = from.search(/\S/) === 0 && charOffset > 0 && /\S/.test(text[charOffset - 1] ?? '')
+      ? (from.search(/\s/) + 1 || 0)
+      : 0;
+    const opening = from.slice(wordStart, wordStart + 90).replace(/\s+/g, ' ').trim();
+    const label = opening
+      ? `${opening}${charOffset + wordStart + 90 < text.length ? '…' : ''}`
+      : currentChapter.title;
+
+    onAddBookmark({ libraryItemId: activeItemId, chapter: currentChapterIdx, charOffset, label });
+  }, [activeItemId, currentChapter, currentChapterIdx, onAddBookmark]);
+
+  /** Go back to a kept place, changing chapter first if it is in another. */
+  const goToBookmark = useCallback((b: Bookmark) => {
+    setApparatusOpen(false);
+    pendingOffset.current = b.charOffset;
+    if (b.chapter !== currentChapterIdx) {
+      const target = Math.min(chapters.length - 1, Math.max(0, b.chapter));
+      setCurrentChapterIdx(target);
+      return; // the restore effect applies the offset once the chapter paints
+    }
+    const prose = proseRef.current;
+    const scroller = readerRef.current;
+    if (prose && scroller && scrollToOffset(prose, scroller, b.charOffset)) {
+      pendingOffset.current = null;
+    }
+  }, [currentChapterIdx, chapters.length]);
 
   /* A chapter starts at its first line, not wherever the last one left you.
-     This lives in an effect rather than in goToChapter so the reset also
-     covers arriving at a chapter by turning past the end of the previous one. */
-  useEffect(() => {
+     Every way of arriving at a chapter does this for itself, rather than an
+     effect watching currentChapterIdx: reopening a book also changes that
+     index, and an effect could not tell "the reader turned the page" from
+     "put them back where they stopped". It ran in the same commit as the
+     restore, saw the flag already spent, and scrolled to the top — undoing
+     every resume. Navigation knows its own intent; an effect has to guess. */
+  const startChapterAtTop = useCallback(() => {
     if (readerRef.current) readerRef.current.scrollTop = 0;
-  }, [currentChapterIdx, activeItemId]);
+  }, []);
 
   // Track scroll position for the progress hairline, and the column width so
   // the margin can re-place its marks after a reflow. Both are passive.
@@ -313,7 +536,13 @@ export function ReadingView({
       const max = el.scrollHeight - el.clientHeight;
       setScrollProgress(max > 8 ? Math.min(1, el.scrollTop / max) : 0);
     };
-    const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    const onScroll = () => {
+      // Any scroll the reader performs ends the window in which a position
+      // from another device may quietly take over. Scrolls we caused while
+      // restoring do not count.
+      if (!scrollingProgrammatically.current) readerMoved.current = true;
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
     measure();
     el.addEventListener('scroll', onScroll, { passive: true });
 
@@ -526,10 +755,12 @@ export function ReadingView({
       // does not stop at a chapter break.
       if (next >= pageCount && currentChapterIdx < chapters.length - 1) {
         setCurrentChapterIdx((c) => c + 1);
+        startChapterAtTop();
         return 0;
       }
       if (next < 0 && currentChapterIdx > 0) {
         setCurrentChapterIdx((c) => c - 1);
+        startChapterAtTop();
         return 0;
       }
       return i;
@@ -553,19 +784,20 @@ export function ReadingView({
     setCurrentChapterIdx(idx);
     setPageIndex(0);
     setShowToc(false);
-  }, []);
+    startChapterAtTop();
+  }, [startChapterAtTop]);
 
   const goToPrevChapter = useCallback(() => {
     setCurrentChapterIdx((i) => Math.max(0, i - 1));
     setPageIndex(0);
-    if (readerRef.current) readerRef.current.scrollTop = 0;
-  }, []);
+    startChapterAtTop();
+  }, [startChapterAtTop]);
 
   const goToNextChapter = useCallback(() => {
     setCurrentChapterIdx((i) => Math.min(chapters.length - 1, i + 1));
     setPageIndex(0);
-    if (readerRef.current) readerRef.current.scrollTop = 0;
-  }, [chapters.length]);
+    startChapterAtTop();
+  }, [chapters.length, startChapterAtTop]);
 
   const decreaseFontSize = useCallback(() => {
     setFontSize((s) => (s === 'lg' ? 'md' : s === 'md' ? 'sm' : 'sm'));
@@ -782,7 +1014,7 @@ export function ReadingView({
     try {
       const res = await fetch('/api/reading/edition', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ sections: ['world', 'business', 'science', 'tech'] }),
       });
       const data = await res.json();
@@ -850,6 +1082,18 @@ export function ReadingView({
         status: 'unread',
         content: data.content,
       });
+
+      // A PDF too long to read inside the request budget arrives incomplete.
+      // Saying so is the whole point — the old code silently kept the first
+      // thirty pages and let the reader find the cliff themselves.
+      if (data.truncated) {
+        toast({
+          title: 'This PDF was too long to read in one go',
+          description:
+            `Braindot took the first ${data.pagesRead} of ${data.totalPages} pages. `
+            + 'The rest is not in your library — the file itself is unchanged.',
+        });
+      }
 
       // Auto-select the newly added item
       setActiveItemId(newItem.id);
@@ -1219,6 +1463,7 @@ export function ReadingView({
                       {([
                         { id: 'contents' as const, label: 'Contents', count: String(chapters.length) },
                         { id: 'marks' as const, label: 'Marks', count: String(itemHighlights.length) },
+                        { id: 'places' as const, label: 'Places', count: String(itemBookmarks.length) },
                         { id: 'search' as const, label: 'Search', count: '' },
                       ]).map((t) => (
                         <button
@@ -1315,12 +1560,73 @@ export function ReadingView({
                             <span style={{ display: 'block', fontSize: 10.5, lineHeight: 1.55, color: 'var(--t2)' }}>
                               “{h.text}”
                             </span>
+                            {h.note && (
+                              <span style={{ display: 'block', marginTop: 5, fontSize: 10, lineHeight: 1.5, color: 'var(--t3)' }}>
+                                {h.note}
+                              </span>
+                            )}
                             {h.noteId && (
-                              <span style={{ display: 'block', marginTop: 5, fontSize: 10, lineHeight: 1.5, color: 'var(--acc2)' }}>
+                              <span style={{ display: 'block', marginTop: 4, fontSize: 9.5, color: 'var(--acc2)' }}>
                                 ¶ kept as a note
                               </span>
                             )}
                           </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {apparatusTab === 'places' && (
+                      <div className="sb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 14px 18px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button
+                          onClick={dropBookmark}
+                          style={{
+                            width: '100%', textAlign: 'left', marginBottom: 8,
+                            background: 'var(--acc-bg)', border: '1px solid var(--acc-bd)', borderRadius: 4,
+                            padding: '7px 10px', fontFamily: 'inherit', fontSize: 10.5, color: 'var(--acc2)',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <BookmarkPlus size={12} strokeWidth={1.9} />
+                          Mark this place
+                        </button>
+
+                        {itemBookmarks.length === 0 ? (
+                          <div style={{ fontSize: 10.5, lineHeight: 1.6, color: 'var(--t3)', textWrap: 'pretty' }}>
+                            No places kept in this one. A place is somewhere you mean to come back
+                            to — it follows you to your other devices, as your marks do.
+                          </div>
+                        ) : itemBookmarks.map((b) => (
+                          <div
+                            key={b.id}
+                            style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}
+                          >
+                            <button
+                              onClick={() => goToBookmark(b)}
+                              style={{
+                                flex: 1, textAlign: 'left', background: 'transparent', border: 'none',
+                                borderLeft: '2px solid var(--acc-bd)', padding: '3px 0 3px 10px',
+                                fontFamily: 'inherit', cursor: 'pointer', display: 'block',
+                              }}
+                            >
+                              <span style={{ display: 'block', fontSize: 10.5, lineHeight: 1.55, color: 'var(--t2)' }}>
+                                {b.label}
+                              </span>
+                              <span style={{ display: 'block', marginTop: 3, fontSize: 9.5, color: 'var(--t3)' }}>
+                                {chapters[b.chapter]?.title ?? `chapter ${b.chapter + 1}`}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => onDeleteBookmark(b.id)}
+                              title="Forget this place"
+                              aria-label="Forget this place"
+                              style={{
+                                background: 'transparent', border: 'none', color: 'var(--t3)',
+                                cursor: 'pointer', padding: '3px 4px', lineHeight: 1,
+                              }}
+                            >
+                              <X size={11} strokeWidth={2} />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -1447,6 +1753,7 @@ export function ReadingView({
                         revision={`${currentChapterIdx}:${fontSize}:${itemHighlights.length}:${readerWidth}`}
                         onCapture={(hl) => onCreateNoteFromHighlight(hl, activeItem.title)}
                         onDelete={onDeleteHighlight}
+                        onNote={(id, note) => onUpdateHighlight(id, { note })}
                       />
                     </div>
                   </div>

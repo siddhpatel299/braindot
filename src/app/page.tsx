@@ -871,6 +871,9 @@ export default function Home() {
             onAddHighlight={reading.addHighlight}
             onUpdateHighlight={reading.updateHighlight}
             onDeleteHighlight={reading.deleteHighlight}
+            bookmarks={reading.bookmarks}
+            onAddBookmark={reading.addBookmark}
+            onDeleteBookmark={reading.deleteBookmark}
             onCreateNoteFromHighlight={(highlight, sourceTitle) => {
               // createNote directly rather than handleCreateNote: capturing a
               // passage must not throw the reader out of the book and into the
