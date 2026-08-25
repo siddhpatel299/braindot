@@ -252,6 +252,10 @@ interface EditorCanvasProps {
   /** Filled with the file-picker opener so the editor bar's button can call it. */
   imagePickerRef?: React.MutableRefObject<(() => void) | null>;
   onImageBusyChange?: (busy: boolean) => void;
+  /** Put the caret in the title as soon as an empty note opens. Set on a
+   *  phone, where capture is the reason the app is open at all and a second
+   *  tap between "+" and the first word is a second tap too many. */
+  autoFocusWhenEmpty?: boolean;
 }
 
 export function EditorCanvas({
@@ -270,11 +274,34 @@ export function EditorCanvas({
   onImagesLocalOnly,
   imagePickerRef,
   onImageBusyChange,
+  autoFocusWhenEmpty = false,
 }: EditorCanvasProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const insertImage = useImageInsert();
+
+  /* An empty body means the note was just made, and the only thing anyone
+     wants to do with it is start typing. A new note is born titled "Untitled
+     note", so the caret does not land after that — it selects it, and the
+     first keystroke replaces it.
+
+     Keyed on the note id so it fires once per note and never steals the caret
+     out of something being read. iOS only raises the keyboard for a focus()
+     inside the tap that caused it, so there this places the caret and the
+     keyboard follows the next tap; on Android it opens straight away. */
+  const focusedNoteId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoFocusWhenEmpty) return;
+    if (focusedNoteId.current === note.id) return;
+    focusedNoteId.current = note.id;
+    if (note.body.trim()) return;
+    const el = titleRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [autoFocusWhenEmpty, note.id, note.body]);
   const { font: editorFont } = useEditorFont();
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState<{ x: number; y: number } | null>(null);
@@ -904,6 +931,7 @@ export function EditorCanvas({
                 font. That contrast is what makes the title read as a label on
                 the card rather than as the first line of the text. */}
             <input
+              ref={titleRef}
               className="sb-title-input"
               value={editor.title}
               onChange={(e) => editor.updateTitle(e.target.value)}

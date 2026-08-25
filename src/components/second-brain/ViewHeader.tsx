@@ -27,6 +27,7 @@ interface ViewHeaderProps {
 export function ViewHeader({ icon: Icon, title, facts, children }: ViewHeaderProps) {
   return (
     <div
+      className="sb-viewheader"
       style={{
         height: 44,
         flexShrink: 0,
@@ -46,6 +47,7 @@ export function ViewHeader({ icon: Icon, title, facts, children }: ViewHeaderPro
       )}
       {facts && (
         <span
+          className="sb-viewheader-facts"
           style={{
             fontSize: 10.5,
             color: 'var(--t3)',
@@ -59,7 +61,10 @@ export function ViewHeader({ icon: Icon, title, facts, children }: ViewHeaderPro
         </span>
       )}
       {children && (
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <div
+          className="sb-viewheader-actions"
+          style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}
+        >
           {children}
         </div>
       )}

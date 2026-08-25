@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { StorageAlert } from "@/components/second-brain/StorageAlert";
@@ -12,6 +12,21 @@ export const metadata: Metadata = {
   icons: {
     icon: "/logo.svg",
   },
+};
+
+// Next ships width=device-width by default, but not viewport-fit — without it
+// iOS letterboxes the app instead of letting the shell run under the home
+// indicator and reclaim it with env(safe-area-inset-*). maximumScale stays at
+// 5 rather than 1: pinch-zoom is an accessibility affordance, not a bug.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#141310" },
+    { media: "(prefers-color-scheme: light)", color: "#efece4" },
+  ],
 };
 
 // Inline script to set theme + editor font BEFORE React hydrates — prevents

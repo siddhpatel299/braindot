@@ -27,6 +27,24 @@ import { TasksPage } from '@/components/second-brain/TasksPage';
 import { CanvasView } from '@/components/second-brain/CanvasView';
 import { ReadingView } from '@/components/second-brain/ReadingView';
 import { useTasks, useCanvas, useReading } from '@/hooks/useVaultData';
+import { useIsMobile, useIsNarrow } from '@/hooks/useViewport';
+import { MobileTabBar } from '@/components/second-brain/MobileTabBar';
+import { MobileTopBar } from '@/components/second-brain/MobileTopBar';
+import { MobileEditorBar } from '@/components/second-brain/MobileEditorBar';
+import { MobileSheet } from '@/components/second-brain/MobileSheet';
+import { DeskOnly } from '@/components/second-brain/DeskOnly';
+
+/** What the phone's top bar calls each place. The rail says it with an icon
+ *  and a tooltip; a top bar has the room to just say it. */
+const MOBILE_VIEW_TITLE: Record<string, string> = {
+  dashboard: 'braindot',
+  notes: 'notes',
+  search: 'search',
+  graph: 'graph',
+  kanban: 'tasks',
+  canvas: 'canvas',
+  reading: 'reading',
+};
 
 const TREE_COLLAPSED_KEY = 'second-brain-tree-collapsed';
 const PANEL_COLLAPSED_KEY = 'second-brain-panel-collapsed';
@@ -116,6 +134,26 @@ export default function Home() {
   const [treeCollapsed, setTreeCollapsed] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [askAIOpen, setAskAIOpen] = useState(false);
+
+  // ---------- Phone shell ----------
+  // The desktop puts the list, the page and the apparatus side by side. A
+  // phone has room for exactly one of them, so `mobileEditorOpen` says which
+  // half of the notes view is showing and `mobilePanelOpen` lifts the
+  // apparatus over it on request.
+  const isMobile = useIsMobile();
+  const isNarrow = useIsNarrow();
+  const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+
+  /* Leaving the page has to put the caret down as well as the page.
+     The editor is hidden rather than unmounted — that is what keeps a half
+     written note and its scroll position alive — but a hidden field can keep
+     the focus, and a kept focus means the keyboard springs open over the next
+     note tapped, one the reader meant to read. So the way out blurs first. */
+  const leaveMobileEditor = useCallback(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    setMobileEditorOpen(false);
+  }, []);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
@@ -217,6 +255,9 @@ export default function Home() {
   const handleOpenNote = useCallback((id: string) => {
     openTab(id);
     setAppView('notes');
+    // On a phone the list and the page are the same square of glass. Picking a
+    // note means you want to read it, so the page comes forward.
+    setMobileEditorOpen(true);
   }, [openTab]);
 
   const handleOpenNoteByTitle = useCallback((title: string) => {
@@ -228,6 +269,7 @@ export default function Home() {
       linkedOpenRef.current = n.id;
       openTab(n.id);
       setAppView('notes');
+      setMobileEditorOpen(true);
     }
   }, [openTab, state.notes]);
 
@@ -236,6 +278,7 @@ export default function Home() {
     const n = createNote(fid);
     createdOpenRef.current = n.id;
     setAppView('notes');
+    setMobileEditorOpen(true);
     return n;
   }, [createNote]);
 
@@ -248,6 +291,7 @@ export default function Home() {
     if (existing) {
       openTab(existing.id);
       setAppView('notes');
+      setMobileEditorOpen(true);
       showToast(`opened today's journal`);
       return;
     }
@@ -554,6 +598,11 @@ export default function Home() {
   // otherwise the action silently does nothing while it's hidden.
   const revealContext = useCallback((tab: ContextTab) => {
     setContextTab(tab);
+    // Two shells, one intent: uncollapse the margin on a desktop, raise the
+    // sheet on a phone. The phone also needs the page itself in front, since
+    // the apparatus is about the note it covers.
+    setMobileEditorOpen(true);
+    setMobilePanelOpen(true);
     setPanelCollapsed((c) => {
       if (c) localStorage.setItem(PANEL_COLLAPSED_KEY, 'false');
       return false;
@@ -569,6 +618,10 @@ export default function Home() {
   // ---------- Icon rail actions ----------
   const handleIconSelect = useCallback((v: IconRailView) => {
     setIconView(v);
+    // Any deliberate move between places closes the page and the sheet — the
+    // tab bar is how you get *out* of a note, not a way to stack views.
+    leaveMobileEditor();
+    setMobilePanelOpen(false);
     if (v === 'search') {
       setAppView('search');
     } else if (v === 'dashboard') {
@@ -589,7 +642,7 @@ export default function Home() {
       setAppView('notes');
       setSidebarView('folders');
     }
-  }, [showToast]);
+  }, [showToast, leaveMobileEditor]);
 
   // ---------- Panel visibility ----------
   // Restored from localStorage after mount so the server and first client
@@ -600,6 +653,16 @@ export default function Home() {
     setPanelCollapsed(localStorage.getItem(PANEL_COLLAPSED_KEY) === 'true');
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
+
+  /* Between a phone and a full desk — a tablet in portrait, a half-width
+     window — the shell still stands up, but rail + list + margin is 638px of
+     chrome and the page is left with scraps. The margin is the piece that
+     yields, exactly as the reader's own margin already yields at 1180px.
+     This sets the default only: the toggle still opens it, and because the
+     preference is never written to storage, the desk keeps its own. */
+  useEffect(() => {
+    if (isNarrow) setPanelCollapsed(true);
+  }, [isNarrow]);
 
   const toggleTree = useCallback(() => {
     setTreeCollapsed((c) => {
@@ -681,6 +744,41 @@ export default function Home() {
     return seen.size;
   }, [activeNote]);
 
+  /* The apparatus, built once. On a desktop it sits in the right-hand margin;
+     on a phone the same element is handed to a sheet. Two mount points, one
+     set of props, so the phone can never fall behind the desk. */
+  /* The writing surface takes the whole screen. Both bars step off it: the
+     detail view of a master/detail pair is the one place a tab bar is worth
+     less than the 50px it costs, and everything on it is one tap away behind
+     the back arrow. */
+  const mobileWriting = isMobile && appView === 'notes' && mobileEditorOpen;
+
+  const contextPanelEl = activeNote ? (
+    <ContextPanel
+      note={activeNote}
+      allNotes={state.notes}
+      activeTab={contextTab}
+      onTabChange={setContextTab}
+      body={editor.body}
+      onBodyChange={editor.updateBody}
+      readingMode={viewMode !== 'edit'}
+      onRequestEdit={() => setViewMode('edit')}
+      onInsertImage={() => imagePickerRef.current?.()}
+      aiMode={aiMode}
+      onAiModeChange={setAiMode}
+      onOpenNote={handleOpenNote}
+      onOpenNoteByTitle={handleOpenNoteByTitle}
+      onSaveToNote={handleSaveToNote}
+      onExportEssay={handleExportEssay}
+      onInsertLink={handleInsertLink}
+      onDraftSynthesis={handleDraftSynthesis}
+      onAnswerInNewNote={handleAnswerInNewNote}
+      onScheduleReview={handleScheduleReview}
+      history={history}
+      fill={isMobile}
+    />
+  ) : null;
+
   // ---------- Render ----------
 
   if (authMode === 'loading') {
@@ -716,11 +814,11 @@ export default function Home() {
 
   return (
     <div
+      className="sb-app-shell"
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        width: '100vw',
+        width: '100%',
         background: 'var(--bg)',
         color: 'var(--t1)',
         overflow: 'hidden',
@@ -745,15 +843,27 @@ export default function Home() {
         </div>
       )}
 
-      {/* Middle: 4-zone horizontal flex */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-        <IconRail
-          active={iconView}
-          onSelect={handleIconSelect}
-          onOpenPalette={() => setPaletteOpen(true)}
-          onCreateNote={() => handleCreateNote()}
+      {/* The rail's other half on a phone — and never over the editor, which
+          keeps the full height it is owed. */}
+      {isMobile && !mobileWriting && (
+        <MobileTopBar
+          title={MOBILE_VIEW_TITLE[appView]}
+          onHome={() => handleIconSelect('dashboard')}
           onSignOut={authMode === 'user' ? handleSignOut : undefined}
         />
+      )}
+
+      {/* Middle: 4-zone horizontal flex */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        {!isMobile && (
+          <IconRail
+            active={iconView}
+            onSelect={handleIconSelect}
+            onOpenPalette={() => setPaletteOpen(true)}
+            onCreateNote={() => handleCreateNote()}
+            onSignOut={authMode === 'user' ? handleSignOut : undefined}
+          />
+        )}
 
         {appView === 'dashboard' ? (
           <Dashboard
@@ -786,12 +896,20 @@ export default function Home() {
             }}
           />
         ) : appView === 'graph' ? (
+          isMobile ? (
+            <DeskOnly
+              title="The graph"
+              reason="Reading the shape of a vault means panning a wide field and picking out single nodes — it needs a pointer and a lot more glass than this."
+              onBack={() => handleIconSelect('dashboard')}
+            />
+          ) : (
           <GraphView
             notes={state.notes}
             folders={state.folders}
             onOpenNote={handleOpenNote}
             onBack={() => setAppView('dashboard')}
           />
+          )
         ) : appView === 'kanban' ? (
           <TasksPage
             notes={state.notes}
@@ -804,7 +922,13 @@ export default function Home() {
             onOpenNote={handleOpenNote}
           />
         ) : appView === 'canvas' ? (
-          canvas.activeBoard ? (
+          isMobile ? (
+            <DeskOnly
+              title="The canvas"
+              reason="Spatial thinking is a two-handed, drag-things-around business. On a phone you would be nudging cards through a keyhole."
+              onBack={() => handleIconSelect('dashboard')}
+            />
+          ) : canvas.activeBoard ? (
             <CanvasView
               board={canvas.activeBoard}
               allBoards={canvas.boards}
@@ -897,8 +1021,16 @@ export default function Home() {
             {/* Hidden with display:none rather than unmounted — keeps panel
                 state (AI thread, scroll, rename-in-progress) alive across a
                 toggle, and takes the subtree out of the a11y tree for free. */}
-            <div style={{ display: treeCollapsed ? 'none' : 'flex', flexShrink: 0 }}>
+            <div
+              style={{
+                display: (isMobile ? mobileEditorOpen : treeCollapsed) ? 'none' : 'flex',
+                flex: isMobile ? 1 : undefined,
+                minWidth: 0,
+                flexShrink: isMobile ? 1 : 0,
+              }}
+            >
               <NotesSidebar
+                fill={isMobile}
                 notes={state.notes}
                 folders={state.folders}
                 activeId={activeNote?.id || ''}
@@ -919,7 +1051,28 @@ export default function Home() {
             </div>
 
             {/* Editor area: one bar of chrome, then the page */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: isMobile && !mobileEditorOpen ? 'none' : 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {isMobile ? (
+                activeNote && (
+                  <MobileEditorBar
+                    title={activeNote.title}
+                    dirty={editor.dirty}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                    canUndo={editor.canUndo}
+                    onUndo={editor.undo}
+                    onBack={leaveMobileEditor}
+                    onOpenPanel={() => setMobilePanelOpen(true)}
+                  />
+                )
+              ) : (
               <EditorBar
                 notes={state.notes}
                 openTabs={state.openTabs}
@@ -946,6 +1099,7 @@ export default function Home() {
                 onOpenFormat={() => revealContext('format')}
                 disabled={!activeNote}
               />
+              )}
               {activeNote && (
                 <EditorCanvas
                   note={activeNote}
@@ -962,6 +1116,7 @@ export default function Home() {
                   onDeleteNote={handleDeleteNote}
                   imagePickerRef={imagePickerRef}
                   onImageBusyChange={setImageBusy}
+                  autoFocusWhenEmpty={isMobile}
                   onImagesLocalOnly={() =>
                     showToast(
                       authMode === 'demo'
@@ -973,35 +1128,26 @@ export default function Home() {
               )}
             </div>
 
-            <div style={{ display: panelCollapsed ? 'none' : 'flex', flexShrink: 0 }}>
-              <ContextPanel
-                note={activeNote}
-                allNotes={state.notes}
-                activeTab={contextTab}
-                onTabChange={setContextTab}
-                body={editor.body}
-                onBodyChange={editor.updateBody}
-                readingMode={viewMode !== 'edit'}
-                onRequestEdit={() => setViewMode('edit')}
-                onInsertImage={() => imagePickerRef.current?.()}
-                aiMode={aiMode}
-                onAiModeChange={setAiMode}
-                onOpenNote={handleOpenNote}
-                onOpenNoteByTitle={handleOpenNoteByTitle}
-                onSaveToNote={handleSaveToNote}
-                onExportEssay={handleExportEssay}
-                onInsertLink={handleInsertLink}
-                onDraftSynthesis={handleDraftSynthesis}
-                onAnswerInNewNote={handleAnswerInNewNote}
-                onScheduleReview={handleScheduleReview}
-                history={history}
-              />
+            <div style={{ display: isMobile || panelCollapsed ? 'none' : 'flex', flexShrink: 0 }}>
+              {contextPanelEl}
             </div>
           </>
         )}
       </div>
 
-      {/* Bottom: status bar */}
+      {/* Bottom: the tab bar on a phone, the status line on a desk. Never
+          both — 24px of ambient state is not worth a sixth of a phone's
+          writing area, and everything on it that changes mid-sentence is
+          repeated in the editor bar. */}
+      {isMobile ? (
+        !mobileWriting && (
+          <MobileTabBar
+            active={iconView}
+            onSelect={handleIconSelect}
+            onCreateNote={() => handleCreateNote()}
+          />
+        )
+      ) : (
       <StatusBar
         wordCount={editor.wordCount}
         linkCount={activeLinkCount}
@@ -1015,6 +1161,18 @@ export default function Home() {
             : 'local'
         }
       />
+      )}
+
+      {/* The margin, raised over the page on request. */}
+      {isMobile && (
+        <MobileSheet
+          open={mobilePanelOpen && !!contextPanelEl}
+          onClose={() => setMobilePanelOpen(false)}
+          title="note tools"
+        >
+          {contextPanelEl}
+        </MobileSheet>
+      )}
 
       {/* Overlays */}
       <CommandPalette

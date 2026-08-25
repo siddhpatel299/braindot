@@ -1087,3 +1087,114 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
    the page, so they take lining tabular figures rather than the serif's
    oldstyle. */
 .sb-fig { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ============================================================
+   The phone
+   ============================================================
+   The desktop shell is four vertical zones side by side: a 50px rail, a 288px
+   notebook list, the page, and a 300px margin. That is 638px of chrome before
+   a word is written, so below 768px the app does not shrink the shell — it
+   drops it and puts one zone on screen at a time, with a tab bar where a thumb
+   can reach it. What follows is only the part of that which has to be said in
+   CSS; the rest is in the shell itself. */
+
+/* 100vh on a phone is measured against a *hidden* URL bar, so the bottom of
+   the app — which is where the tab bar lives — sits under the browser chrome
+   until you scroll. dvh tracks the visible viewport instead. The vh line is
+   the fallback for browsers that never learned dvh. */
+.sb-app-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.sb-sheet-rise {
+  animation: sb-sheet-rise 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes sb-sheet-rise {
+  from { transform: translateY(14px); opacity: 0.4; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-sheet-rise { animation: none; }
+}
+
+@media (max-width: 767px) {
+  /* iOS zooms the whole page when it focuses an input under 16px, and every
+     field in this app is styled inline at 11-13px — so the rule has to shout
+     to be heard over them. The two fields already above the threshold — the
+     note title and the editor's own text — are left with the sizes they were
+     given; raising the floor must not flatten a deliberate scale.
+
+     The editor is full of small type by design; this sizes the *fields*, not
+     the interface, so nothing but the things you type into changes. */
+  input:not(.sb-title-input),
+  textarea:not(.sb-editor-textarea),
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Nothing on a phone has a pointer to hover with, so hover-only chrome is
+     either always on or never reachable. These are the always-on ones. */
+  .sb-spine { display: none; }
+
+  /* The dashboard is set as an edition: a wide column of prose beside two
+     narrow ones. There is one column's worth of width here, so the edition
+     runs as a single measure and the rules between columns become rules
+     between stacked sections. */
+  .sb-front-lead,
+  .sb-front-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0 !important;
+  }
+  /* The rules between columns were vertical; stacked, they have to lie down
+     or they read as a stray line down the side of the page. */
+  .sb-front-lead > *,
+  .sb-front-body > * {
+    border-right: none !important;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+  }
+  .sb-front-lead > *:not(:last-child),
+  .sb-front-body > *:not(:last-child) {
+    border-bottom: 1px solid var(--bd);
+    padding-bottom: 18px !important;
+    margin-bottom: 18px;
+  }
+  .sb-front-body > * { padding-top: 0 !important; }
+  .sb-front-page { padding: 18px 18px 24px !important; }
+
+  /* The reader already drops its outer margin at 1180px. Here it also gives
+     up the page's side padding — at this measure the gutter costs more
+     characters per line than it buys in comfort. */
+  .sb-reader-page { padding-left: 14px !important; padding-right: 14px !important; }
+  .sb-book-viewport { padding: 14px !important; }
+
+  /* Every full-screen view shares one 44px header: subject on the left,
+     what-you-can-do-to-it on the right. The right half was built for a
+     desktop's spare width and simply ran off the end of a phone, taking
+     "add source" and "papers" with it. It scrolls instead — the row keeps
+     its height, and nothing on it becomes unreachable. */
+  .sb-viewheader { padding: 0 12px !important; gap: 10px !important; }
+  /* Supporting numbers lose to controls when there is only one row. */
+  .sb-viewheader-facts { display: none !important; }
+  .sb-viewheader-actions {
+    flex-shrink: 1 !important;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sb-viewheader-actions::-webkit-scrollbar { display: none; }
+  /* A 28px control is a comfortable click and a bad tap. The row is 44px, so
+     the buttons can take 36 of it without the header growing. */
+  .sb-viewheader-actions > * { flex-shrink: 0; min-height: 36px; }
+
+  /* Task columns keep their width and scroll sideways, one column to a
+     screen, rather than being squeezed into an unreadable four. */
+  .sb-task-board {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sb-task-column { scroll-snap-align: start; }
+}

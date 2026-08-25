@@ -34,6 +34,9 @@ interface ContextPanelProps {
   onAnswerInNewNote: (question: string) => void;
   onScheduleReview: () => void;
   history: { id: string; noteId: string; text: string; timestamp: number }[];
+  /** Take the width given instead of the 300px margin — the panel is being
+   *  shown in a mobile sheet, where there is no margin to sit in. */
+  fill?: boolean;
 }
 
 const AI_MODES: { id: AIMode; label: string; icon: LucideIcon }[] = [
@@ -63,6 +66,7 @@ export function ContextPanel({
   onAnswerInNewNote,
   onScheduleReview,
   history,
+  fill = false,
 }: ContextPanelProps) {
   const suggestions = useMemo(() => generateSuggestions(note, allNotes), [note, allNotes]);
 
@@ -108,11 +112,12 @@ export function ContextPanel({
   return (
     <div
       style={{
-        width: 300,
-        minWidth: 300,
+        width: fill ? '100%' : 300,
+        minWidth: fill ? 0 : 300,
+        flex: fill ? 1 : undefined,
         height: '100%',
         background: 'var(--bg1)',
-        borderLeft: '1px solid var(--bd)',
+        borderLeft: fill ? 'none' : '1px solid var(--bd)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',

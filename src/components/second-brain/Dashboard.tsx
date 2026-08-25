@@ -254,7 +254,7 @@ export function Dashboard({
 
   return (
     <div
-      className="sb-scroll"
+      className="sb-scroll sb-front-page"
       style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: 'var(--bg)', padding: '32px 40px 52px' }}
     >
       <div style={{ maxWidth: 1320, margin: '0 auto' }}>
@@ -282,6 +282,7 @@ export function Dashboard({
 
         {/* ============ 2. Lead + recently edited ============ */}
         <div
+          className="sb-front-lead"
           style={{
             display: 'grid', gridTemplateColumns: 'minmax(440px, 1.55fr) minmax(260px, 1fr)',
             gap: '0 34px', padding: '22px 0 20px', borderBottom: '1px solid var(--bd)',
@@ -355,6 +356,7 @@ export function Dashboard({
 
         {/* ============ 3. Today / Progress / Elsewhere ============ */}
         <div
+          className="sb-front-body"
           style={{
             display: 'grid',
             gridTemplateColumns: 'minmax(380px, 1.2fr) minmax(210px, 1fr) minmax(210px, 1fr)',

@@ -27,6 +27,9 @@ export interface NotesSidebarProps {
   onMoveNote: (noteId: string, folderId: string) => void;
   onTogglePinned: (noteId: string) => void;
   onDeleteNote: (noteId: string) => void;
+  /** Take the whole width rather than a fixed 240px column — on a phone the
+   *  list is the view, not a rail beside one. */
+  fill?: boolean;
 }
 
 const PARA_ORDER: Record<string, number> = { projects: 0, areas: 1, resources: 2, archives: 3 };
@@ -58,7 +61,7 @@ const EXTRA_COLORS = ['var(--blu)', 'var(--coral)', 'var(--acc)', 'var(--grn)'];
 export function NotesSidebar({
   notes, folders, activeId, filter, onFilterChange, view, onViewChange,
   onSelect, onCreateNote, onCreateFolder, onRenameFolder, onDeleteFolder,
-  onToggleFolder, onMoveNote, onTogglePinned, onDeleteNote,
+  onToggleFolder, onMoveNote, onTogglePinned, onDeleteNote, fill = false,
 }: NotesSidebarProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -442,7 +445,8 @@ export function NotesSidebar({
 
         {nothingHere && !filteredNoteIds && (
           <div style={{ padding: '20px 12px', fontSize: 11, lineHeight: 1.7, color: 'var(--t3)', textWrap: 'pretty' }}>
-            Nothing in {currentNode.name} yet. Press ⌘T to start the first note.
+            Nothing in {currentNode.name} yet.{' '}
+            {fill ? 'Tap + to start the first note.' : 'Press ⌘T to start the first note.'}
           </div>
         )}
         {nothingHere && filteredNoteIds && (
@@ -471,7 +475,10 @@ export function NotesSidebar({
     : currentNotebook?.folder.name;
 
   return (
-    <div style={{ display: 'flex', height: '100%', flexShrink: 0, position: 'relative' }}>
+    <div style={{
+      display: 'flex', height: '100%', position: 'relative',
+      flex: fill ? 1 : undefined, minWidth: fill ? 0 : undefined, flexShrink: fill ? 1 : 0,
+    }}>
       {/* The spines. Additive chrome — the panel keeps its full 240px, so note
           titles have exactly the measure they had before. */}
       {notebooksMode && (
@@ -555,8 +562,9 @@ export function NotesSidebar({
 
       <div
         style={{
-          width: 240, minWidth: 240, height: '100%',
-          background: 'var(--bg1)', borderRight: '1px solid var(--bd)',
+          width: fill ? 'auto' : 240, minWidth: fill ? 0 : 240,
+          flex: fill ? 1 : undefined, height: '100%',
+          background: 'var(--bg1)', borderRight: fill ? 'none' : '1px solid var(--bd)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}
       >
@@ -716,11 +724,15 @@ export function NotesSidebar({
         </div>
 
         <Footer
-          text={tagsMode
-            ? 'a note appears under each of its tags · right-click note to pin'
-            : notebooksMode
-              ? 'drag notes between sections · right-click note to pin'
-              : 'drag notes between folders · double-click folder to rename · right-click note to pin'}
+          text={fill
+            ? (tagsMode
+              ? 'a note appears under each of its tags'
+              : 'tap a note to open it · tap + to start one')
+            : tagsMode
+              ? 'a note appears under each of its tags · right-click note to pin'
+              : notebooksMode
+                ? 'drag notes between sections · right-click note to pin'
+                : 'drag notes between folders · double-click folder to rename · right-click note to pin'}
         />
       </div>
 

@@ -272,7 +272,7 @@ export function TasksPage({
         />
       ) : view === 'board' ? (
         <div
-          className="sb-scroll"
+          className="sb-scroll sb-task-board"
           style={{
             flex: 1, minHeight: 0, display: 'flex', gap: 11, padding: '14px 16px',
             overflowX: 'auto', overflowY: 'hidden', alignItems: 'flex-start',
@@ -287,6 +287,7 @@ export function TasksPage({
                 onDragOver={(e) => { e.preventDefault(); if (dragOverCol !== colId) setDragOverCol(colId); }}
                 onDragLeave={() => setDragOverCol((c) => (c === colId ? null : c))}
                 onDrop={(e) => { e.preventDefault(); dropOn(colId); }}
+                className="sb-task-column"
                 style={{
                   width: 252, minWidth: 252, maxHeight: '100%',
                   background: over ? 'var(--acc-bg)' : 'var(--bg1)',
