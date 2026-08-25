@@ -12,7 +12,8 @@
     "check:ssrf": "node src/utils/urlGuard.test.ts",
     "check:storage": "node src/utils/storageHealth.test.ts",
     "check:position": "node src/utils/readingPosition.test.ts",
-    "test": "npm run check:svg && npm run check:ssrf && npm run check:storage && npm run check:position"
+    "check:review": "node src/utils/review.test.ts",
+    "test": "npm run check:svg && npm run check:ssrf && npm run check:storage && npm run check:position && npm run check:review"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",

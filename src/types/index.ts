@@ -245,3 +245,36 @@ export interface Highlight {
    *  Optional, so every mark written before this stays valid. */
   note?: string;
 }
+
+/* ============================================================
+   Spaced repetition
+   ============================================================ */
+
+/** What a review card points at. A note is a whole idea to restate; a
+ *  highlight is a passage to recall in its own words. */
+export type ReviewTargetType = 'note' | 'highlight';
+
+/**
+ * One enrolled thing and when it comes up again.
+ *
+ * The schedule lives apart from what it points at, joined by `targetId`, so
+ * that editing a note never disturbs its schedule and a schedule survives a
+ * rewrite of the thing it is about. The scheduling arithmetic itself is in
+ * `utils/review.ts`; this is only what gets stored and synced.
+ */
+export interface ReviewCard {
+  id: string;
+  targetType: ReviewTargetType;
+  /** The id of the note or highlight being recalled. */
+  targetId: string;
+  /** Whole days between the last two sightings. */
+  intervalDays: number;
+  /** SM-2's ease factor; the multiplier a 'good' recall applies. */
+  ease: number;
+  /** 'YYYY-MM-DD', the day this comes up again. */
+  due: string;
+  reps: number;
+  lapses: number;
+  lastReviewed: string | null;
+  createdAt: string;
+}

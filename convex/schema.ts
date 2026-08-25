@@ -162,6 +162,34 @@ export default defineSchema({
     .index("byToken", ["tokenIdentifier"])
     .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
+  // ============================================================
+  // Spaced repetition
+  //
+  // One row per enrolled thing, holding only the memory model's state — the
+  // thing itself stays in `notes` or `highlights` and is joined by targetId.
+  // Keeping them apart means editing a note never disturbs its schedule, and
+  // a schedule can outlive a rewrite of what it points at.
+  // ============================================================
+  reviews: defineTable({
+    ...byUser,
+    /** 'note' | 'highlight' — which table targetId points into. */
+    targetType: v.string(),
+    /** The localId of the note or highlight being recalled. */
+    targetId: v.string(),
+    /** Whole days between the last two sightings. */
+    intervalDays: v.number(),
+    /** SM-2's ease factor; the multiplier a 'good' recall applies. */
+    ease: v.number(),
+    /** 'YYYY-MM-DD', the day this comes up again. */
+    due: v.string(),
+    reps: v.number(),
+    lapses: v.number(),
+    lastReviewed: v.union(v.string(), v.null()),
+    createdAt: v.string(),
+  })
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
+
   // Misc per-user state (profile/streak, UI prefs) as JSON values
   appState: defineTable({
     ...byUser,
