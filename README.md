@@ -54,6 +54,8 @@ the background, so writing never waits on a network round trip.
 - Light and dark themes
 - Knowledge graph with a force-directed layout
 - Command palette (`⌘K`)
+- Works on a phone — one zone at a time and a bottom tab bar, with writing,
+  reading and tasks all reachable; the graph and canvas stay desk work
 
 <table>
 <tr>
