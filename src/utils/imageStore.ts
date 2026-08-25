@@ -103,6 +103,18 @@ export async function getImageObjectUrl(id: string): Promise<string | null> {
   return url;
 }
 
+/**
+ * The stored bytes themselves, for a caller that has to send them somewhere.
+ *
+ * Publishing needs this: an object URL is a handle this tab can draw, not
+ * something that can be POSTed to Convex storage, and re-fetching the object
+ * URL to get the blob back would be a round-trip to reach data we already
+ * hold.
+ */
+export async function getImageBlob(id: string): Promise<Blob | null> {
+  return (await get<Blob>(id, imageStore)) ?? null;
+}
+
 export async function deleteImage(id: string): Promise<void> {
   const url = urlCache.get(id);
   if (url) {

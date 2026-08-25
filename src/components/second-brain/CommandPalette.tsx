@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, FileText, Plus, Share2, Download, Hash, CornerDownLeft, ArrowUp, ArrowDown, X, FolderPlus, Sparkles } from 'lucide-react';
+import { Search, FileText, Plus, Share2, Download, Hash, CornerDownLeft, ArrowUp, ArrowDown, X, FolderPlus, Sparkles, Link2 } from 'lucide-react';
 import { Note, Folder } from '@/types';
 
 interface CommandPaletteProps {
@@ -16,6 +16,7 @@ interface CommandPaletteProps {
   onCreateFolder: () => void;
   onAskAI: () => void;
   onStudyMode: () => void;
+  onShareNote: () => void;
 }
 
 interface CommandItem {
@@ -23,7 +24,7 @@ interface CommandItem {
   type: 'note' | 'command' | 'folder';
   label: string;
   hint?: string;
-  icon: 'note' | 'new' | 'graph' | 'export' | 'folder-new' | 'ai' | 'folder';
+  icon: 'note' | 'new' | 'graph' | 'export' | 'folder-new' | 'ai' | 'folder' | 'share';
   action: () => void;
 }
 
@@ -39,6 +40,7 @@ export function CommandPalette({
   onCreateFolder,
   onAskAI,
   onStudyMode,
+  onShareNote,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -148,6 +150,17 @@ export function CommandPalette({
           onClose();
         },
       },
+      {
+        id: 'cmd-share',
+        type: 'command',
+        label: 'Share current note to the web',
+        hint: 'publish it at a link that needs no account',
+        icon: 'share',
+        action: () => {
+          onShareNote();
+          onClose();
+        },
+      },
     ];
 
     const noteItems: CommandItem[] = notes.map((n) => ({
@@ -163,7 +176,7 @@ export function CommandPalette({
     }));
 
     return [...cmds, ...noteItems];
-  }, [notes, onCreateNote, onOpenGraph, onExport, onOpenNote, onClose, onCreateFolder, onAskAI, onStudyMode]);
+  }, [notes, onCreateNote, onOpenGraph, onExport, onOpenNote, onClose, onCreateFolder, onAskAI, onStudyMode, onShareNote]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return items;
@@ -317,6 +330,7 @@ export function CommandPalette({
                 it.icon === 'folder-new' ? FolderPlus :
                 it.icon === 'ai' ? Sparkles :
                 it.icon === 'folder' ? FileText :
+                it.icon === 'share' ? Link2 :
                 Download;
               return (
                 <div

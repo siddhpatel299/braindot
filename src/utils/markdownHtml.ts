@@ -84,7 +84,13 @@ function renderInline(s: string): string {
     (match, pre: string, text: string, url: string) => {
       const safe = safeUrl(url);
       if (!safe) return match;
-      return `${pre}<a class="md-link" href="${safe}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+      // Leaving for another site earns a new tab; moving around inside this
+      // one does not. Site-relative hrefs are how a published folder links
+      // its own pages together, and an anchor is a jump within the page —
+      // spawning a tab for either is just a tab the reader has to close.
+      const leaving = /^(https?:|mailto:)/i.test(safe);
+      const target = leaving ? ' target="_blank" rel="noopener noreferrer"' : '';
+      return `${pre}<a class="md-link" href="${safe}"${target}>${text}</a>`;
     },
   );
   // Put the images back now that no rule can reach inside their attributes.

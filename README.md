@@ -50,6 +50,13 @@ the background, so writing never waits on a network round trip.
 - Import EPUB and PDF, or pull live articles from Hacker News and papers from arXiv
 - Highlight passages and turn them into notes
 
+**Sharing**
+- Publish a note, or a whole folder and everything nested in it, to a link that needs no account
+- A published page is a snapshot: your later edits stay private until you update it
+- Unlisted by default — search engines are told to stay away unless you say otherwise
+- Wiki-links to notes you did not publish stay as plain text; they never become dead links
+- Pasted images are uploaded on publish, which also makes them work on your other devices
+
 **Interface**
 - Light and dark themes
 - Knowledge graph with a force-directed layout
@@ -166,8 +173,12 @@ src/
 convex/
   schema.ts       tables, all scoped per user
   functions.ts    the sync API (pull / push / wipe)
+  publish.ts      publishing, and the one query that answers anonymously
   auth.ts         Convex Auth, password provider
 ```
+
+Published pages are served at `/p/<slug>` by server components under `src/app/p/`, outside the
+app shell — a shared link renders without JavaScript and without loading the vault.
 
 ## Notes on security
 
@@ -175,6 +186,13 @@ Identity is verified server-side on every Convex call via the session token, and
 by a stable user id — a client cannot read another user's data by editing localStorage. Secrets
 live only in `.env.local` and in the Vercel and Convex environments; nothing sensitive is
 committed.
+
+Publishing is the one deliberate exception, and it is narrow. `publish:read` is the only query
+that answers an unauthenticated caller; it takes an exact slug, there is no endpoint that lists
+them, and the slug is 24 random characters minted server-side rather than derived from the
+title. It returns a hand-written shape, so no owner field can leak by being added to the table
+later. Deleting a note or folder takes its link down with it, and resetting the account takes
+down all of them.
 
 ## Status
 

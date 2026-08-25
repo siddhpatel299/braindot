@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Note } from '@/types';
 import { generateSuggestions, relativeTime, formatDate, extractWikiLinks } from '@/utils/markdown';
 import { radialNeighbourhood } from '@/utils/graph';
-import { ArrowUpRight, FileText, Library, GraduationCap, LucideIcon } from 'lucide-react';
+import { ArrowUpRight, FileText, Library, GraduationCap, Globe, Link2, LucideIcon } from 'lucide-react';
 import { AIChat, AIMode } from './AIChat';
 import { FormatPanel } from './FormatPanel';
 
@@ -33,6 +33,9 @@ interface ContextPanelProps {
   onDraftSynthesis: () => void;
   onAnswerInNewNote: (question: string) => void;
   onScheduleReview: () => void;
+  /** True when this note already has a public link behind it. */
+  published: boolean;
+  onShare: () => void;
   history: { id: string; noteId: string; text: string; timestamp: number }[];
   /** Take the width given instead of the 300px margin — the panel is being
    *  shown in a mobile sheet, where there is no margin to sit in. */
@@ -65,6 +68,8 @@ export function ContextPanel({
   onDraftSynthesis,
   onAnswerInNewNote,
   onScheduleReview,
+  published,
+  onShare,
   history,
   fill = false,
 }: ContextPanelProps) {
@@ -231,6 +236,8 @@ export function ContextPanel({
               onDraftSynthesis={onDraftSynthesis}
               onAnswerInNewNote={onAnswerInNewNote}
               onScheduleReview={onScheduleReview}
+              published={published}
+              onShare={onShare}
             />
           )}
           {activeTab === 'format' && (
@@ -262,6 +269,8 @@ function InfoPanel({
   onDraftSynthesis,
   onAnswerInNewNote,
   onScheduleReview,
+  published,
+  onShare,
 }: {
   note: Note;
   suggestions: ReturnType<typeof generateSuggestions>;
@@ -272,6 +281,8 @@ function InfoPanel({
   onDraftSynthesis: () => void;
   onAnswerInNewNote: (question: string) => void;
   onScheduleReview: () => void;
+  published: boolean;
+  onShare: () => void;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -327,8 +338,16 @@ function InfoPanel({
         <MiniGraph note={note} neighbors={graphData.neighbors} distant={graphData.distant} onOpenNote={onOpenNote} />
       </div>
 
-      {/* Ask AI and Study now live in the AI tab next door, not behind a button. */}
+      {/* Ask AI and Study now live in the AI tab next door, not behind a button.
+          Sharing sits beside export because they are the same move: this note,
+          out of the vault — one as a file, one as a link. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+        <ActionButton
+          label={published ? 'published — manage link' : 'share to the web'}
+          icon={published ? Globe : Link2}
+          accent={published}
+          onClick={onShare}
+        />
         <ActionButton label="export as essay" onClick={onExportEssay} />
       </div>
     </div>
@@ -395,16 +414,27 @@ function SuggestionCard({
   );
 }
 
-function ActionButton({ label, onClick }: { label: string; onClick: () => void }) {
+/** `accent` is how a published note announces itself from across the panel:
+ *  the row is the only green thing on it, so the state is legible without
+ *  reading the label. */
+function ActionButton({
+  label, onClick, icon: Icon = ArrowUpRight, accent,
+}: {
+  label: string;
+  onClick: () => void;
+  icon?: LucideIcon;
+  accent?: boolean;
+}) {
+  const idle = accent ? 'var(--grn)' : 'var(--t2)';
   return (
     <button
       onClick={onClick}
       style={{
         background: 'var(--bg2)',
-        border: '1px solid var(--bd)',
+        border: `1px solid ${accent ? 'var(--grn-bd)' : 'var(--bd)'}`,
         borderRadius: 3,
         padding: '8px 11px',
-        color: 'var(--t2)',
+        color: idle,
         fontSize: 11,
         cursor: 'pointer',
         fontFamily: 'inherit',
@@ -415,15 +445,15 @@ function ActionButton({ label, onClick }: { label: string; onClick: () => void }
         transition: 'background 0.12s, color 0.12s',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--bg3)';
-        e.currentTarget.style.color = 'var(--t1)';
+        e.currentTarget.style.background = accent ? 'var(--grn-bg)' : 'var(--bg3)';
+        e.currentTarget.style.color = accent ? 'var(--grn)' : 'var(--t1)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'var(--bg2)';
-        e.currentTarget.style.color = 'var(--t2)';
+        e.currentTarget.style.color = idle;
       }}
     >
-      <ArrowUpRight size={10} />
+      <Icon size={10} />
       {label}
     </button>
   );

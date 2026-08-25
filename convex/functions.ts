@@ -1,5 +1,6 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getVerifiedToken } from "./identity";
 
 // ============================================================
 // Second Brain sync API
@@ -35,17 +36,6 @@ function assertSyncTable(table: string): SyncTable {
     throw new Error(`Unknown sync table: ${table}`);
   }
   return table as SyncTable;
-}
-
-async function getVerifiedToken(ctx: any): Promise<string> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Not authenticated — please sign in");
-  }
-  // Under Convex Auth, identity.subject is "<userId>|<sessionId>". The
-  // session part changes on every sign-in, so key data by the stable
-  // userId only — otherwise each login would see an empty vault.
-  return String(identity.subject).split("|")[0];
 }
 
 // ===== Pull: all docs in a collection for the signed-in user =====
@@ -110,7 +100,7 @@ export const push = mutation({
 export const wipeAllAdmin = internalMutation({
   args: {},
   handler: async (ctx) => {
-    for (const table of SYNC_TABLES) {
+    for (const table of [...SYNC_TABLES, "publications", "publishedPages"] as const) {
       const rows = await ctx.db.query(table).collect();
       for (const row of rows) {
         await ctx.db.delete(row._id);
@@ -160,6 +150,22 @@ export const wipe = mutation({
       for (const row of rows) {
         await ctx.db.delete(row._id);
       }
+    }
+    // Publications are not a sync table — nothing pulls them into the
+    // client's collections — but they are the one kind of row that
+    // outlives a reset by being readable to strangers. Resetting the account
+    // has to take the public links down with it.
+    const pubs = await ctx.db
+      .query("publications")
+      .withIndex("byToken", (q: any) => q.eq("tokenIdentifier", tokenIdentifier))
+      .collect();
+    for (const pub of pubs) {
+      const pages = await ctx.db
+        .query("publishedPages")
+        .withIndex("bySlug", (q: any) => q.eq("slug", pub.slug))
+        .collect();
+      for (const page of pages) await ctx.db.delete(page._id);
+      await ctx.db.delete(pub._id);
     }
   },
 });

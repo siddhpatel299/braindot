@@ -759,6 +759,260 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   font-size: 12px;
 }
 
+/* ===== Published pages (/p/<slug>) =====
+   A shared link is read by someone who has never seen the app and owns none
+   of it. So this is the reader's typography, not the desk's: one column at a
+   real reading size, the apparatus reduced to a line of grey under the title,
+   and no control anywhere that would only mean something to the author. */
+.pub-shell {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.pub-article {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: clamp(40px, 9vh, 96px) 24px 120px;
+}
+.pub-404 {
+  padding-top: clamp(80px, 22vh, 200px);
+}
+
+/* The way back up a published folder. Small, because it is orientation
+   rather than navigation — most readers arrived at one page on purpose. */
+.pub-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px;
+  margin-bottom: 22px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--t3);
+}
+.pub-trail-link {
+  color: var(--t3);
+  text-decoration: none;
+}
+.pub-trail-link:hover {
+  color: var(--t1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pub-trail-sep {
+  margin: 0 6px;
+  color: var(--bd2);
+}
+
+.pub-head {
+  margin-bottom: 34px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--bd);
+}
+.pub-title {
+  margin: 0;
+  font-family: var(--editor-font) !important;
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  color: var(--t1);
+}
+.pub-subtitle {
+  margin: 10px 0 0;
+  font-family: var(--editor-font) !important;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--t2);
+}
+/* One grey line for everything the page can say about itself. Tags sit in it
+   rather than above it: on a page nobody can filter, a tag is a label, not a
+   control, and it should not look like one. */
+.pub-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--t3);
+}
+.pub-tag {
+  color: var(--acc2);
+}
+.pub-tag::before {
+  content: '#';
+  opacity: 0.55;
+}
+
+/* ---------- Prose ----------
+   Modelled on .sb-reader-prose: same reading face, same measure, sized a
+   little smaller because a shared page has no reader controls to size it. */
+.pub-prose {
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--t1);
+}
+.pub-prose,
+.pub-prose * {
+  font-family: var(--editor-font) !important;
+}
+.pub-prose code,
+.pub-prose pre,
+.pub-prose kbd {
+  font-family: var(--font-reading-mono) !important;
+  font-size: 0.86em;
+}
+.pub-prose h1 { font-size: 1.6em; line-height: 1.2; margin: 1.7em 0 0.5em; font-weight: 700; letter-spacing: -0.02em; }
+.pub-prose h2 { font-size: 1.3em; line-height: 1.28; margin: 1.6em 0 0.45em; font-weight: 700; letter-spacing: -0.015em; }
+.pub-prose h3 { font-size: 1.11em; line-height: 1.35; margin: 1.4em 0 0.4em; font-weight: 700; }
+.pub-prose h4,
+.pub-prose h5,
+.pub-prose h6 { font-size: 1em; margin: 1.25em 0 0.35em; font-weight: 700; }
+.pub-prose > :first-child { margin-top: 0; }
+.pub-prose p { margin: 0 0 1.05em; }
+.pub-prose ul,
+.pub-prose ol { margin: 0 0 1.05em; padding-left: 1.5em; }
+.pub-prose li { margin-bottom: 0.35em; }
+.pub-prose blockquote {
+  margin: 1.3em 0;
+  padding-left: 1.1em;
+  border-left: 2px solid var(--bd2);
+  color: var(--t2);
+  font-style: italic;
+}
+.pub-prose blockquote p:last-child { margin-bottom: 0; }
+.pub-prose hr { border: none; border-top: 1px solid var(--bd); margin: 2.2em 0; }
+.pub-prose img { max-width: 100%; height: auto; border-radius: 4px; }
+.pub-prose a { color: var(--acc2); text-underline-offset: 2px; }
+.pub-prose table { border-collapse: collapse; width: 100%; font-size: 0.9em; }
+.pub-prose th,
+.pub-prose td { border-bottom: 1px solid var(--bd); padding: 6px 10px; text-align: left; }
+
+.pub-prose .md-code {
+  background: var(--bg3);
+  color: var(--grn);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.pub-prose .md-codeblock {
+  background: var(--bg1);
+  border: 1px solid var(--bd);
+  border-radius: 5px;
+  padding: 12px 14px;
+  margin: 1.2em 0;
+  overflow-x: auto;
+}
+.pub-prose .md-codeblock code { color: var(--grn); white-space: pre; }
+.pub-prose .md-codeblock-lang {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--t3);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.pub-prose .md-callout {
+  background: var(--acc-bg);
+  border-left: 3px solid var(--acc);
+  border-radius: 0 5px 5px 0;
+  padding: 12px 16px;
+  margin: 1.3em 0;
+}
+.pub-prose .md-callout-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--acc2);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.pub-prose .md-callout-body { color: var(--callout-text); }
+/* A wiki-link whose target was not published stays as the author typed it —
+   see resolveWikiLinks in utils/publish.ts. It must not look clickable: an
+   underline here would send a reader hunting for a page that is private. */
+.pub-prose .md-wiki {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+}
+
+/* ---------- Folder contents ----------
+   A list of pages, not a grid of cards. The point is to be scanned once and
+   clicked through, and a card would spend a lot of pixels saying less. */
+.pub-index {
+  margin-top: 4px;
+}
+.pub-index-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--bd);
+  text-decoration: none;
+  color: inherit;
+}
+.pub-index-row:first-child { border-top: 1px solid var(--bd); }
+.pub-index-row:hover .pub-index-title { color: var(--acc2); }
+.pub-index-kind {
+  flex-shrink: 0;
+  width: 10px;
+  color: var(--t3);
+  font-size: 11px;
+}
+.pub-index-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.pub-index-title {
+  font-family: var(--editor-font) !important;
+  font-size: 16px;
+  color: var(--t1);
+}
+.pub-index-sub {
+  font-family: var(--editor-font) !important;
+  font-size: 13px;
+  color: var(--t3);
+  line-height: 1.45;
+}
+.pub-empty {
+  padding: 24px 0;
+  color: var(--t3);
+  font-size: 13px;
+}
+
+.pub-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 64px;
+  padding-top: 20px;
+  border-top: 1px solid var(--bd);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--t3);
+}
+.pub-foot-link {
+  color: var(--t2);
+  text-decoration: none;
+}
+.pub-foot-link:hover { color: var(--t1); }
+.pub-foot-mark a {
+  color: var(--t2);
+  text-decoration: none;
+}
+.pub-foot-mark a:hover { color: var(--acc2); }
+
+@media (max-width: 640px) {
+  .pub-article { padding: 32px 18px 90px; }
+  .pub-prose { font-size: 16.5px; }
+}
+
 /* ===== Auth page: split layout (product left, form right) ===== */
 .auth-page {
   min-height: 100vh;

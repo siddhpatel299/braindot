@@ -200,6 +200,76 @@ export default defineSchema({
     .index("byTokenAndLocalId", ["tokenIdentifier", "localId"]),
 
   // ============================================================
+  // Publishing — the only rows in this file an anonymous caller can read
+  //
+  // A published page is a snapshot, not a window onto the vault. The vault
+  // syncs live, but a link handed to someone else should not change under
+  // them because the author opened the note to fix a typo, and it must not
+  // carry the sentence they typed into it half an hour later. Publishing
+  // copies; republishing copies again.
+  //
+  // Deliberately outside `byUser`: `publishedPages` carries no owner at all,
+  // because nothing about it is answered per-user. `slug` is the entire
+  // credential, so it is generated server-side from CSPRNG bytes and never
+  // derived from the title — a guessable slug would be the whole feature
+  // undone.
+  // ============================================================
+  publications: defineTable({
+    tokenIdentifier: v.string(),
+    slug: v.string(),
+    /** 'note' | 'folder' */
+    kind: v.string(),
+    /** The localId this was published from. One publication per source, so
+     *  republishing reuses the slug and a link already sent keeps working. */
+    rootLocalId: v.string(),
+    title: v.string(),
+    /** Search engines are told to stay away unless the author says otherwise.
+     *  Unlisted and indexed are different kinds of public. */
+    indexable: v.boolean(),
+    pageCount: v.number(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("bySlug", ["slug"])
+    .index("byToken", ["tokenIdentifier"])
+    .index("byTokenAndRoot", ["tokenIdentifier", "rootLocalId"]),
+
+  /** One row per page in a publication. A folder publication is many rows;
+   *  a note publication is exactly one, at path ''. Split per page rather
+   *  than stored as one blob because Convex caps a document at 1MB and a
+   *  published folder is the one thing here with no natural size limit. */
+  publishedPages: defineTable({
+    slug: v.string(),
+    /** '' is the publication's root page. Otherwise a '/'-joined chain of
+     *  url-safe segments, which is also the path under /p/<slug>/. */
+    path: v.string(),
+    kind: v.string(), // 'note' | 'folder'
+    title: v.string(),
+    subtitle: v.string(),
+    tags: v.array(v.string()),
+    /** Markdown, already rewritten for a reader who has no vault: local
+     *  image refs resolved to https URLs, wiki-links pointing at other pages
+     *  in this same publication turned into real links. */
+    body: v.string(),
+    wordCount: v.number(),
+    updatedAt: v.string(),
+    order: v.number(),
+    /** What a folder page lists, in the order the sidebar showed it. */
+    children: v.array(
+      v.object({
+        path: v.string(),
+        title: v.string(),
+        kind: v.string(),
+        subtitle: v.string(),
+      }),
+    ),
+    /** Breadcrumb back to the root, nearest ancestor last. */
+    trail: v.array(v.object({ path: v.string(), title: v.string() })),
+  })
+    .index("bySlug", ["slug"])
+    .index("bySlugAndPath", ["slug", "path"]),
+
+  // ============================================================
   // Rate limiting for the paid endpoints
   //
   // Not per-user data and deliberately outside `byUser`: the whole point is

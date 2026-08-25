@@ -27,6 +27,10 @@ export interface NotesSidebarProps {
   onMoveNote: (noteId: string, folderId: string) => void;
   onTogglePinned: (noteId: string) => void;
   onDeleteNote: (noteId: string) => void;
+  /** Folder localIds with a public link behind them, so a row can show the
+   *  mark without each one asking. */
+  publishedFolderIds: Set<string>;
+  onShareFolder: (folderId: string) => void;
   /** Take the whole width rather than a fixed 240px column — on a phone the
    *  list is the view, not a rail beside one. */
   fill?: boolean;
@@ -61,7 +65,8 @@ const EXTRA_COLORS = ['var(--blu)', 'var(--coral)', 'var(--acc)', 'var(--grn)'];
 export function NotesSidebar({
   notes, folders, activeId, filter, onFilterChange, view, onViewChange,
   onSelect, onCreateNote, onCreateFolder, onRenameFolder, onDeleteFolder,
-  onToggleFolder, onMoveNote, onTogglePinned, onDeleteNote, fill = false,
+  onToggleFolder, onMoveNote, onTogglePinned, onDeleteNote,
+  publishedFolderIds, onShareFolder, fill = false,
 }: NotesSidebarProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -316,6 +321,8 @@ export function NotesSidebar({
           onCreateNote={() => onCreateNote(folder.id)}
           onCreateFolder={() => onCreateFolder(folder.id)}
           onDelete={() => onDeleteFolder(folder.id)}
+          published={publishedFolderIds.has(folder.id)}
+          onShare={() => onShareFolder(folder.id)}
           {...dropTarget(folder.id)}
         />
         {expanded && (
@@ -425,6 +432,8 @@ export function NotesSidebar({
               onCreateNote={() => onCreateNote(folder.id)}
               onCreateFolder={() => onCreateFolder(folder.id)}
               onDelete={() => onDeleteFolder(folder.id)}
+              published={publishedFolderIds.has(folder.id)}
+              onShare={() => onShareFolder(folder.id)}
               renaming={renamingId === folder.id}
               renameValue={renameValue}
               onRenameChange={setRenameValue}

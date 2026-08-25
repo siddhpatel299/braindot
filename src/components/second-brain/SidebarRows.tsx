@@ -2,7 +2,7 @@
 
 import {
   FileText, Plus, FolderPlus, Folder as FolderIcon,
-  ChevronRight, ChevronDown, Pin, X,
+  ChevronRight, ChevronDown, Pin, X, Globe, Link2,
 } from 'lucide-react';
 import { Note, Folder } from '@/types';
 import { plural } from '@/utils/markdown';
@@ -133,12 +133,16 @@ interface FolderRowProps {
   onCreateNote: () => void;
   onCreateFolder: () => void;
   onDelete: () => void;
+  /** True when this folder already has a public link behind it. */
+  published: boolean;
+  onShare: () => void;
 }
 
 export function FolderRow({
   folder, depth, expanded, childCount, isDragOver,
   renaming, renameValue, onRenameChange, onRenameCommit, onRenameCancel, onStartRename,
   onToggle, onDragOver, onDragLeave, onDrop, onCreateNote, onCreateFolder, onDelete,
+  published, onShare,
 }: FolderRowProps) {
   return (
     <div
@@ -209,9 +213,26 @@ export function FolderRow({
       <span style={{ fontSize: 10, color: 'var(--t3)', opacity: 0.6 }}>
         {childCount || ''}
       </span>
+      {/* A published folder keeps its globe visible when the row is not
+          hovered — the whole point of the mark is that you can see, while
+          scanning the tree, which parts of it strangers can read. */}
+      {published && (
+        <Globe
+          size={10}
+          strokeWidth={2}
+          aria-label="Published to the web"
+          style={{ flexShrink: 0, color: 'var(--grn)' }}
+        />
+      )}
       <div className="sb-folder-actions" style={{ display: 'flex', gap: 2 }}>
         <IconAction label="New note in folder" onClick={onCreateNote}><Plus size={11} strokeWidth={2} /></IconAction>
         <IconAction label="New subfolder" onClick={onCreateFolder}><FolderPlus size={11} strokeWidth={2} /></IconAction>
+        <IconAction
+          label={published ? 'Manage public link' : 'Share folder to the web'}
+          onClick={onShare}
+        >
+          <Link2 size={11} strokeWidth={2} />
+        </IconAction>
         {/* A PARA folder is structural; deleting one would leave the vault
             without a place for the notes it holds. */}
         {!folder.paraType && (
@@ -253,7 +274,7 @@ function IconAction({ label, onClick, children }: {
  */
 export function SectionHeader({
   name, count, isDragOver, onDragOver, onDragLeave, onDrop,
-  onCreateNote, onCreateFolder, onDelete,
+  onCreateNote, onCreateFolder, onDelete, published, onShare,
   renaming, renameValue, onRenameChange, onRenameCommit, onRenameCancel, onRenameStart,
 }: {
   name: string;
@@ -265,6 +286,8 @@ export function SectionHeader({
   onCreateNote: () => void;
   onCreateFolder: () => void;
   onDelete: () => void;
+  published: boolean;
+  onShare: () => void;
   renaming: boolean;
   renameValue: string;
   onRenameChange: (v: string) => void;
@@ -316,10 +339,24 @@ export function SectionHeader({
           {name}
         </span>
       )}
+      {published && (
+        <Globe
+          size={10}
+          strokeWidth={2}
+          aria-label="Published to the web"
+          style={{ flexShrink: 0, color: 'var(--grn)' }}
+        />
+      )}
       <span style={{ opacity: 0.6 }}>{count || ''}</span>
       <div className="sb-folder-actions" style={{ display: 'flex', gap: 2 }}>
         <IconAction label={`New note in ${name}`} onClick={onCreateNote}><Plus size={11} strokeWidth={2} /></IconAction>
         <IconAction label={`New subfolder in ${name}`} onClick={onCreateFolder}><FolderPlus size={11} strokeWidth={2} /></IconAction>
+        <IconAction
+          label={published ? `Manage public link for ${name}` : `Share ${name} to the web`}
+          onClick={onShare}
+        >
+          <Link2 size={11} strokeWidth={2} />
+        </IconAction>
         <IconAction label={`Delete ${name}`} onClick={onDelete}><X size={11} strokeWidth={2} /></IconAction>
       </div>
     </div>

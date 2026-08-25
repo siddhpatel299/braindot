@@ -6,7 +6,7 @@ import { useAuthActions } from '@convex-dev/auth/react';
 import { useNotes } from '@/hooks/useNotes';
 import { useEditor } from '@/hooks/useEditor';
 import { useBacklinks } from '@/hooks/useBacklinks';
-import { Note } from '@/types';
+import { Folder, Note } from '@/types';
 import { SEED_FOLDER_IDS, todayDateKey } from '@/utils/seedData';
 import { extractWikiLinks } from '@/utils/markdown';
 import { IconRail, IconRailView } from '@/components/second-brain/IconRail';
@@ -20,6 +20,9 @@ import { StatusBar } from '@/components/second-brain/StatusBar';
 import { CommandPalette } from '@/components/second-brain/CommandPalette';
 import { AskAIModal } from '@/components/second-brain/AskAIModal';
 import { AppDialog, DialogState } from '@/components/second-brain/AppDialog';
+import { ShareDialog, ShareTarget } from '@/components/second-brain/ShareDialog';
+import { usePublish } from '@/hooks/usePublish';
+import { localImageIds } from '@/utils/publish';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
 import { GraphView } from '@/components/second-brain/GraphView';
@@ -120,6 +123,15 @@ export default function Home() {
   const canvas = useCanvas();
   const reading = useReading();
 
+  // Publishing. Off in demo mode: a shared link is a row in Convex keyed to an
+  // account, and a demo vault has neither.
+  const publish = usePublish({
+    enabled: cloudSync.enabled,
+    notes: state.notes,
+    folders: state.folders,
+    updateNote,
+  });
+
   const [iconView, setIconView] = useState<IconRailView>('dashboard');
   const [appView, setAppView] = useState<'dashboard' | 'notes' | 'search' | 'graph' | 'kanban' | 'canvas' | 'reading'>('dashboard');
   const [search, setSearch] = useState('');
@@ -155,6 +167,7 @@ export default function Home() {
     setMobileEditorOpen(false);
   }, []);
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const imagePickerRef = useRef<(() => void) | null>(null);
@@ -568,29 +581,142 @@ export default function Home() {
     });
   }, [createFolder, showToast]);
 
+  /* Deleting something that is published has to take the link down with it.
+     Otherwise the snapshot outlives its source: the note is gone from the
+     vault, nothing in the app mentions it any more, and a stranger with the
+     link is still reading it. `unpublish` is a no-op for anything that was
+     never published, so neither handler has to check first. */
   const handleDeleteFolder = useCallback((id: string) => {
     const folder = state.folders.find((f) => f.id === id);
+    const wasPublished = publish.publications.has(id);
     setDialog({
       type: 'confirm',
       title: 'Delete folder',
-      message: `Delete "${folder?.name || 'this folder'}"? Notes inside will be moved to Resources.`,
+      message: wasPublished
+        ? `Delete "${folder?.name || 'this folder'}"? Notes inside will be moved to Resources, and its public link will stop working.`
+        : `Delete "${folder?.name || 'this folder'}"? Notes inside will be moved to Resources.`,
       confirmLabel: 'Delete',
       danger: true,
-      onConfirm: () => { deleteFolder(id); showToast('folder deleted'); },
+      onConfirm: () => {
+        if (wasPublished) void publish.unpublish(id);
+        deleteFolder(id);
+        showToast(wasPublished ? 'folder deleted, link taken down' : 'folder deleted');
+      },
     });
-  }, [state.folders, deleteFolder, showToast]);
+  }, [state.folders, deleteFolder, showToast, publish]);
 
   const handleDeleteNote = useCallback((id: string) => {
     const note = state.notes.find((n) => n.id === id);
+    const wasPublished = publish.publications.has(id);
     setDialog({
       type: 'confirm',
       title: 'Delete note',
-      message: `Delete "${note?.title || 'this note'}"? This can't be undone.`,
+      message: wasPublished
+        ? `Delete "${note?.title || 'this note'}"? Its public link will stop working too. This can't be undone.`
+        : `Delete "${note?.title || 'this note'}"? This can't be undone.`,
       confirmLabel: 'Delete',
       danger: true,
-      onConfirm: () => { deleteNote(id); showToast('note deleted'); },
+      onConfirm: () => {
+        if (wasPublished) void publish.unpublish(id);
+        deleteNote(id);
+        showToast(wasPublished ? 'note deleted, link taken down' : 'note deleted');
+      },
     });
-  }, [state.notes, deleteNote, showToast]);
+  }, [state.notes, deleteNote, showToast, publish]);
+
+  /* ---------- Sharing ----------
+     The dialog is opened from three places (the info panel, a folder row, the
+     palette) and each of them only knows an id, so the counting that the
+     dialog needs to explain itself happens here. */
+  const notesUnderFolder = useCallback((folderId: string): Note[] => {
+    const ids = new Set<string>([folderId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const f of state.folders) {
+        if (f.parentId && ids.has(f.parentId) && !ids.has(f.id)) { ids.add(f.id); grew = true; }
+      }
+    }
+    return state.notes.filter((n) => ids.has(n.folderId));
+  }, [state.folders, state.notes]);
+
+  const countLocalImages = useCallback((notes: Note[]): number => {
+    const ids = new Set<string>();
+    for (const n of notes) for (const id of localImageIds(n.body)) ids.add(id);
+    return ids.size;
+  }, []);
+
+  const handleShareNote = useCallback((id: string) => {
+    const note = state.notes.find((n) => n.id === id);
+    if (!note) return;
+    if (!cloudSync.enabled) {
+      showToast('sign in to publish — a shared link needs an account');
+      return;
+    }
+    setShareTarget({
+      kind: 'note',
+      id: note.id,
+      title: note.title,
+      noteCount: 1,
+      imageCount: countLocalImages([note]),
+    });
+  }, [state.notes, cloudSync.enabled, countLocalImages, showToast]);
+
+  const handleShareFolder = useCallback((id: string) => {
+    const folder = state.folders.find((f) => f.id === id);
+    if (!folder) return;
+    if (!cloudSync.enabled) {
+      showToast('sign in to publish — a shared link needs an account');
+      return;
+    }
+    const inside = notesUnderFolder(id);
+    setShareTarget({
+      kind: 'folder',
+      id: folder.id,
+      title: folder.name,
+      noteCount: inside.length,
+      imageCount: countLocalImages(inside),
+    });
+  }, [state.folders, cloudSync.enabled, notesUnderFolder, countLocalImages, showToast]);
+
+  const runPublish = useCallback(async (indexable: boolean) => {
+    if (!shareTarget) return { ok: false, error: 'Nothing selected.' };
+    // Deleted from another tab while the panel sat open. Rare, but the
+    // alternative was a non-null assertion and a blank screen.
+    const source = shareTarget.kind === 'note'
+      ? state.notes.find((n) => n.id === shareTarget.id)
+      : state.folders.find((f) => f.id === shareTarget.id);
+    if (!source) {
+      return { ok: false, error: `That ${shareTarget.kind} is no longer in the vault.` };
+    }
+    const res = shareTarget.kind === 'note'
+      ? await publish.publishNote(source as Note, { indexable })
+      : await publish.publishFolder(source as Folder, { indexable });
+    if (res.ok) {
+      showToast(
+        res.imagesUploaded > 0
+          ? `published ${res.pageCount === 1 ? 'page' : `${res.pageCount} pages`} · ${res.imagesUploaded} image${res.imagesUploaded === 1 ? '' : 's'} uploaded`
+          : `published ${res.pageCount === 1 ? 'page' : `${res.pageCount} pages`}`,
+      );
+      return { ok: true };
+    }
+    return { ok: false, error: res.error };
+  }, [shareTarget, publish, state.notes, state.folders, showToast]);
+
+  const runUnpublish = useCallback(async () => {
+    if (!shareTarget) return { ok: true };
+    const res = await publish.unpublish(shareTarget.id);
+    if (res.ok) showToast('link taken down');
+    return res;
+  }, [shareTarget, publish, showToast]);
+
+  const publishedFolderIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [rootId, pub] of publish.publications) {
+      if (pub.kind === 'folder') ids.add(rootId);
+    }
+    return ids;
+  }, [publish.publications]);
 
   // Study is a tab in the editor's context panel now, so "open study" means
   // "put me in the editor with that tab showing".
@@ -774,6 +900,8 @@ export default function Home() {
       onDraftSynthesis={handleDraftSynthesis}
       onAnswerInNewNote={handleAnswerInNewNote}
       onScheduleReview={handleScheduleReview}
+      published={publish.publications.has(activeNote.id)}
+      onShare={() => handleShareNote(activeNote.id)}
       history={history}
       fill={isMobile}
     />
@@ -1047,6 +1175,8 @@ export default function Home() {
                 onMoveNote={moveNote}
                 onTogglePinned={togglePinned}
                 onDeleteNote={handleDeleteNote}
+                publishedFolderIds={publishedFolderIds}
+                onShareFolder={handleShareFolder}
               />
             </div>
 
@@ -1187,6 +1317,7 @@ export default function Home() {
         onCreateFolder={() => handleCreateFolder(null)}
         onAskAI={() => setAskAIOpen(true)}
         onStudyMode={openStudy}
+        onShareNote={() => { if (activeNote) handleShareNote(activeNote.id); }}
       />
 
       <AskAIModal
@@ -1198,6 +1329,15 @@ export default function Home() {
       />
 
       <AppDialog dialog={dialog} onClose={() => setDialog(null)} />
+
+      <ShareDialog
+        target={shareTarget}
+        publication={shareTarget ? publish.publications.get(shareTarget.id) : undefined}
+        busy={publish.busyId !== null}
+        onClose={() => setShareTarget(null)}
+        onPublish={runPublish}
+        onUnpublish={runUnpublish}
+      />
 
       {/* Toast */}
       {toast && (
