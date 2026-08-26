@@ -34,6 +34,9 @@ interface DailyPaperProps {
   edition: Edition;
   onSaveStory: (story: PaperStory) => void;
   onAddSource: () => void;
+  /** The way out. Opening the paper used to be one-way: the masthead replaced
+   *  the whole reading view and nothing on it went back to the shelf. */
+  onClose: () => void;
   /** Books part-read, shown in the rail beside the lead. */
   shelf: { title: string; progress: number; highlights: number }[];
 }
@@ -109,7 +112,7 @@ function SectionRule({ title, count }: { title: string; count: string }) {
  * (folio, datelines, credits, section rules). That contrast is what makes it
  * read as a printed page rather than a feed.
  */
-export function DailyPaper({ edition, onSaveStory, onAddSource, shelf }: DailyPaperProps) {
+export function DailyPaper({ edition, onSaveStory, onAddSource, onClose, shelf }: DailyPaperProps) {
   const [sizeIdx, setSizeIdx] = useState(1);
   const size = SIZES[sizeIdx];
 
@@ -126,6 +129,24 @@ export function DailyPaper({ edition, onSaveStory, onAddSource, shelf }: DailyPa
         height: 44, flexShrink: 0, background: 'var(--bg1)', borderBottom: '1px solid var(--bd)',
         display: 'flex', alignItems: 'center', padding: '0 18px', gap: 14,
       }}>
+        <button
+          onClick={onClose}
+          title="Back to the library"
+          style={{
+            height: 24, padding: '0 9px 0 7px', borderRadius: 4, background: 'transparent',
+            border: 'none', color: 'var(--t2)', cursor: 'pointer', flexShrink: 0,
+            display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', fontSize: 10.5,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--t2)'; }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />
+          </svg>
+          library
+        </button>
+        <span style={{ width: 1, height: 15, background: 'var(--bd)', flexShrink: 0 }} />
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)', whiteSpace: 'nowrap' }}>
           today’s paper
         </span>

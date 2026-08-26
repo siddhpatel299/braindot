@@ -82,6 +82,90 @@ async function extractEpubCover(zip: any, opfEntryName: string, opfXml: string):
   }
 }
 
+/**
+ * How much of a book's bytes may be pictures.
+ *
+ * The text of an item is capped at 900_000 characters for the Convex sync
+ * (see MAX_SYNCED_CONTENT in hooks/useVaultData), and an inlined image is
+ * charged against the same budget because it lives in the same string. This
+ * leaves room for a full-length book plus its illustrations; a heavily
+ * illustrated art book will spend it and the rest of its plates are dropped.
+ */
+const IMAGE_BUDGET_BYTES = 360_000;
+/** Nothing in a 68ch reading column needs more than this across. */
+const IMAGE_MAX_WIDTH = 900;
+
+/**
+ * Turn an epub's internal image links into pictures that survive the import.
+ *
+ * A chapter's markup says `<img src="../images/00014.jpeg">`, which
+ * htmlToMarkdownBlocks faithfully turns into `![alt](../images/00014.jpeg)`.
+ * That path means something only inside the zip, so once the book was imported
+ * the reader rendered the markdown as literal text — the reader saw the source
+ * of an image rather than an image, which is worse than seeing nothing.
+ *
+ * So each one is resolved against the archive, re-encoded small, and inlined
+ * as a data URL. Anything that cannot be resolved, or that no longer fits the
+ * budget, is removed rather than left to render as source: the alt text is
+ * kept as a caption where there is one, so the page still says what was there.
+ */
+async function inlineEpubImages(
+  markdown: string,
+  zip: any,
+  chapterEntryName: string,
+  budget: { left: number },
+): Promise<string> {
+  const refs = [...markdown.matchAll(/!\[([^\]]*)\]\(([^)\s]+)\)/g)];
+  if (refs.length === 0) return markdown;
+
+  const entries = zip.getEntries();
+  const dir = chapterEntryName.includes('/')
+    ? chapterEntryName.slice(0, chapterEntryName.lastIndexOf('/') + 1)
+    : '';
+
+  const resolve = (href: string) => {
+    const cleaned = decodeURIComponent(href.split('#')[0].replace(/^\.\//, ''));
+    // Collapse the "../" hops the href walks up out of the chapter's folder.
+    const path = (dir + cleaned).replace(/[^/]+\/\.\.\//g, '');
+    return entries.find((e: any) => e.entryName === path)
+      || entries.find((e: any) => e.entryName.endsWith('/' + cleaned))
+      || entries.find((e: any) => e.entryName === cleaned)
+      // Last resort: match on the bare filename, which is enough in the many
+      // epubs that keep every image in one folder.
+      || entries.find((e: any) => e.entryName.endsWith('/' + cleaned.split('/').pop()));
+  };
+
+  let out = markdown;
+  for (const [whole, alt, href] of refs) {
+    // Anything already self-contained is left exactly as it is.
+    if (/^(https?:|data:)/i.test(href)) continue;
+
+    let replacement = alt.trim() ? `*${alt.trim()}*` : '';
+    if (budget.left > 0) {
+      const entry = resolve(href);
+      const raw = entry?.getData();
+      if (raw && raw.length > 0) {
+        try {
+          const { default: sharp } = await import('sharp');
+          const encoded = await sharp(raw)
+            .resize({ width: IMAGE_MAX_WIDTH, withoutEnlargement: true })
+            .webp({ quality: 72 })
+            .toBuffer();
+          const url = `data:image/webp;base64,${encoded.toString('base64')}`;
+          if (url.length <= budget.left) {
+            budget.left -= url.length;
+            replacement = `![${alt}](${url})`;
+          }
+        } catch {
+          // An unreadable or exotic image falls through to its caption.
+        }
+      }
+    }
+    out = out.replace(whole, replacement);
+  }
+  return out;
+}
+
 // Extract text content from uploaded epub or pdf files
 export async function POST(req: NextRequest) {
   try {
@@ -131,6 +215,9 @@ export async function POST(req: NextRequest) {
           !e.entryName.includes('cover')
         );
 
+        // Shared across every chapter: one book gets one picture allowance.
+        const imageBudget = { left: IMAGE_BUDGET_BYTES };
+
         for (const entry of htmlEntries) {
           const html = entry.getData().toString('utf8');
           const h1Match = html.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/i);
@@ -138,7 +225,9 @@ export async function POST(req: NextRequest) {
             ? decodeEntities(h1Match[1].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
             : `Chapter ${chapters.length + 1}`;
 
-          const body = htmlToMarkdownBlocks(html);
+          const body = await inlineEpubImages(
+            htmlToMarkdownBlocks(html), zip, entry.entryName, imageBudget,
+          );
           if (body.length > 100) {
             // The heading is prepended only when the text does not already open
             // with it. The old code always prepended, so every chapter showed

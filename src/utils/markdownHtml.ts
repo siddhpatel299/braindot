@@ -242,6 +242,8 @@ export interface HighlightSpan {
   id: string;
   text: string;
   color: string;
+  /** 'underline' draws a rule under the passage instead of washing it. */
+  style?: string;
 }
 
 const ENTITY_CHARS: Record<string, string> = {
@@ -304,7 +306,8 @@ function markText(chunk: string, highlights: HighlightSpan[]): string {
   for (const s of spans) {
     if (s.start < at) continue;
     out += escapeHtml(text.slice(at, s.start));
-    out += `<mark class="hl-${escapeHtml(s.hl.color)}" data-hl-id="${escapeHtml(s.hl.id)}">`
+    const style = s.hl.style === 'underline' ? ' hl-underline' : '';
+    out += `<mark class="hl-${escapeHtml(s.hl.color)}${style}" data-hl-id="${escapeHtml(s.hl.id)}">`
       + escapeHtml(text.slice(s.start, s.end))
       + '</mark>';
     at = s.end;

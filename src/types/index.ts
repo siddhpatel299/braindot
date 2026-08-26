@@ -227,7 +227,15 @@ export interface Bookmark {
   createdAt: string;
 }
 
-export type HighlightColor = 'yellow' | 'purple' | 'green';
+/** Five marks. Three was a palette you ran out of on a dense chapter: a
+ *  reader who colour-codes by meaning needs more than agree / disagree /
+ *  look-up-later. */
+export type HighlightColor = 'yellow' | 'purple' | 'green' | 'blue' | 'red';
+
+/** How the mark sits on the page. A fill claims the passage; an underline
+ *  points at it without taking it over, which is what you want under a
+ *  sentence you merely want to find again. */
+export type HighlightStyle = 'fill' | 'underline';
 
 export interface Highlight {
   id: string;
@@ -236,6 +244,9 @@ export interface Highlight {
   noteId: string | null;
   text: string;
   color: HighlightColor;
+  /** Optional so every mark made before underlines existed stays valid; the
+   *  reader treats a missing value as 'fill'. */
+  style?: HighlightStyle;
   page: number | null;
   createdAt: string;
   /** A line of your own against the passage.

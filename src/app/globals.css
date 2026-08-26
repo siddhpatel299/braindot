@@ -406,15 +406,63 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
    Books are found by their faces. The grid is sized so a cover is big enough
    to recognise across the room, and auto-fills rather than fixing a column
    count, so a narrow window loses columns instead of shrinking the covers. */
+.sb-shelf-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.sb-shelf-head-ruled {
+  margin-bottom: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bd);
+}
+.sb-shelf-head-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--t2);
+  font-weight: 600;
+}
+.sb-shelf-head-facts { font-size: 10.5px; color: var(--t3); }
+.sb-shelf-filters { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.sb-shelf-filter {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--bd);
+  color: var(--t3);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sb-shelf-filter:hover { color: var(--t1); border-color: var(--bd2); }
+.sb-shelf-filter-on {
+  background: var(--acc-bg);
+  border-color: var(--acc-bd);
+  color: var(--acc2);
+}
+
 .sb-shelf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
-  gap: 26px 22px;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 30px 24px;
+  padding-top: 24px;
 }
-.sb-shelf-item {
+/* The item is the positioning context for the remove button; the button
+   inside it does the opening, so the two are siblings rather than nested —
+   a button inside a button is not valid markup and Firefox drops it. */
+.sb-shelf-item { position: relative; }
+.sb-shelf-open {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 100%;
   background: transparent;
   border: none;
   padding: 0;
@@ -429,50 +477,65 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   width: 100%;
   aspect-ratio: 2 / 3;
   border-radius: 3px;
-  border: 1px solid transparent;
   overflow: hidden;
   background: var(--bg2);
   /* Lifted off the shelf rather than outlined — a border on a cover reads as
      part of the artwork. */
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.34), 0 8px 20px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 2px 6px var(--shadow, rgba(0, 0, 0, 0.34)), 0 8px 20px var(--shadow2, rgba(0, 0, 0, 0.22));
   transition: transform 140ms ease, box-shadow 140ms ease;
 }
-.sb-shelf-item:hover .sb-shelf-cover,
-.sb-shelf-item:focus-visible .sb-shelf-cover {
+.sb-shelf-open:hover .sb-shelf-cover,
+.sb-shelf-open:focus-visible .sb-shelf-cover {
   transform: translateY(-3px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), 0 14px 30px rgba(0, 0, 0, 0.3);
 }
 @media (prefers-reduced-motion: reduce) {
   .sb-shelf-cover { transition: none; }
-  .sb-shelf-item:hover .sb-shelf-cover { transform: none; }
+  .sb-shelf-open:hover .sb-shelf-cover { transform: none; }
 }
 .sb-shelf-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-/* An unjacketed book: the title set on the boards. */
-.sb-shelf-blank {
+/* ===== The drawn jacket =====
+   What a book gets when it did not bring one: a publisher's series livery
+   rather than a placeholder. One field colour per kind, the volume number on
+   the boards, the title set in the reading face and the author's surname
+   under it in the chrome's. The ground stays near-black in both themes —
+   a jacket is a printed object and does not follow the interface. */
+.sb-jacket {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 7px;
   height: 100%;
-  padding: 13px 11px;
-  background: var(--bg2);
-  border-top: 3px solid var(--acc);
 }
-.sb-shelf-blank-kind {
-  font-size: 8.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-weight: 700;
+.sb-jacket-hinge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1;
 }
-.sb-shelf-blank-title {
-  font-size: 11.5px;
-  line-height: 1.4;
-  color: var(--t2);
+.sb-jacket-title {
+  font-family: var(--font-reading-serif) !important;
+  font-size: 16px;
+  line-height: 1.16;
+  font-weight: 600;
+  letter-spacing: -0.012em;
   display: -webkit-box;
-  -webkit-line-clamp: 6;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.sb-jacket-author {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sb-shelf-progress {
   position: absolute;
   left: 0;
@@ -480,12 +543,28 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   bottom: 0;
   height: 3px;
   background: rgba(0, 0, 0, 0.45);
+  z-index: 2;
 }
 .sb-shelf-progress > span { display: block; height: 100%; background: var(--acc); }
+.sb-shelf-done {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--grn-bg);
+  border: 1px solid var(--grn);
+  color: var(--grn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
 
 .sb-shelf-title {
-  margin-top: 8px;
-  font-size: 11.5px;
+  margin-top: 9px;
+  font-size: 12px;
   color: var(--t1);
   line-height: 1.35;
   display: -webkit-box;
@@ -500,6 +579,115 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.sb-shelf-status { margin-top: 3px; font-size: 10px; color: var(--t3); }
+
+/* Destructive, so it stays out of the way until the pointer is on the book
+   it belongs to — and never on touch, where there is no hover to reveal it
+   and the control has to be permanently present. */
+.sb-shelf-remove {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 3;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(10, 9, 8, 0.72);
+  border: 1px solid var(--bd2);
+  color: var(--t2);
+  font-family: inherit;
+  font-size: 9.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.sb-shelf-item:hover .sb-shelf-remove,
+.sb-shelf-remove:focus-visible { opacity: 1; }
+.sb-shelf-remove:hover { color: var(--red); border-color: var(--red); }
+.sb-shelf-remove-armed {
+  opacity: 1;
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-bg);
+}
+@media (hover: none) {
+  .sb-shelf-remove { opacity: 1; }
+}
+
+/* ===== Continue reading =====
+   The two or three books actually in progress, given the room a book you are
+   halfway through deserves — the rest of the shelf is for finding, this is
+   for resuming. */
+.sb-continue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(324px, 1fr));
+  gap: 18px;
+  margin-bottom: 44px;
+}
+.sb-continue {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg1);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  align-items: flex-start;
+}
+.sb-continue:hover { border-color: var(--acc-bd); }
+.sb-continue-cover {
+  position: relative;
+  display: block;
+  width: 92px;
+  min-width: 92px;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px;
+  box-shadow: 0 2px 6px var(--shadow, rgba(0, 0, 0, 0.34)), 0 8px 20px var(--shadow2, rgba(0, 0, 0, 0.22));
+  overflow: hidden;
+}
+/* The jacket inside the smaller card sets itself smaller too, or the title
+   fills the whole board. */
+.sb-continue-cover .sb-jacket-title { font-size: 11px; -webkit-line-clamp: 3; }
+.sb-continue-cover .sb-jacket-author { font-size: 6.5px; }
+.sb-continue-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.sb-continue-title {
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--t1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sb-continue-author { font-size: 11px; color: var(--t3); }
+.sb-continue-bar { display: flex; align-items: center; gap: 9px; margin-top: 4px; }
+.sb-continue-track {
+  flex: 1;
+  height: 3px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sb-continue-track > span { display: block; height: 100%; background: var(--acc); border-radius: 2px; }
+.sb-continue-pct { font-size: 10px; color: var(--t3); flex-shrink: 0; }
+.sb-continue-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--t3);
+}
+.sb-continue-resume { margin-left: auto; color: var(--acc2); font-weight: 600; }
+
 .sb-shelf-action {
   height: 30px;
   padding: 0 13px;
@@ -1152,6 +1340,16 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
   border-bottom: 1px solid #34d399;
   color: #1a1a18;
 }
+[data-theme="light"] .hl-blue {
+  background: #e5f0fa;
+  border-bottom: 1px solid #1d6fa4;
+  color: #1a1a18;
+}
+[data-theme="light"] .hl-red {
+  background: #fae9e7;
+  border-bottom: 1px solid #a8261f;
+  color: #1a1a18;
+}
 
 /* Dark mode highlight colors (default) */
 [data-theme="dark"] .hl-yellow {
@@ -1168,6 +1366,37 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
   background: rgba(52, 211, 153, 0.15);
   border-bottom: 1px solid rgba(52, 211, 153, 0.4);
   color: var(--t1);
+}
+[data-theme="dark"] .hl-blue {
+  background: rgba(111, 168, 220, 0.15);
+  border-bottom: 1px solid rgba(111, 168, 220, 0.42);
+  color: var(--t1);
+}
+[data-theme="dark"] .hl-red {
+  background: rgba(232, 116, 107, 0.15);
+  border-bottom: 1px solid rgba(232, 116, 107, 0.42);
+  color: var(--t1);
+}
+
+/* An underline points at a passage without taking it over — the right mark
+   for a sentence you only want to find again. Written after the colour rules
+   and with the same specificity so it wins on the background, and drawn as a
+   thicker rule in the colour the fill would have used.
+
+   `mark` carries a UA background, so clearing it is not optional. */
+[data-theme="dark"] .hl-underline,
+[data-theme="light"] .hl-underline,
+.hl-underline {
+  background: transparent;
+  border-bottom-width: 2px;
+  color: inherit;
+}
+/* A marked passage is a control: clicking one opens its mark editor. */
+.sb-reader-prose mark[data-hl-id],
+.pub-prose mark[data-hl-id] {
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 0.05em 0;
 }
 
 /* ===== The spine =====

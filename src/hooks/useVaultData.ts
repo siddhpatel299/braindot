@@ -457,6 +457,9 @@ export function useReading() {
       localId: h.id, libraryItemId: h.libraryItemId, noteId: h.noteId,
       text: h.text, color: h.color, page: h.page, createdAt: h.createdAt,
       note: h.note ?? '',
+      // 'fill' is written explicitly rather than left absent, so the canonical
+      // form the sync diffs against is the same on both sides of the wire.
+      style: h.style ?? 'fill',
     }), []),
     fromDoc: useCallback((d: Record<string, unknown>): Highlight => ({
       id: String(d.localId), libraryItemId: String(d.libraryItemId),
@@ -464,6 +467,7 @@ export function useReading() {
       color: d.color as Highlight['color'], page: (d.page as number | null) ?? null,
       createdAt: String(d.createdAt),
       note: (d.note as string | undefined) || undefined,
+      style: d.style === 'underline' ? 'underline' : 'fill',
     }), []),
   });
 

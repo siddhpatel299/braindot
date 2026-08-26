@@ -47,7 +47,11 @@ type ReadMode = 'scroll' | 'pages';
 /** Space between the two leaves of a spread, in px. */
 const BOOK_GAP = 72;
 const READ_MODE_KEY = 'sb-read-mode';
-type HighlightColor = 'yellow' | 'purple' | 'green';
+/** Which mark the swatches make. A reader who prefers underlines prefers
+ *  them throughout, so the choice sticks rather than resetting per passage. */
+const MARK_STYLE_KEY = 'sb-mark-style';
+type HighlightColor = 'yellow' | 'purple' | 'green' | 'blue' | 'red';
+type MarkStyle = 'fill' | 'underline';
 type FontSize = 'sm' | 'md' | 'lg';
 
 // Reading sizes, not UI sizes. The old scale topped out at 17px and started at
@@ -74,19 +78,27 @@ const HIGHLIGHT_BORDER: Record<HighlightColor, string> = {
   yellow: 'var(--amb)',
   purple: 'var(--acc)',
   green: 'var(--grn)',
+  blue: 'var(--blu)',
+  red: 'var(--red)',
 };
 
 const HIGHLIGHT_BG: Record<HighlightColor, string> = {
   yellow: 'var(--amb-bg)',
   purple: 'var(--acc-bg)',
   green: 'var(--grn-bg)',
+  blue: 'var(--blu-bg)',
+  red: 'var(--red-bg)',
 };
 
-/** The three marks, offered at the point of highlighting. */
+/** Five marks, offered at the point of highlighting. Three ran out on a dense
+ *  chapter: a reader colour-coding by meaning needs more than agree, disagree
+ *  and look-up-later. */
 const HIGHLIGHT_SWATCHES: { id: HighlightColor; label: string; swatch: string }[] = [
   { id: 'yellow', label: 'yellow', swatch: 'var(--amb)' },
   { id: 'purple', label: 'purple', swatch: 'var(--acc)' },
   { id: 'green', label: 'green', swatch: 'var(--grn)' },
+  { id: 'blue', label: 'blue', swatch: 'var(--blu)' },
+  { id: 'red', label: 'red', swatch: 'var(--red)' },
 ];
 
 const NEWS_CATEGORIES = [
@@ -128,7 +140,11 @@ export function ReadingView({
 }: ReadingViewProps) {
   const [search, setSearch] = useState('');
   const [tabFilter, setTabFilter] = useState<TabFilter>('all');
-  const [activeItemId, setActiveItemId] = useState<string | null>(libraryItems[0]?.id || null);
+  /* Null, deliberately. The reading room used to open straight into whichever
+     book happened to sit first in the list, so arriving at Reading meant
+     landing mid-chapter in something you had not asked for and having to find
+     your way out. A library opens on its shelf. */
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
   // Reading defaults to one column. Both rails used to be pinned open, which
   // left a 915px column wrapped around a 680px measure — the widest screen in
   // the app showing the narrowest text. They open on demand instead.
@@ -157,8 +173,10 @@ export function ReadingView({
   const tocPopoverRef = useRef<HTMLDivElement>(null);
 
   // Scrolling or paged. Paged is the book: text laid into columns, a spread at
-  // a time. Kept per device — it is a reading habit, not a property of a book.
-  const [readMode, setReadMode] = useState<ReadMode>('scroll');
+  // a time, and it is the default — a reader opening an epub is opening a book
+  // and expects pages. Kept per device once changed: it is a reading habit,
+  // not a property of a book.
+  const [readMode, setReadMode] = useState<ReadMode>('pages');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(1);
   const [spreadStep, setSpreadStep] = useState(0);
@@ -180,14 +198,21 @@ export function ReadingView({
   const [feedError, setFeedError] = useState<string | null>(null);
   // Which feed item is being fetched, so the row can say it is working.
   const [openingArticle, setOpeningArticle] = useState<string | null>(null);
+  /* An article being read but not kept. It is a whole LibraryItem in shape, so
+     the reader needs no special case for it, and it is deliberately not in
+     `libraryItems`: nothing syncs, nothing appears on the shelf, and closing
+     it throws it away. */
+  const [previewItem, setPreviewItem] = useState<LibraryItem | null>(null);
   // Building today's edition takes a few seconds of fetching, so the button
   // says what it is doing rather than appearing to have missed the click.
   const [buildingEdition, setBuildingEdition] = useState(false);
 
   const activeItem = useMemo(
-    () => libraryItems.find((l) => l.id === activeItemId) || null,
-    [libraryItems, activeItemId],
+    () => previewItem ?? libraryItems.find((l) => l.id === activeItemId) ?? null,
+    [previewItem, libraryItems, activeItemId],
   );
+  /** True while reading something that is not on the shelf. */
+  const previewing = previewItem !== null;
 
   /**
    * An edition stores its structure, not just its prose. When the active item
@@ -892,12 +917,13 @@ export function ReadingView({
 
   // Create a real highlight. The colour comes from the click, not from a mode
   // set earlier in a toolbar — you know what a passage means as you mark it.
-  const handleHighlight = useCallback((color: HighlightColor) => {
+  const handleHighlight = useCallback((color: HighlightColor, style: MarkStyle = 'fill') => {
     if (!selectedText || !activeItemId) return;
     onAddHighlight({
       libraryItemId: activeItemId,
       text: selectedText,
       color,
+      style,
       noteId: null,
       page: null,
     });
@@ -905,6 +931,39 @@ export function ReadingView({
     window.getSelection()?.removeAllRanges();
     setShowSelectionToolbar(false);
   }, [selectedText, activeItemId, onAddHighlight]);
+
+  /* A mark you have already made is a control, not a decoration.
+     Clicking one opens this: change its colour, swap fill for underline, or
+     take it off. Before, the only way to undo a mark was to find it in the
+     margin, and the only way to change your mind about a colour was to remove
+     it and select the passage again. */
+  const [markEditor, setMarkEditor] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [markStyle, setMarkStyle] = useState<MarkStyle>('fill');
+
+  useEffect(() => {
+    const saved = localStorage.getItem(MARK_STYLE_KEY);
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    if (saved === 'underline' || saved === 'fill') setMarkStyle(saved);
+  }, []);
+
+  const editingMark = useMemo(
+    () => (markEditor ? itemHighlights.find((h) => h.id === markEditor.id) ?? null : null),
+    [markEditor, itemHighlights],
+  );
+
+  const onProseClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const mark = (e.target as HTMLElement).closest('mark[data-hl-id]') as HTMLElement | null;
+    if (!mark) { setMarkEditor(null); return; }
+    const id = mark.getAttribute('data-hl-id');
+    if (!id) return;
+    e.stopPropagation();
+    const rect = mark.getBoundingClientRect();
+    setMarkEditor({ id, x: rect.left + rect.width / 2, y: rect.top - 8 });
+  }, []);
+
+  // Any scroll, page turn or chapter change moves the text out from under the
+  // popover, so it closes rather than pointing at the wrong words.
+  useEffect(() => { setMarkEditor(null); }, [currentChapterIdx, page, readMode, activeItemId]);
 
   // Fetch news from API
   const fetchNews = useCallback(async (cat: string) => {
@@ -955,7 +1014,15 @@ export function ReadingView({
    * page assembled by scripts in the browser — the item says so instead of
    * storing a stub that claims the content is "available at the source".
    */
-  const importArticle = useCallback(async (item: FetchedItem) => {
+  /* Reading something is not the same as keeping it.
+   *
+   * Every headline opened from the feed used to be added to the library, so a
+   * shelf filled with articles glanced at once and never wanted. Fetching and
+   * keeping are now two steps: `fetchArticle` builds the item, `importArticle`
+   * is the one that puts it on the shelf, and the reader can hold an unsaved
+   * one in `previewItem` until the reader says keep it.
+   */
+  const fetchArticle = useCallback(async (item: FetchedItem) => {
     let article: Record<string, unknown> | null = null;
     if (item.url) {
       try {
@@ -981,7 +1048,7 @@ export function ReadingView({
       item.url ? `[Open the original on ${item.source}](${item.url})` : '',
     ].filter(Boolean).join('\n\n');
 
-    return onAddLibraryItem({
+    return {
       title: readable ? String(article!.title || item.title) : item.title,
       author: (readable ? String(article!.author ?? '') : '') || item.author || null,
       type: item.type as 'pdf' | 'url' | 'rss',
@@ -991,10 +1058,14 @@ export function ReadingView({
       // A story's lead image becomes its cover on the shelf, so a news item
       // has a face like everything else there.
       coverUrl: readable ? (article!.leadImage as string | null) ?? null : null,
-      status: 'unread',
+      status: 'unread' as const,
       content: readable ? String(article!.content) : fallback,
-    });
-  }, [onAddLibraryItem]);
+    };
+  }, []);
+
+  const importArticle = useCallback(async (item: FetchedItem) => {
+    return onAddLibraryItem(await fetchArticle(item));
+  }, [fetchArticle, onAddLibraryItem]);
 
   /**
    * Assemble today's edition and put it on the shelf.
@@ -1226,8 +1297,16 @@ export function ReadingView({
               onRead={async (item) => {
                 setOpeningArticle(item.id);
                 try {
-                  const newItem = await importArticle(item);
-                  setActiveItemId(newItem.id);
+                  const draft = await fetchArticle(item);
+                  const now = new Date().toISOString();
+                  setPreviewItem({
+                    ...draft,
+                    id: `preview_${item.id}`,
+                    addedAt: now,
+                    updatedAt: now,
+                    highlights: [],
+                  });
+                  setActiveItemId(null);
                   setShowFeedPanel(null);
                 } finally {
                   setOpeningArticle(null);
@@ -1241,6 +1320,7 @@ export function ReadingView({
             <DailyPaper
               edition={edition}
               shelf={shelfProgress}
+              onClose={() => setActiveItemId(null)}
               onAddSource={() => setShowImport(true)}
               onSaveStory={(story: PaperStory) => {
                 // A story becomes a note the same way a highlight does: quoted,
@@ -1278,7 +1358,7 @@ export function ReadingView({
                 transition: 'opacity 220ms ease',
               }}>
                 <button
-                  onClick={() => setActiveItemId(null)}
+                  onClick={() => { setActiveItemId(null); setPreviewItem(null); }}
                   title="Close the book and go back to the library"
                   style={{
                     height: 24, padding: '0 9px 0 7px', borderRadius: 4, background: 'transparent',
@@ -1367,6 +1447,32 @@ export function ReadingView({
                   <BookOpen size={12} strokeWidth={1.9} />
                   <span style={{ fontSize: 10.5 }}>{readMode === 'pages' ? 'Pages' : 'Scroll'}</span>
                 </button>
+
+                {/* Reading an article does not keep it. This is the one control
+                    that does, and it is only here while there is something
+                    unkept on screen. */}
+                {previewing && (
+                  <button
+                    onClick={() => {
+                      if (!previewItem) return;
+                      const { id: _id, addedAt: _a, updatedAt: _u, highlights: _h, ...fields } = previewItem;
+                      const saved = onAddLibraryItem(fields);
+                      setPreviewItem(null);
+                      setActiveItemId(saved.id);
+                    }}
+                    title="Keep this on your shelf"
+                    style={{
+                      height: 24, padding: '0 9px', borderRadius: 4, flexShrink: 0,
+                      background: 'var(--acc-bg)', border: '1px solid var(--acc-bd)',
+                      color: 'var(--acc2)', cursor: 'pointer', fontFamily: 'inherit',
+                      fontSize: 10.5, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}
+                  >
+                    <Plus size={12} strokeWidth={2.2} />
+                    save to library
+                  </button>
+                )}
 
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <button
@@ -1722,6 +1828,7 @@ export function ReadingView({
                       columnCount,
                       transform: `translateX(-${page * spreadStep}px)`,
                     }}
+                    onClick={onProseClick}
                     dangerouslySetInnerHTML={{ __html: readerHtml }}
                   />
                 </div>
@@ -1737,6 +1844,7 @@ export function ReadingView({
                       ref={proseRef}
                       className="sb-reader-prose sb-reader-measure"
                       style={{ ['--reader-fs' as string]: `${FONT_SIZES[fontSize]}px` }}
+                      onClick={onProseClick}
                       dangerouslySetInnerHTML={{ __html: readerHtml }}
                     />
                     <div className="sb-reader-margin">
@@ -1840,18 +1948,44 @@ export function ReadingView({
                   padding: 5, display: 'flex', alignItems: 'center', gap: 5,
                   boxShadow: '0 10px 26px rgba(0,0,0,0.34)',
                 }}>
-                  {HIGHLIGHT_SWATCHES.map((s) => (
+                  {HIGHLIGHT_SWATCHES.map((sw) => (
                     <button
-                      key={s.id}
-                      onMouseDown={(e) => { e.preventDefault(); handleHighlight(s.id); }}
-                      title={`Highlight — ${s.label}`}
-                      aria-label={`Highlight in ${s.label}`}
+                      key={sw.id}
+                      onMouseDown={(e) => { e.preventDefault(); handleHighlight(sw.id, markStyle); }}
+                      title={`${markStyle === 'underline' ? 'Underline' : 'Highlight'} — ${sw.label}`}
+                      aria-label={`${markStyle === 'underline' ? 'Underline' : 'Highlight'} in ${sw.label}`}
                       style={{
                         width: 22, height: 22, borderRadius: '50%', cursor: 'pointer',
-                        background: s.swatch, border: '1px solid rgba(255,255,255,0.18)',
+                        background: markStyle === 'underline' ? 'transparent' : sw.swatch,
+                        border: markStyle === 'underline'
+                          ? `2px solid ${sw.swatch}`
+                          : '1px solid rgba(255,255,255,0.18)',
                       }}
                     />
                   ))}
+                  {/* Which mark the swatches will make. A fill claims the
+                      passage; an underline points at it. Sticky, because a
+                      reader who prefers underlines prefers them throughout. */}
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      const next = markStyle === 'fill' ? 'underline' : 'fill';
+                      setMarkStyle(next);
+                      try { localStorage.setItem(MARK_STYLE_KEY, next); } catch {}
+                    }}
+                    title={markStyle === 'underline' ? 'Marking with underlines' : 'Marking with fills'}
+                    aria-pressed={markStyle === 'underline'}
+                    style={{
+                      height: 22, padding: '0 7px', borderRadius: 4, cursor: 'pointer',
+                      background: markStyle === 'underline' ? 'var(--bg4)' : 'transparent',
+                      border: '1px solid var(--bd2)', color: 'var(--t2)',
+                      fontFamily: 'inherit', fontSize: 10.5,
+                      textDecoration: markStyle === 'underline' ? 'underline' : 'none',
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    U
+                  </button>
                   <span style={{ width: 1, height: 16, background: 'var(--bd2)' }} />
                   <button
                     onMouseDown={(e) => {
@@ -1869,10 +2003,116 @@ export function ReadingView({
                   </button>
                 </div>
               )}
+
+              {/* THE MARK EDITOR.
+                  A mark already on the page used to be inert: to undo one you
+                  had to find it in the margin, and to change your mind about a
+                  colour you had to remove it and select the passage again.
+                  Clicking the mark itself is where a reader looks first. */}
+              {markEditor && editingMark && (
+                <>
+                  <div
+                    onMouseDown={() => setMarkEditor(null)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 199 }}
+                  />
+                  <div
+                    role="dialog"
+                    aria-label="Edit this mark"
+                    style={{
+                      position: 'fixed', left: markEditor.x, top: markEditor.y,
+                      transform: 'translate(-50%, -100%)', zIndex: 200,
+                      background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 7,
+                      padding: 5, display: 'flex', alignItems: 'center', gap: 5,
+                      boxShadow: '0 10px 26px rgba(0,0,0,0.34)',
+                    }}
+                  >
+                    {HIGHLIGHT_SWATCHES.map((sw) => {
+                      const current = editingMark.color === sw.id;
+                      return (
+                        <button
+                          key={sw.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            onUpdateHighlight(editingMark.id, { color: sw.id });
+                          }}
+                          title={`Recolour — ${sw.label}`}
+                          aria-label={`Recolour to ${sw.label}`}
+                          aria-pressed={current}
+                          style={{
+                            width: 20, height: 20, borderRadius: '50%', cursor: 'pointer',
+                            background: sw.swatch,
+                            border: current
+                              ? '2px solid var(--t1)'
+                              : '1px solid rgba(255,255,255,0.18)',
+                          }}
+                        />
+                      );
+                    })}
+                    <span style={{ width: 1, height: 16, background: 'var(--bd2)' }} />
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        onUpdateHighlight(editingMark.id, {
+                          style: editingMark.style === 'underline' ? 'fill' : 'underline',
+                        });
+                      }}
+                      title={editingMark.style === 'underline' ? 'Make it a fill' : 'Make it an underline'}
+                      aria-pressed={editingMark.style === 'underline'}
+                      style={{
+                        height: 20, padding: '0 7px', borderRadius: 4, cursor: 'pointer',
+                        background: editingMark.style === 'underline' ? 'var(--bg4)' : 'transparent',
+                        border: '1px solid var(--bd2)', color: 'var(--t2)',
+                        fontFamily: 'inherit', fontSize: 10.5,
+                        textDecoration: 'underline', textUnderlineOffset: 2,
+                      }}
+                    >
+                      U
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        onCreateNoteFromHighlight(editingMark, activeItem.title);
+                        setMarkEditor(null);
+                      }}
+                      title="Turn this passage into a note"
+                      style={{
+                        height: 20, padding: '0 7px', borderRadius: 4, cursor: 'pointer',
+                        background: 'transparent', border: 'none',
+                        color: editingMark.noteId ? 'var(--grn)' : 'var(--acc2)',
+                        fontFamily: 'inherit', fontSize: 10.5,
+                      }}
+                    >
+                      {editingMark.noteId ? 'noted' : 'note'}
+                    </button>
+                    <span style={{ width: 1, height: 16, background: 'var(--bd2)' }} />
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        onDeleteHighlight(editingMark.id);
+                        setMarkEditor(null);
+                      }}
+                      title="Remove this mark"
+                      style={{
+                        height: 20, padding: '0 7px', borderRadius: 4, cursor: 'pointer',
+                        background: 'transparent', border: 'none', color: 'var(--red)',
+                        fontFamily: 'inherit', fontSize: 10.5,
+                      }}
+                    >
+                      remove
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <Bookshelf
               items={libraryItems}
+              onDelete={(id) => {
+                // Closing it first matters: deleting the item the reader is in
+                // would leave the view pointed at a book that no longer exists.
+                if (activeItemId === id) setActiveItemId(null);
+                onDeleteLibraryItem(id);
+              }}
               onOpen={(id) => { setActiveItemId(id); setLibraryOpen(false); }}
               onAddSource={() => setShowImport(true)}
               onFetchNews={() => openFeed('news')}

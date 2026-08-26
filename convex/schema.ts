@@ -153,6 +153,9 @@ export default defineSchema({
     noteId: v.union(v.string(), v.null()),
     text: v.string(),
     color: v.string(),
+    /** 'fill' | 'underline'. Optional so a mark made before underlines
+     *  existed still validates; absent reads as 'fill'. */
+    style: v.optional(v.string()),
     page: v.union(v.number(), v.null()),
     createdAt: v.string(),
     /** A line of the reader's own against the passage. Optional so marks
