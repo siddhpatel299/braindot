@@ -1,7 +1,7 @@
 // Markdown-to-HTML renderer for Preview mode.
 // This produces clean semantic HTML that we style via CSS classes.
 
-import { IMAGE_SCHEME, isImageRef, refToId } from './imageStore';
+import { IMAGE_SCHEME, isImageRef, refToId } from './imageStore.ts';
 
 function escapeHtml(s: string): string {
   return s
@@ -231,4 +231,119 @@ export function renderMarkdownHtml(body: string): string {
   }
 
   return blocks.join('\n');
+}
+
+/* ============================================================
+   Highlights
+   ============================================================ */
+
+/** The part of a highlight that decides how the passage is drawn. */
+export interface HighlightSpan {
+  id: string;
+  text: string;
+  color: string;
+}
+
+const ENTITY_CHARS: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'",
+};
+
+/**
+ * The inverse of escapeHtml. One pass, so a decoded `&` cannot be read as the
+ * start of the next entity: `&amp;lt;` is the text `&lt;`, never `<`.
+ */
+function unescapeHtml(s: string): string {
+  return s.replace(/&(amp|lt|gt|quot|#39);/g, (m, name: string) => ENTITY_CHARS[name] ?? m);
+}
+
+/**
+ * Index of the `>` closing the tag that opens at `start`, or -1 if the tag
+ * never closes. Quotes are tracked because an attribute value may contain a
+ * `>` of its own — a URL is the usual way that happens.
+ */
+function tagEnd(html: string, start: number): number {
+  let quote = '';
+  for (let i = start + 1; i < html.length; i++) {
+    const c = html[i];
+    if (quote) {
+      if (c === quote) quote = '';
+    } else if (c === '"' || c === "'") {
+      quote = c;
+    } else if (c === '>') {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/** Wrap every occurrence of a highlight inside one run of escaped text. */
+function markText(chunk: string, highlights: HighlightSpan[]): string {
+  if (!chunk) return '';
+  // Matching happens on the text a reader would select, so a passage can
+  // neither hide inside an entity nor be defeated by one: `&amp;` is a single
+  // `&` here, exactly as it is on screen.
+  const text = unescapeHtml(chunk);
+
+  const spans: { start: number; end: number; hl: HighlightSpan; rank: number }[] = [];
+  highlights.forEach((hl, rank) => {
+    let from = text.indexOf(hl.text);
+    while (from !== -1) {
+      spans.push({ start: from, end: from + hl.text.length, hl, rank });
+      from = text.indexOf(hl.text, from + hl.text.length);
+    }
+  });
+  if (spans.length === 0) return chunk;
+
+  // Two marks cannot claim the same words: the longer passage wins, and
+  // between equals the one made first. A <mark> nested in a <mark> would give
+  // the margin two elements answering to one id.
+  spans.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start) || a.rank - b.rank);
+
+  let out = '';
+  let at = 0;
+  for (const s of spans) {
+    if (s.start < at) continue;
+    out += escapeHtml(text.slice(at, s.start));
+    out += `<mark class="hl-${escapeHtml(s.hl.color)}" data-hl-id="${escapeHtml(s.hl.id)}">`
+      + escapeHtml(text.slice(s.start, s.end))
+      + '</mark>';
+    at = s.end;
+  }
+  return out + escapeHtml(text.slice(at));
+}
+
+/**
+ * Wrap each highlight's text in a `<mark>`.
+ *
+ * The passages are found in the document's *text*, never in its markup. A
+ * plain replace over the rendered HTML cannot tell the two apart, so
+ * highlighting an ordinary word — "class", "data", "code", "figure", a
+ * fragment of a URL — used to land a `<mark>` in the middle of an attribute
+ * and take the tag down with it.
+ *
+ * Sound because only this module's own output is walked: every literal `<` in
+ * the prose has already been escaped, so every `<` that remains opens a tag.
+ */
+export function applyHighlights(html: string, highlights: HighlightSpan[]): string {
+  const wanted = highlights.filter((h) => h.text.length > 0);
+  if (wanted.length === 0) return html;
+
+  const parts: string[] = [];
+  let plain = 0;
+  let i = 0;
+  while (i < html.length) {
+    if (html[i] !== '<') { i++; continue; }
+    const end = tagEnd(html, i);
+    if (end < 0) {
+      // An unterminated `<`. It cannot come from the renderer, and markup we
+      // cannot read is copied out whole rather than searched.
+      parts.push(markText(html.slice(plain, i), wanted), html.slice(i));
+      return parts.join('');
+    }
+    parts.push(markText(html.slice(plain, i), wanted), html.slice(i, end + 1));
+    i = end + 1;
+    plain = i;
+  }
+  parts.push(markText(html.slice(plain), wanted));
+  return parts.join('');
 }

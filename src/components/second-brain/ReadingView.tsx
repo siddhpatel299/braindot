@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { Note, LibraryItem, Highlight, Bookmark } from '@/types';
-import { renderMarkdownHtml } from '@/utils/markdownHtml';
+import { applyHighlights, renderMarkdownHtml } from '@/utils/markdownHtml';
 import {
   Search, Plus, BookOpen, FileText, Rss, Link as LinkIcon, X, BookmarkPlus,
   Highlighter, StickyNote, Sparkles, ArrowRight, Type, List,
@@ -861,14 +861,8 @@ export function ReadingView({
   // other chapters are simply hidden until the user navigates to them.
   const readerHtml = useMemo(() => {
     if (!currentChapter?.content) return '';
-    let html = renderMarkdownHtml(currentChapter.content);
-    // Apply highlights by wrapping matching text
-    for (const hl of itemHighlights) {
-      const escapedText = hl.text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
-      const re = new RegExp(escapedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      html = html.replace(re, `<mark class="hl-${hl.color}" data-hl-id="${hl.id}">${escapedText}</mark>`);
-    }
-    return html;
+    // The marks go on the text and never on the markup — see applyHighlights.
+    return applyHighlights(renderMarkdownHtml(currentChapter.content), itemHighlights);
   }, [currentChapter, itemHighlights]);
 
   // Handle text selection in reader
