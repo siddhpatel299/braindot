@@ -15,7 +15,8 @@
     "check:review": "node src/utils/review.test.ts",
     "check:publish": "node src/utils/publish.test.ts",
     "check:markdown": "node src/utils/markdownHtml.test.ts",
-    "test": "npm run check:svg && npm run check:ssrf && npm run check:storage && npm run check:position && npm run check:review && npm run check:publish && npm run check:markdown"
+    "check:export": "node src/utils/vaultExport.test.ts",
+    "test": "npm run check:svg && npm run check:ssrf && npm run check:storage && npm run check:position && npm run check:review && npm run check:publish && npm run check:markdown && npm run check:export"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Note, Task, LibraryItem, Highlight } from '@/types';
 import { relativeTime, plural } from '@/utils/markdown';
 import { LucideIcon } from 'lucide-react';
-import { ArrowRight, Calendar, Download, Upload, Plus, Sparkles, GraduationCap } from 'lucide-react';
+import { ArrowRight, Calendar, Download, Upload, Plus, Sparkles, GraduationCap, FolderDown } from 'lucide-react';
 
 interface DashboardProps {
   notes: Note[];
@@ -19,6 +19,9 @@ interface DashboardProps {
   onStudyMode: () => void;
   onViewGraph: () => void;
   onExportVault: () => void;
+  /** The whole vault as markdown files, openable in any other app. */
+  onExportMarkdown: () => void;
+  exportBusy?: boolean;
   onImportVault: (file: File) => void;
   onToggleTask: (id: string) => void;
   /* Widened from kanban/reading/search to the destinations Elsewhere offers.
@@ -102,6 +105,8 @@ export function Dashboard({
   onStudyMode,
   onViewGraph,
   onExportVault,
+  onExportMarkdown,
+  exportBusy = false,
   onImportVault,
   onToggleTask,
   onNavigate,
@@ -495,7 +500,16 @@ export function Dashboard({
               <FootLink icon={Plus} label="new note" onClick={onCreateNote} />
               <FootLink icon={Calendar} label="daily journal" onClick={onCreateJournal} />
               <FootLink icon={Sparkles} label="ask ai" onClick={onAskAI} />
-              <FootLink icon={Download} label="export" onClick={onExportVault} />
+              {/* Two exports doing two jobs. The JSON one pairs with import
+                  next to it — that is backup and restore. The markdown one is
+                  the exit: a folder of files that opens without this app. */}
+              <FootLink icon={Download} label="backup (json)" onClick={onExportVault} />
+              <FootLink
+                icon={FolderDown}
+                label={exportBusy ? 'exporting…' : 'export markdown'}
+                onClick={onExportMarkdown}
+                disabled={exportBusy}
+              />
               <FootLink
                 icon={Upload}
                 label="import"
@@ -618,10 +632,13 @@ function OutlineButton({ label, onClick }: { label: string; onClick: () => void 
   );
 }
 
-function FootLink({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+function FootLink({ icon: Icon, label, onClick, disabled = false }: {
+  icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         background: 'transparent',
         border: 'none',
@@ -629,12 +646,13 @@ function FootLink({ icon: Icon, label, onClick }: { icon: LucideIcon; label: str
         color: 'var(--t3)',
         fontSize: 10.5,
         fontFamily: 'inherit',
-        cursor: 'pointer',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
         display: 'inline-flex',
         alignItems: 'center',
         gap: 5,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--acc2)')}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.color = 'var(--acc2)'; }}
       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--t3)')}
     >
       <Icon size={11} />

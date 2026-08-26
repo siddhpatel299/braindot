@@ -22,6 +22,7 @@ import { AskAIModal } from '@/components/second-brain/AskAIModal';
 import { AppDialog, DialogState } from '@/components/second-brain/AppDialog';
 import { ShareDialog, ShareTarget } from '@/components/second-brain/ShareDialog';
 import { usePublish } from '@/hooks/usePublish';
+import { useVaultExport } from '@/hooks/useVaultExport';
 import { localImageIds } from '@/utils/publish';
 import { Dashboard } from '@/components/second-brain/Dashboard';
 import { SearchView } from '@/components/second-brain/SearchView';
@@ -122,6 +123,20 @@ export default function Home() {
   const taskStore = useTasks(state.notes);
   const canvas = useCanvas();
   const reading = useReading();
+
+  /* Exporting the whole vault as markdown. Works in demo mode too — it reads
+     what is already in the browser and needs nothing from the server, which is
+     the point: an export you cannot take when the service is down is not much
+     of an export. */
+  const vaultExport = useVaultExport({
+    notes: state.notes,
+    folders: state.folders,
+    tasks: taskStore.tasks,
+    library: reading.libraryItems,
+    highlights: reading.highlights,
+    bookmarks: reading.bookmarks,
+    boards: canvas.boards,
+  });
 
   // Publishing. Off in demo mode: a shared link is a row in Convex keyed to an
   // account, and a demo vault has neither.
@@ -506,6 +521,20 @@ export default function Home() {
     URL.revokeObjectURL(url);
     showToast(`exported ${state.notes.length} notes`);
   }, [state.notes, state.folders, showToast]);
+
+  const handleExportMarkdown = useCallback(async () => {
+    const res = await vaultExport.exportVault();
+    if (!res.ok) {
+      showToast(`export failed: ${res.error ?? 'unknown error'}`);
+      return;
+    }
+    const parts = [`exported ${res.noteCount} notes`];
+    if (res.imageCount) parts.push(`${res.imageCount} images`);
+    // Said out loud rather than swallowed: those pictures are simply not in
+    // the archive, and the author is the only one who can go and get them.
+    if (res.missingImages) parts.push(`${res.missingImages} images not on this device`);
+    showToast(parts.join(' · '));
+  }, [vaultExport, showToast]);
 
   // ---------- Import vault from JSON or Markdown ----------
   const handleImportVault = useCallback((file: File) => {
@@ -1010,6 +1039,8 @@ export default function Home() {
               setIconView('graph');
             }}
             onExportVault={handleExportVault}
+            onExportMarkdown={handleExportMarkdown}
+            exportBusy={vaultExport.busy}
             onImportVault={handleImportVault}
             onToggleTask={taskStore.toggleTask}
             onNavigate={handleIconSelect}
