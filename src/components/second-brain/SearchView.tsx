@@ -563,6 +563,8 @@ function WhyMatchedPanel({
         </span>
         <button
           onClick={onClose}
+          aria-label="Close"
+          title="Close"
           style={{ background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 2 }}
         >
           <X size={14} />

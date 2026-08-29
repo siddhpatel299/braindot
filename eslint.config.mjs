@@ -44,7 +44,25 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  // The build directories are matched at any depth, not just at the root.
+  // ".next/**" alone left the generated bundles under .claude/worktrees/*/.next
+  // to be linted: `npm run lint` spent over five minutes on machine-written
+  // chunks, and every warning it printed came from one of them rather than
+  // from anything in src.
+  ignores: [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/build/**",
+    ".claude/**",
+    // Written by `convex dev`/`convex deploy`. Its own header disables rules
+    // this config has since turned off, and the only way to act on a report
+    // about it is to edit a file that is regenerated on the next deploy.
+    "convex/_generated/**",
+    "next-env.d.ts",
+    "examples/**",
+    "skills",
+  ]
 }];
 
 export default eslintConfig;

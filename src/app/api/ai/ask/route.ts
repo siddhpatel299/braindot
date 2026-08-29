@@ -83,8 +83,58 @@ Rules:
 - Concise but substantive: 2-4 short paragraphs unless asked for depth. Prose over bullet lists.
 - Never start with filler like "Based on your notes" — just answer.`;
 
+/**
+ * What one request may carry.
+ *
+ * The meter counts calls, not size, so without these a single unit of a
+ * caller's allowance could push an arbitrary number of megabytes through a
+ * paid model — the cheapest way to turn a rate limit into a bill. The honest
+ * client already truncates (retrieval hands over 1600 characters a note), so
+ * every ceiling here sits far above what the app itself sends and only ever
+ * catches a request that was not built by it.
+ *
+ * They also keep the prompt inside the model's context window, which is the
+ * difference between a shortened answer and an opaque 400 from OpenAI.
+ */
+const LIMITS = {
+  question: 8_000,
+  noteBody: 48_000,
+  historyTurns: 20,
+  historyChars: 8_000,
+  contextNotes: 12,
+  contextNoteChars: 4_000,
+  tags: 24,
+  titleChars: 300,
+};
+
+/** Trim to `max`, saying so, because a silently shortened note reads as a
+ *  model that ignored half of what it was given. */
+function clamp(s: string, max: number): string {
+  return s.length > max ? `${s.slice(0, max)}\n[…truncated]` : s;
+}
+
 function buildMessages(body: AskRequest) {
-  const { noteTitle, noteBody, noteTags, question, history, scope, contextNotes, topic } = body;
+  const { scope } = body;
+  const question = clamp(body.question, LIMITS.question);
+  const noteBody = body.noteBody ? clamp(body.noteBody, LIMITS.noteBody) : body.noteBody;
+  const noteTitle = String(body.noteTitle ?? '').slice(0, LIMITS.titleChars);
+  const noteTags = body.noteTags?.slice(0, LIMITS.tags);
+  const topic = body.topic ? String(body.topic).slice(0, LIMITS.titleChars) : undefined;
+  // The role is retyped rather than trusted. It arrives as JSON from the
+  // browser, and a caller writing the request by hand could label a turn
+  // "system" and replace the instructions the assistant was given.
+  const history = body.history
+    ?.slice(-LIMITS.historyTurns)
+    .map((h) => ({
+      role: h.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+      content: clamp(String(h.content ?? ''), LIMITS.historyChars),
+    }));
+  const contextNotes = body.contextNotes?.slice(0, LIMITS.contextNotes).map((n) => ({
+    ...n,
+    title: String(n.title ?? '').slice(0, LIMITS.titleChars),
+    body: clamp(String(n.body ?? ''), LIMITS.contextNoteChars),
+    tags: n.tags?.slice(0, LIMITS.tags),
+  }));
   const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
 
   if (scope === 'study') {
@@ -164,7 +214,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as AskRequest;
-    if (!body.question || !body.question.trim()) {
+    // `as AskRequest` is a promise the caller has not made. Asking a number
+    // for its .trim() threw, and the throw became a 500 for what is plainly a
+    // bad request — so the type is checked rather than assumed.
+    if (typeof body?.question !== 'string' || !body.question.trim()) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
     }
 
@@ -207,8 +260,14 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' },
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[/api/ai/ask] error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // Logged in full, answered in general. The message on an upstream failure
+    // is written for whoever runs the server, not for whoever called it: an
+    // OpenAI error carries request ids, org identifiers and sometimes the
+    // prompt back, none of which belong in a browser.
+    console.error('[/api/ai/ask] error:', err instanceof Error ? err.stack ?? err.message : err);
+    return NextResponse.json(
+      { error: 'The assistant could not answer just now. Try again in a moment.' },
+      { status: 500 },
+    );
   }
 }

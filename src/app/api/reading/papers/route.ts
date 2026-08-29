@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ items: entries, category });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: msg, items: [] }, { status: 500 });
+    console.error('[/api/reading/papers] error:', err instanceof Error ? err.stack ?? err.message : err);
+    return NextResponse.json({ error: 'arXiv could not be reached just now.', items: [] }, { status: 500 });
   }
 }

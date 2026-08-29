@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decodeEntities, htmlToMarkdownBlocks } from '@/utils/serverHtml';
+import { guard, HOUR, DAY } from '@/lib/apiGuard';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -9,6 +10,43 @@ export const maxDuration = 60;
 const PDF_TIME_BUDGET_MS = 40_000;
 /** A backstop for pathological files, not a judgement about book length. */
 const HARD_PAGE_CAP = 2000;
+
+/**
+ * Importing a book is the most expensive thing an anonymous caller can ask
+ * this server to do — a zip is decompressed whole, hundreds of PDF pages are
+ * parsed, and every illustration is re-encoded through sharp. It was the one
+ * costly route with no meter on it, so the allowance the AI routes have
+ * applies here too. Importing is a deliberate act a few times a session, not
+ * a loop, so these are generous.
+ */
+const EXTRACT_QUOTA = { user: 30, userWindowMs: HOUR, anon: 3, anonWindowMs: DAY };
+
+/**
+ * The largest file that will be read.
+ *
+ * A cap has to exist and has to be checked before the body is buffered:
+ * `formData()` reads the whole upload into memory first, so without this a
+ * single request decides how much memory the instance uses. 40MB clears a
+ * long illustrated book with room to spare — and note that a platform in
+ * front of this may well have a smaller limit of its own.
+ */
+const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
+
+const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / 1024 / 1024;
+
+/**
+ * `bytes` is only passed once there is a real file to measure. The
+ * content-length check below cannot quote a size: it counts the multipart
+ * framing too, so it reads a hair over the file itself and quoting it gives
+ * the reader "that file is 40.0MB, the limit is 40MB".
+ */
+function tooLarge(bytes?: number) {
+  const size = bytes === undefined ? '' : `That file is ${(bytes / 1024 / 1024).toFixed(1)}MB. `;
+  return NextResponse.json(
+    { error: `${size}Braindot reads files up to ${MAX_UPLOAD_MB}MB — try a smaller export, or split the book.` },
+    { status: 413 },
+  );
+}
 
 
 /**
@@ -169,13 +207,34 @@ async function inlineEpubImages(
 // Extract text content from uploaded epub or pdf files
 export async function POST(req: NextRequest) {
   try {
+    // Refuse on the declared length before formData() buffers anything. The
+    // header is the caller's claim, so file.size is checked again below once
+    // there is a real file to measure — this only avoids reading a body we
+    // already know we will not accept.
+    const declared = Number(req.headers.get('content-length') ?? 0);
+    if (declared > MAX_UPLOAD_BYTES) return tooLarge();
+
+    const allowed = await guard(req, 'extract', EXTRACT_QUOTA);
+    if (!allowed.ok) return allowed.response;
+
     const formData = await req.formData();
-    const file = formData.get('file') as File;
-    if (!file) {
+    const file = formData.get('file');
+    if (!file || typeof file === 'string') {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
+    if (file.size > MAX_UPLOAD_BYTES) return tooLarge(file.size);
 
     const fileName = file.name.toLowerCase();
+    // Only these two are parsed, and anything else previously fell through
+    // every branch to return a "no content" body with a 200 — a success shape
+    // for a request that was never going to work.
+    if (!fileName.endsWith('.epub') && !fileName.endsWith('.pdf')) {
+      return NextResponse.json(
+        { error: 'Braindot reads EPUB and PDF files.' },
+        { status: 415 },
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -332,8 +391,12 @@ export async function POST(req: NextRequest) {
       chapters: chapters.length,
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Extract error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // Logged in full, answered in general: a parser failure names paths and
+    // library internals that the caller has no business reading.
+    console.error('[/api/reading/extract] error:', err instanceof Error ? err.stack ?? err.message : err);
+    return NextResponse.json(
+      { error: 'That file could not be read. It may be corrupted or an unusual variant of the format.' },
+      { status: 500 },
+    );
   }
 }

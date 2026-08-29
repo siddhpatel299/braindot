@@ -12,7 +12,7 @@
  * here is that the markup comes out the other side untouched.
  */
 
-import { applyHighlights, renderMarkdownHtml, safeUrl } from './markdownHtml.ts';
+import { applyHighlights, IMG_SLOT, renderMarkdownHtml, safeUrl } from './markdownHtml.ts';
 
 let passed = 0;
 const failures: string[] = [];
@@ -233,6 +233,75 @@ eq('an empty passage marks nothing',
   check('a whole document: something was actually marked', out.includes('<mark '));
   check('a whole document: the url in the href was not marked',
     out.includes('href="https://example.com/code/figure"'), out);
+}
+
+/* ============================================================
+   Emphasis stays out of the machine-readable half
+   ------------------------------------------------------------
+   The emphasis rules are plain text substitutions over the whole line, so
+   anything already turned into a tag has to be out of their reach before they
+   run. It was not: an underscore in a URL put an <em> inside the href, and a
+   marker pair could span the end of one tag and the start of the next, which
+   closes an attribute halfway through its value.
+   ============================================================ */
+
+{
+  const html = renderMarkdownHtml('See [the page](https://en.wikipedia.org/wiki/Foo_Bar_Baz) now.');
+  eq('underscores in a url survive', html,
+    '<p class="md-p">See <a class="md-link" href="https://en.wikipedia.org/wiki/Foo_Bar_Baz"'
+    + ' target="_blank" rel="noopener noreferrer">the page</a> now.</p>');
+}
+
+{
+  const html = renderMarkdownHtml('A [[Note_With_Underscores]] link.');
+  eq('underscores in a wiki-link survive', html,
+    '<p class="md-p">A <a class="md-wiki" data-wiki="Note_With_Underscores">'
+    + '[[Note_With_Underscores]]</a> link.</p>');
+}
+
+// Two tags on one line, each holding an underscore. The pair that used to
+// match ran from inside the first attribute to inside the second element.
+{
+  const html = renderMarkdownHtml('A [[Wiki_Link]] and [txt](https://x.com/a_b).');
+  check('a marker pair cannot span two tags', !/<em>/.test(html), html);
+  check('a marker pair cannot span two tags: the wiki title is whole',
+    html.includes('data-wiki="Wiki_Link"'), html);
+  check('a marker pair cannot span two tags: the href is whole',
+    html.includes('href="https://x.com/a_b"'), html);
+}
+
+// An underscore inside a word is part of the word. A notebook about code is
+// mostly words like this.
+eq('snake_case is not emphasis',
+  renderMarkdownHtml('Snake case in prose: foo_bar_baz stays.'),
+  '<p class="md-p">Snake case in prose: foo_bar_baz stays.</p>');
+
+// ...and the emphasis that is emphasis still works, at a word boundary and
+// against punctuation.
+eq('a word between underscores is still emphasis',
+  renderMarkdownHtml('An _emphasised_ word, and (_this_) too.'),
+  '<p class="md-p">An <em>emphasised</em> word, and (<em>this</em>) too.</p>');
+
+// Inline code is literal — the markers inside it are characters, not markup.
+eq('markers inside inline code are literal',
+  renderMarkdownHtml('Use `a*b*c` and `snake_case` literally.'),
+  '<p class="md-p">Use <code class="md-code">a*b*c</code> and '
+  + '<code class="md-code">snake_case</code> literally.</p>');
+
+// A label is prose and is still emphasised; the href beside it is not.
+eq('a link label is emphasised, its href is not',
+  renderMarkdownHtml('A [**bold** label](https://e.com/a_b) link.'),
+  '<p class="md-p">A <a class="md-link" href="https://e.com/a_b" target="_blank"'
+  + ' rel="noopener noreferrer"><strong>bold</strong> label</a> link.</p>');
+
+// An image inside a link parks a placeholder inside a parked placeholder, so
+// putting them back is not a single pass.
+{
+  const html = renderMarkdownHtml('Image link: [![alt](https://e.com/i_1.png)](https://e.com/p_2)');
+  check('a nested placeholder is restored too', !html.includes(IMG_SLOT), html);
+  check('a nested placeholder is restored too: the image is inside the link',
+    html.includes('<a class="md-link" href="https://e.com/p_2" target="_blank"'
+      + ' rel="noopener noreferrer"><img class="md-image" src="https://e.com/i_1.png"'), html);
 }
 
 /* ============================================================

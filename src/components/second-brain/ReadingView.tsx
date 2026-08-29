@@ -2242,7 +2242,7 @@ function FeedPanel({
         }}>
           {loading ? <Loader2 size={13} className="sb-spin" /> : <RefreshCw size={13} />}
         </button>
-        <button onClick={onClose} style={{
+        <button onClick={onClose} aria-label="Close" title="Close" style={{
           width: 26, height: 26, borderRadius: 4, background: 'transparent', border: 'none',
           color: 'var(--t3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}><X size={14} /></button>
@@ -2467,7 +2467,7 @@ function ImportModal({ onClose, fileInputRef, onFileUpload, uploading, onAddRss,
       <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '90vw', background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
         <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: 'var(--t1)', fontWeight: 600 }}>add to your library</span>
-          <button onClick={onClose} style={{ width: 24, height: 24, borderRadius: 3, background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer' }}><X size={14} /></button>
+          <button onClick={onClose} aria-label="Close" title="Close" style={{ width: 24, height: 24, borderRadius: 3, background: 'transparent', border: 'none', color: 'var(--t3)', cursor: 'pointer' }}><X size={14} /></button>
         </div>
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>

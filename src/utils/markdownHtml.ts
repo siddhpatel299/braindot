@@ -48,35 +48,61 @@ const LONE_IMAGE = /^!\[([^\]]*)\]\(([^)]+)\)\s*$/;
  */
 export const IMG_SLOT = String.fromCharCode(0xE000);
 
-function renderInline(s: string): string {
-  let out = escapeHtml(s);
-  // Images are parked as placeholders before anything else runs. Their alt text
-  // ends up inside an HTML attribute, and the emphasis rules below match raw
-  // characters — a filename like "11_58_33 AM" would otherwise get an <em>
-  // injected into the middle of alt="…", breaking the tag. Restored at the end.
-  const images: string[] = [];
-  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt: string, src: string) => {
-    const html = renderImage(match, alt, src);
-    if (html === match) return match; // unsafe URL — left as plain text
-    images.push(html);
-    return `${IMG_SLOT}${images.length - 1}${IMG_SLOT}`;
-  });
-  // wiki-links  [[Title]]
-  out = out.replace(
-    /\[\[([^\]]+)\]\]/g,
-    (_m, p1) => `<a class="md-wiki" data-wiki="${escapeHtml(p1)}">[[${escapeHtml(p1)}]]</a>`,
-  );
-  // inline code  `text`
-  out = out.replace(/`([^`\n]+)`/g, '<code class="md-code">$1</code>');
+/**
+ * The rules that may only ever see prose.
+ *
+ * Kept apart from renderInline because a link is two different things at once:
+ * its label is written by a person and gets emphasised, its href is a machine
+ * address and must not be touched. The label comes through here on its own.
+ */
+function emphasise(s: string): string {
+  let out = s;
   // bold  **text**
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   // strikethrough  ~~text~~
   out = out.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
   // underline  <u>text</u>
   out = out.replace(/&lt;u&gt;([^&\n]+)&lt;\/u&gt;/g, '<u>$1</u>');
-  // italic  *text* or _text_
+  // italic  *text*
   out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
-  out = out.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
+  // italic  _text_ — between words only, never inside one. An underscore in
+  // the middle of a word is part of the word: snake_case_names came out as
+  // snake<em>case</em>names, which is most of the identifiers in a notebook
+  // about code. The boundaries are the same ones CommonMark uses.
+  out = out.replace(
+    /(^|[\s"'([{])_(?!\s)([^_\n]+?)(?<!\s)_(?=$|[\s"')\]}.,;:!?])/g,
+    '$1<em>$2</em>',
+  );
+  return out;
+}
+
+function renderInline(s: string): string {
+  let out = escapeHtml(s);
+
+  // Everything that has already been resolved to markup is parked behind a
+  // placeholder, and put back once the emphasis rules are done.
+  //
+  // Those rules match raw characters, and every tag below carries text a
+  // person wrote inside an attribute — a URL, a note title, an image filename.
+  // Left in place, `_` in a URL turned href="…/Foo_Bar_Baz" into
+  // href="…/Foo<em>Bar</em>Baz" and the link stopped resolving; worse, a
+  // marker pair could span the end of one tag and the start of the next and
+  // close an attribute halfway through its value. Parking is what makes the
+  // emphasis rules safe to write as plain text substitutions.
+  const slots: string[] = [];
+  const park = (html: string) => `${IMG_SLOT}${slots.push(html) - 1}${IMG_SLOT}`;
+
+  // images  ![alt](src)
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt: string, src: string) => {
+    const html = renderImage(match, alt, src);
+    return html === match ? match : park(html); // unsafe URL — left as plain text
+  });
+  // inline code  `text` — its contents are literal, markers and all
+  out = out.replace(/`([^`\n]+)`/g, (_m, code: string) =>
+    park(`<code class="md-code">${code}</code>`));
+  // wiki-links  [[Title]]
+  out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1: string) =>
+    park(`<a class="md-wiki" data-wiki="${escapeHtml(p1)}">[[${escapeHtml(p1)}]]</a>`));
   // markdown links  [text](url). The leading-character capture keeps this off
   // any "![" that renderImage declined to convert.
   out = out.replace(
@@ -90,11 +116,22 @@ function renderInline(s: string): string {
       // spawning a tab for either is just a tab the reader has to close.
       const leaving = /^(https?:|mailto:)/i.test(safe);
       const target = leaving ? ' target="_blank" rel="noopener noreferrer"' : '';
-      return `${pre}<a class="md-link" href="${safe}"${target}>${text}</a>`;
+      return pre + park(`<a class="md-link" href="${safe}"${target}>${emphasise(text)}</a>`);
     },
   );
-  // Put the images back now that no rule can reach inside their attributes.
-  out = out.replace(new RegExp(IMG_SLOT + '(\\d+)' + IMG_SLOT, 'g'), (_m, i: string) => images[Number(i)]);
+
+  out = emphasise(out);
+
+  // Put everything back. A parked link's label can hold a parked image, so
+  // this repeats until a pass changes nothing rather than expanding once.
+  for (let pass = 0; pass <= slots.length; pass++) {
+    const before = out;
+    out = out.replace(
+      new RegExp(IMG_SLOT + '(\\d+)' + IMG_SLOT, 'g'),
+      (_m, i: string) => slots[Number(i)] ?? '',
+    );
+    if (out === before) break;
+  }
   return out;
 }
 

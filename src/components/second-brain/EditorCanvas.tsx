@@ -196,35 +196,78 @@ function renderMarkdownHtml(body: string): string {
 
 // Preview inline rendering — unlike the edit overlay, this STRIPS the markdown
 // markers (** * ~~ ` [[ ]]) and shows only the formatted result.
+const EM = 'color:var(--acc2);font-style:italic';
+
+/** The rules that may only ever see prose — see the note in renderInline. */
+function emphasise(s: string): string {
+  let out = s;
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--t1);font-weight:700">$1</strong>');
+  out = out.replace(/~~([^~\n]+)~~/g, '<del style="color:var(--t3)">$1</del>');
+  out = out.replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g, '<u>$1</u>');
+  out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, `$1<em style="${EM}">$2</em>`);
+  // An underscore inside a word is part of the word, so snake_case survives.
+  out = out.replace(
+    /(^|[\s"'([{])_(?!\s)([^_\n]+?)(?<!\s)_(?=$|[\s"')\]}.,;:!?])/g,
+    `$1<em style="${EM}">$2</em>`,
+  );
+  return out;
+}
+
 function renderInline(s: string): string {
   let out = escapeHtml(s);
-  // Images are pulled out to placeholders BEFORE any other rule runs. Their alt
-  // text lands inside an HTML attribute, and the emphasis rules below match on
-  // raw characters — a filename like "11_58_33 AM" would otherwise have an <em>
-  // injected into the middle of alt="…", breaking the tag. Restored at the end.
-  const images: string[] = [];
+
+  // Everything already resolved to markup is parked behind a placeholder until
+  // the emphasis rules have run. Those rules match raw characters, and each
+  // tag below carries text the writer typed inside an attribute — an image
+  // filename, a note title, a URL — so left in place an <em> lands in the
+  // middle of href="…" and the link stops resolving. Kept in step with
+  // utils/markdownHtml.ts, which renders the same note for a published reader.
+  const slots: string[] = [];
+  const park = (html: string) => `${IMG_SLOT}${slots.push(html) - 1}${IMG_SLOT}`;
+
   out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt: string, src: string) => {
     const safe = safeUrl(src);
     if (!safe) return match;
-    images.push(
+    return park(
       isImageRef(safe)
         ? `<img class="md-image" data-img-id="${refToId(safe)}" alt="${alt}" />`
         : `<img class="md-image" src="${safe}" alt="${alt}" loading="lazy" />`,
     );
-    return `${IMG_SLOT}${images.length - 1}${IMG_SLOT}`;
   });
+  // inline code — its contents are literal, markers and all
+  out = out.replace(/`([^`\n]+)`/g, (_m, code: string) =>
+    park(`<code style="background:var(--bg3);color:var(--grn);padding:1px 6px;border-radius:3px;font-size:0.9em;border:1px solid var(--bd)">${code}</code>`));
   // wiki-links: show the title only, clickable (title kept in data-wiki)
-  out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1) => `<a data-wiki="${escapeHtml(p1)}" style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px;cursor:pointer">${escapeHtml(p1)}</a>`);
-  // inline code
-  out = out.replace(/`([^`\n]+)`/g, '<code style="background:var(--bg3);color:var(--grn);padding:1px 6px;border-radius:3px;font-size:0.9em;border:1px solid var(--bd)">$1</code>');
-  // bold, then strikethrough, then underline, then italic — markers removed
-  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--t1);font-weight:700">$1</strong>');
-  out = out.replace(/~~([^~\n]+)~~/g, '<del style="color:var(--t3)">$1</del>');
-  out = out.replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g, '<u>$1</u>');
-  out = out.replace(/(^|[^*_])\*([^*\n]+)\*(?!\*)/g, '$1<em style="color:var(--acc2);font-style:italic">$2</em>');
-  out = out.replace(/(^|[^*_])_([^_\n]+)_(?!_)/g, '$1<em style="color:var(--acc2);font-style:italic">$2</em>');
-  // Put the images back now that no rule can reach inside their attributes.
-  out = out.replace(new RegExp(IMG_SLOT + '(\\d+)' + IMG_SLOT, 'g'), (_m, i: string) => images[Number(i)]);
+  out = out.replace(/\[\[([^\]]+)\]\]/g, (_m, p1: string) =>
+    park(`<a data-wiki="${escapeHtml(p1)}" style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px;cursor:pointer">${escapeHtml(p1)}</a>`));
+  // markdown links [text](url). Preview used to leave these as raw source, so
+  // a note full of links read as punctuation here and as links everywhere else
+  // — including on the page a reader is handed.
+  out = out.replace(
+    /(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g,
+    (match, pre: string, text: string, url: string) => {
+      const safe = safeUrl(url);
+      if (!safe) return match;
+      const leaving = /^(https?:|mailto:)/i.test(safe);
+      const target = leaving ? ' target="_blank" rel="noopener noreferrer"' : '';
+      return pre + park(
+        `<a href="${safe}"${target} style="color:var(--acc2);text-decoration:underline;text-underline-offset:2px">${emphasise(text)}</a>`,
+      );
+    },
+  );
+
+  out = emphasise(out);
+
+  // A parked link's label can hold a parked image, so this repeats until a
+  // pass changes nothing rather than expanding once.
+  for (let pass = 0; pass <= slots.length; pass++) {
+    const before = out;
+    out = out.replace(
+      new RegExp(IMG_SLOT + '(\\d+)' + IMG_SLOT, 'g'),
+      (_m, i: string) => slots[Number(i)] ?? '',
+    );
+    if (out === before) break;
+  }
   return out;
 }
 

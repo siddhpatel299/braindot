@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
     const items = await collectNews(category);
     return NextResponse.json({ items: items.slice(0, 14), category });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: msg, items: [] }, { status: 500 });
+    console.error('[/api/reading/news] error:', err instanceof Error ? err.stack ?? err.message : err);
+    return NextResponse.json({ error: 'The feeds could not be reached just now.', items: [] }, { status: 500 });
   }
 }
