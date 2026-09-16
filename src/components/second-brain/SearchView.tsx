@@ -101,7 +101,7 @@ export function SearchView({ notes, onOpenNote, onSynthesize }: SearchViewProps)
   }, [results]);
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', minWidth: 0 }}>
       {/* Breadcrumb + streak */}
       <div style={{
         height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between',

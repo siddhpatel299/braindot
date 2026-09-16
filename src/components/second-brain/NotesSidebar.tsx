@@ -494,7 +494,8 @@ export function NotesSidebar({
         <div
           className="sb-scroll"
           style={{
-            width: 48, minWidth: 48, height: '100%',            display: 'flex', flexDirection: 'column',
+            width: 48, minWidth: 48, height: '100%', background: 'var(--bg)',
+            display: 'flex', flexDirection: 'column',
             alignItems: 'center', padding: '8px 0 10px', gap: 5, overflowY: 'auto', flexShrink: 0,
           }}
         >
@@ -572,11 +573,10 @@ export function NotesSidebar({
         style={{
           width: fill ? 'auto' : 240, minWidth: fill ? 0 : 240,
           flex: fill ? 1 : undefined, height: '100%',
-          // A denser tint than the pane it sits in, so the list reads as the
-          // near face and the spine beside it as the far one — but no second
-          // filter. The pane has already blurred this backdrop; running it
-          // again just pays for another pass over the same pixels.
           background: 'var(--chrome-2)',
+          backdropFilter: 'var(--chrome-blur)',
+          WebkitBackdropFilter: 'var(--chrome-blur)',
+          boxShadow: 'var(--chrome-edge)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}
       >

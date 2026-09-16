@@ -239,7 +239,7 @@ export function Dashboard({
   return (
     <div
       className="sb-scroll sb-front-page"
-      style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: '32px 40px 52px' }}
+      style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: 'var(--bg)', padding: '32px 40px 52px' }}
     >
       <div style={{ maxWidth: 1320, margin: '0 auto' }}>
 

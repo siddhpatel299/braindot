@@ -121,9 +121,10 @@ export function ContextPanel({
         minWidth: fill ? 0 : 300,
         flex: fill ? 1 : undefined,
         height: '100%',
-        // No material here. The pane this sits in carries the glass now, and a
-        // backdrop-filter inside a backdrop-filter re-blurs an already-blurred
-        // backdrop — it costs a second full-pane pass to look slightly worse.
+        background: 'var(--chrome)',
+        backdropFilter: 'var(--chrome-blur)',
+        WebkitBackdropFilter: 'var(--chrome-blur)',
+        boxShadow: 'var(--chrome-edge)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
