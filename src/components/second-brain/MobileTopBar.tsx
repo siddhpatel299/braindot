@@ -27,7 +27,10 @@ export function MobileTopBar({ title, onHome, onSignOut }: MobileTopBarProps) {
         height: 42,
         flexShrink: 0,
         padding: '0 4px 0 10px',
-        background: 'var(--bg1)',
+        background: 'var(--chrome)',
+        backdropFilter: 'var(--chrome-blur)',
+        WebkitBackdropFilter: 'var(--chrome-blur)',
+        boxShadow: 'var(--chrome-edge)',
         borderBottom: '1px solid var(--bd)',
       }}
     >

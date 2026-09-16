@@ -41,7 +41,10 @@ export function StatusBar({
     <div
       style={{
         height: 24,
-        background: 'var(--bg1)',
+        background: 'var(--chrome)',
+        backdropFilter: 'var(--chrome-blur)',
+        WebkitBackdropFilter: 'var(--chrome-blur)',
+        boxShadow: 'var(--chrome-edge)',
         borderTop: '1px solid var(--bd)',
         display: 'flex',
         alignItems: 'center',

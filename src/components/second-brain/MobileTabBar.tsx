@@ -33,7 +33,10 @@ export function MobileTabBar({ active, onSelect, onCreateNote }: MobileTabBarPro
       style={{
         display: 'flex',
         alignItems: 'stretch',
-        background: 'var(--bg1)',
+        background: 'var(--chrome)',
+        backdropFilter: 'var(--chrome-blur)',
+        WebkitBackdropFilter: 'var(--chrome-blur)',
+        boxShadow: 'var(--chrome-edge)',
         borderTop: '1px solid var(--bd)',
         flexShrink: 0,
         // The bar owns the home-indicator strip so the ground colour runs to

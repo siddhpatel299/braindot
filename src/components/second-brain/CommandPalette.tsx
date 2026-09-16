@@ -397,7 +397,10 @@ export function CommandPalette({
             gap: 14,
             fontSize: 9,
             color: 'var(--t3)',
-            background: 'var(--bg1)',
+            background: 'var(--chrome)',
+            backdropFilter: 'var(--chrome-blur)',
+            WebkitBackdropFilter: 'var(--chrome-blur)',
+            boxShadow: 'var(--chrome-edge)',
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

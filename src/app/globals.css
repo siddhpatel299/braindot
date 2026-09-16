@@ -26,104 +26,107 @@
 }
 
 /* ===== Braindot Design System — Theme Variables =====
-   Direction: "slip-box". The ground is warm graphite (dark) or warm paper
-   (light) rather than the blue-black of a terminal — a note is a card under a
-   desk lamp, not a console. The accent stays in the iron-gall ink family:
-   cool indigo against a warm ground, which is what ink on paper actually is.
-   Red/amber/green stay reserved for state (danger, unsaved, saved), so the
-   accent never has to compete with a warning. */
+   Direction: "midnight ink", the same world the entry surfaces run. The
+   ground is a blue-black that is never neutral grey, because the chrome on
+   top of it is glass and glass over grey is grey. The accent stays iron-gall
+   indigo — the one piece of this that is brand rather than styling — lit to
+   periwinkle wherever something is live. Red, amber and green stay reserved
+   for state (danger, unsaved, saved) so the accent never has to double as a
+   warning.
+
+   This replaced "slip-box" (warm graphite / warm paper) in September 2026,
+   when the workspace was brought into the same world as /landing and /auth.
+   The glass materials themselves live in glass-tokens.css; this file owns the
+   semantic palette the app's components actually reference. */
 
 /* Dark mode (default) */
 [data-theme="dark"] {
-  --bg:       #141310;
-  --bg1:      #1b1917;
-  --bg2:      #23201d;
-  --bg3:      #2c2925;
-  --bg4:      #363229;
-  --bd:       #2a2723;
-  --bd2:      #3b3630;
-  --t1:       #efeae0;
-  --t2:       #a19890;
-  /* --t3 is the quietest tier — section labels, note metadata, inactive tabs,
-     the status bar, empty-state hints. It was #6e665c, which measures
-     2.9-3.3:1 on the grounds it actually sits on: under the 4.5:1 that text
-     this size needs, everywhere it appeared. Raised until it clears 4.5:1
-     against --bg, --bg1 and --bg2. It is still plainly the quietest of the
-     three tiers; it is no longer the one nobody can read. */
-  --t3:       #8f867a;
+  /* Ground. Blue-black, never neutral: a grey ground under a white-alpha
+     glass fill turns the glass grey, and the chrome here is glass. */
+  --bg:       #06080f;
+  --bg1:      #0b0f1a;
+  --bg2:      #121827;
+  --bg3:      #1a2133;
+  --bg4:      #252d42;
+  --bd:       #1a2031;
+  --bd2:      #39435a;
+  /* Ink. Every tier is measured against every ground it is actually set on,
+     not just the darkest one — --t3 clears 4.5:1 on --bg through --bg3. */
+  --t1:       #f2f4f9;
+  --t2:       #a8b0c4;
+  --t3:       #8b94af;
   --acc:      #6f63e0;
-  --acc2:     #a79ef5;
-  --acc-bg:   #1e1b33;
+  --acc2:     #9d93ff;
+  --acc-bg:   #1c1a38;
   --acc-bd:   #3b3480;
   /* Ink on an accent fill. White in both themes: the accent is dark enough
      in each that nothing else reads. */
   --on-acc: #ffffff;
-  --grn:      #43c495;
-  --grn-bg:   #0e1f18;
-  --grn-bd:   #1f4a33;
-  --amb:      #e9b14b;
-  --amb-bg:   #201808;
-  --amb-bd:   #4a3413;
-  --blu:      #6fa8dc;
-  --blu-bg:   #0f1f2b;
-  --blu-bd:   #1a3a4e;
-  --red:      #e8746b;
-  --red-bg:   #2a1310;
-  --coral:    #e8926f;
-  --coral-bg: #2a1810;
-  --coral-bd: #4a2818;
-  --callout-text: #a49dd4;
-  --selection-bg: rgba(111, 99, 224, 0.26);
-  --canvas-dot: #24211d;
-  /* The edition: a sheet slightly lifted off the app's ground, with two
-     weights of rule — the heavy ones that separate sections and the hairlines
-     that divide columns. */
-  --paper:  #181614;
-  --rule:   #4a443c;
-  --hair:   #2a2723;
+  --grn:      #4ad6a4;
+  --grn-bg:   #07231a;
+  --grn-bd:   #17503b;
+  --amb:      #efb45c;
+  --amb-bg:   #241a08;
+  --amb-bd:   #4d3a17;
+  --blu:      #7cb4ec;
+  --blu-bg:   #0a1c2e;
+  --blu-bd:   #1c3b5a;
+  --red:      #ff7a72;
+  --red-bg:   #2a1114;
+  --coral:    #f0996f;
+  --coral-bg: #2a1710;
+  --coral-bd: #4d2a1a;
+  --callout-text: #b9b2f0;
+  --selection-bg: rgba(157, 147, 255, 0.26);
+  --canvas-dot: #1a2031;
+  /* The edition: a sheet lifted off the app's ground, with two weights of
+     rule — the heavy ones between sections and the hairlines between
+     columns. */
+  --paper:  #0b0f1a;
+  --rule:   #4a5570;
+  --hair:   #1a2031;
 }
 
 /* Light mode */
 [data-theme="light"] {
-  --bg:       #efece4;
-  --bg1:      #f8f6f1;
-  --bg2:      #e6e2d8;
-  --bg3:      #dbd6ca;
-  --bg4:      #cdc7b9;
-  --bd:       #dcd7cb;
-  --bd2:      #c4bdaf;
-  --t1:       #1e1b16;
-  --t2:       #5b554b;
-  /* Same retune as the dark theme, in the other direction: on paper the
-     quiet tier has to get darker, not lighter. Was #8b8478 at ~3.1:1. */
-  --t3:       #675f54;
+  /* The same world in daylight. Cool near-white rather than the warm paper
+     the slip-box used: this ground has to sit under the same glass and the
+     same indigo, and warm paper under a cool blur goes muddy. */
+  --bg:       #eef1f7;
+  --bg1:      #f9fafd;
+  --bg2:      #e3e8f1;
+  --bg3:      #d5dce8;
+  --bg4:      #c3ccdb;
+  --bd:       #dce2ec;
+  --bd2:      #aeb8c9;
+  --t1:       #121620;
+  --t2:       #4d5666;
+  --t3:       #525b6d;
   --acc:      #5449c9;
   --acc2:     #3b32a8;
-  --acc-bg:   #e9e7fa;
-  --acc-bd:   #c0baef;
-  /* Ink on an accent fill. White in both themes: the accent is dark enough
-     in each that nothing else reads. */
+  --acc-bg:   #e8e6fb;
+  --acc-bd:   #bfb9ee;
   --on-acc: #ffffff;
-  --grn:      #0f7a56;
-  --grn-bg:   #e2f2ea;
-  --grn-bd:   #86ceae;
-  --amb:      #9c5b12;
-  --amb-bg:   #f7ecd4;
-  --amb-bd:   #dcb579;
-  --blu:      #1d6fa4;
-  --blu-bg:   #e2ecf5;
-  --blu-bd:   #9dc0dd;
-  --red:      #a8261f;
-  --red-bg:   #f7e4e0;
-  --coral:    #b1470f;
-  --coral-bg: #f8e9dc;
-  --coral-bd: #e0bb9a;
+  --grn:      #0c7a59;
+  --grn-bg:   #e2f4ed;
+  --grn-bd:   #8fd3bb;
+  --amb:      #96590f;
+  --amb-bg:   #f8eeda;
+  --amb-bd:   #dcb87e;
+  --blu:      #1c6ca5;
+  --blu-bg:   #e3edf7;
+  --blu-bd:   #9dc3e0;
+  --red:      #b4261d;
+  --red-bg:   #fae4e2;
+  --coral:    #a8480f;
+  --coral-bg: #f9e9de;
+  --coral-bd: #e0bb9c;
   --callout-text: #3b32a8;
   --selection-bg: rgba(84, 73, 201, 0.18);
-  --canvas-dot: #d3cec1;
-  --paper:  #f8f6f1;
-  --rule:   #9d9689;
-  --hair:   #dcd7cb;
+  --canvas-dot: #ccd5e3;
+  --paper:  #f9fafd;
+  --rule:   #9aa5b8;
+  --hair:   #dce2ec;
 }
 
 /* Default to dark ONLY before JS sets data-theme (prevents flash).
@@ -131,52 +134,103 @@
    as [data-theme="light"] and, coming later in the file, would override it,
    permanently defeating light mode. */
 :root:not([data-theme]) {
-  --bg:       #141310;
-  --bg1:      #1b1917;
-  --bg2:      #23201d;
-  --bg3:      #2c2925;
-  --bg4:      #363229;
-  --bd:       #2a2723;
-  --bd2:      #3b3630;
-  --t1:       #efeae0;
-  --t2:       #a19890;
-  /* --t3 is the quietest tier — section labels, note metadata, inactive tabs,
-     the status bar, empty-state hints. It was #6e665c, which measures
-     2.9-3.3:1 on the grounds it actually sits on: under the 4.5:1 that text
-     this size needs, everywhere it appeared. Raised until it clears 4.5:1
-     against --bg, --bg1 and --bg2. It is still plainly the quietest of the
-     three tiers; it is no longer the one nobody can read. */
-  --t3:       #8f867a;
+  /* Ground. Blue-black, never neutral: a grey ground under a white-alpha
+     glass fill turns the glass grey, and the chrome here is glass. */
+  --bg:       #06080f;
+  --bg1:      #0b0f1a;
+  --bg2:      #121827;
+  --bg3:      #1a2133;
+  --bg4:      #252d42;
+  --bd:       #1a2031;
+  --bd2:      #39435a;
+  /* Ink. Every tier is measured against every ground it is actually set on,
+     not just the darkest one — --t3 clears 4.5:1 on --bg through --bg3. */
+  --t1:       #f2f4f9;
+  --t2:       #a8b0c4;
+  --t3:       #8b94af;
   --acc:      #6f63e0;
-  --acc2:     #a79ef5;
-  --acc-bg:   #1e1b33;
+  --acc2:     #9d93ff;
+  --acc-bg:   #1c1a38;
   --acc-bd:   #3b3480;
   /* Ink on an accent fill. White in both themes: the accent is dark enough
      in each that nothing else reads. */
   --on-acc: #ffffff;
-  --grn:      #43c495;
-  --grn-bg:   #0e1f18;
-  --grn-bd:   #1f4a33;
-  --amb:      #e9b14b;
-  --amb-bg:   #201808;
-  --amb-bd:   #4a3413;
-  --blu:      #6fa8dc;
-  --blu-bg:   #0f1f2b;
-  --blu-bd:   #1a3a4e;
-  --red:      #e8746b;
-  --red-bg:   #2a1310;
-  --coral:    #e8926f;
-  --coral-bg: #2a1810;
-  --coral-bd: #4a2818;
-  --callout-text: #a49dd4;
-  --selection-bg: rgba(111, 99, 224, 0.26);
-  --canvas-dot: #24211d;
-  /* The edition: a sheet slightly lifted off the app's ground, with two
-     weights of rule — the heavy ones that separate sections and the hairlines
-     that divide columns. */
-  --paper:  #181614;
-  --rule:   #4a443c;
-  --hair:   #2a2723;
+  --grn:      #4ad6a4;
+  --grn-bg:   #07231a;
+  --grn-bd:   #17503b;
+  --amb:      #efb45c;
+  --amb-bg:   #241a08;
+  --amb-bd:   #4d3a17;
+  --blu:      #7cb4ec;
+  --blu-bg:   #0a1c2e;
+  --blu-bd:   #1c3b5a;
+  --red:      #ff7a72;
+  --red-bg:   #2a1114;
+  --coral:    #f0996f;
+  --coral-bg: #2a1710;
+  --coral-bd: #4d2a1a;
+  --callout-text: #b9b2f0;
+  --selection-bg: rgba(157, 147, 255, 0.26);
+  --canvas-dot: #1a2031;
+  /* The edition: a sheet lifted off the app's ground, with two weights of
+     rule — the heavy ones between sections and the hairlines between
+     columns. */
+  --paper:  #0b0f1a;
+  --rule:   #4a5570;
+  --hair:   #1a2031;
+}
+
+/* ===== Chrome material ======================================================
+   Glass in the workspace is chrome and nothing else. The rail, the notebook
+   list, the bars, the apparatus margin, the palette and the dialogs float over
+   the work; the page you write on and the page you read stay opaque, because
+   prose is read for an hour at a time and must not depend on what happens to
+   be behind it.
+
+   --chrome is the fill, --chrome-blur the lens, --chrome-edge the specular
+   line along the top where the pane turns toward the light. Components
+   reference these three rather than re-declaring a material each. */
+[data-theme="dark"],
+:root:not([data-theme]) {
+  --chrome:      color-mix(in srgb, var(--bg1) 74%, transparent);
+  --chrome-2:    color-mix(in srgb, var(--bg2) 76%, transparent);
+  --chrome-blur: blur(22px) saturate(170%);
+  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+[data-theme="light"] {
+  /* On a light ground the specular is a shade of the ground rather than
+     white, which would be invisible, and the fill carries more of the job. */
+  --chrome:      color-mix(in srgb, var(--bg1) 80%, transparent);
+  --chrome-2:    color-mix(in srgb, var(--bg2) 82%, transparent);
+  --chrome-blur: blur(22px) saturate(150%);
+  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* Where the browser has no backdrop-filter, the fill has to carry it alone or
+   the chrome is a 74%-transparent rectangle with the page legible through the
+   labels. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-theme="dark"], :root:not([data-theme]) { --chrome: var(--bg1); --chrome-2: var(--bg2); }
+  [data-theme="light"] { --chrome: var(--bg1); --chrome-2: var(--bg2); }
+}
+/* And where someone has asked their system for less transparency, the panes
+   stay — they are the composition — but they stop being see-through. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme="dark"], :root:not([data-theme]) { --chrome: var(--bg1); --chrome-2: var(--bg2); --chrome-blur: none; }
+  [data-theme="light"] { --chrome: var(--bg1); --chrome-2: var(--bg2); --chrome-blur: none; }
+}
+
+/* The luminance the chrome lifts. A backdrop-filter over a flat ground is
+   grey plastic; this is the deep colour under the whole shell. Static, with
+   no drift: this is a surface someone stares at for eight hours, and
+   Operate-mode motion conveys state or it does not happen. */
+.sb-app-shell { position: relative; isolation: isolate; }
+.sb-app-shell::before {
+  content: '';
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(1200px 900px at 14% 8%, color-mix(in srgb, var(--acc) 22%, transparent), transparent 62%),
+    radial-gradient(1000px 820px at 88% 92%, color-mix(in srgb, var(--blu) 14%, transparent), transparent 64%);
 }
 
 /* Scrollbars, form controls, the native <select> popup and the spellcheck
@@ -1211,8 +1265,8 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 .pub-prose .md-callout {
   background: var(--acc-bg);
-  border-left: 3px solid var(--acc);
-  border-radius: 0 5px 5px 0;
+  border: 1px solid var(--acc-bd);
+  border-radius: 10px;
   padding: 12px 16px;
   margin: 1.3em 0;
 }
@@ -1745,7 +1799,7 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
   border-radius: 1px;
   background: var(--t3);
   cursor: pointer;
-  transition: background 120ms ease, width 120ms ease;
+  transition: background 120ms ease;
 }
 .sb-tick[data-level="1"] { width: 22px; }
 .sb-tick[data-level="2"] { width: 15px; }
