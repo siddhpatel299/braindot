@@ -952,7 +952,7 @@ export default function Home() {
   if (authMode === 'loading') {
     return (
       <div style={{
-        height: '100vh', background: 'var(--bg)', color: 'var(--t3)',
+        height: '100dvh', background: 'var(--bg)', color: 'var(--t3)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--font-mono)', fontSize: 11,
       }}>
@@ -965,7 +965,7 @@ export default function Home() {
     return (
       <div
         style={{
-          height: '100vh',
+          height: '100dvh',
           background: 'var(--bg)',
           color: 'var(--t3)',
           display: 'flex',
