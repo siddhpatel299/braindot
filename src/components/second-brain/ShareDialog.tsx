@@ -95,7 +95,7 @@ export function ShareDialog({
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(0,0,0,0.5)', padding: 20,
+        background: 'var(--scrim)', backdropFilter: 'blur(3px)', padding: 20,
       }}
       onClick={() => { if (!busy) onClose(); }}
     >
@@ -106,10 +106,12 @@ export function ShareDialog({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 460,
-          background: 'var(--bg1)',
+          background: 'var(--chrome-2)',
+          backdropFilter: 'var(--chrome-blur)',
+          WebkitBackdropFilter: 'var(--chrome-blur)',
+          boxShadow: 'var(--chrome-edge), 0 24px 64px -20px rgba(0,0,0,0.6)',
           border: '1px solid var(--bd)',
-          borderRadius: 8,
-          boxShadow: '0 18px 50px rgba(0,0,0,0.45)',
+          borderRadius: 14,
           overflow: 'hidden',
         }}
       >

@@ -82,7 +82,9 @@ export function SlashMenu({ open, position, commands, onSelect, onClose }: Slash
     >
       <div style={{
         width: 280,
-        background: 'var(--bg2)',
+        background: 'var(--chrome-2)',
+        backdropFilter: 'var(--chrome-blur)',
+        WebkitBackdropFilter: 'var(--chrome-blur)',
         border: '1px solid var(--bd2)',
         borderRadius: 6,
         boxShadow: '0 8px 24px rgba(0,0,0,0.4)',

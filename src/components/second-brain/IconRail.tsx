@@ -62,7 +62,7 @@ function RailButton({ icon: Icon, label, active, muted, onClick }: RailButtonPro
         cursor: 'pointer',
         transition: 'background 0.12s, color 0.12s',
       }}
-      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = 'var(--ink-hover)'; e.currentTarget.style.color = 'var(--t1)'; } }}
       onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = idle; } }}
     >
       {/* The active place is marked in the rail's own edge, so the mark reads
@@ -148,7 +148,7 @@ export function IconRail({ active, onSelect, onOpenPalette, onCreateNote, onSign
           width: 34,
           height: 26,
           borderRadius: 5,
-          background: 'var(--bg2)',
+          background: 'var(--ink-hover)',
           border: '1px solid var(--bd)',
           color: 'var(--t2)',
           fontSize: 11,
@@ -159,8 +159,8 @@ export function IconRail({ active, onSelect, onOpenPalette, onCreateNote, onSign
           justifyContent: 'center',
           marginBottom: 4,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.color = 'var(--t2)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ink-active)'; e.currentTarget.style.color = 'var(--t1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--ink-hover)'; e.currentTarget.style.color = 'var(--t2)'; }}
       >
         ⌘K
       </button>

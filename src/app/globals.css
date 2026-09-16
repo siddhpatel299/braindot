@@ -180,6 +180,35 @@
   --hair:   #1a2031;
 }
 
+/* State on glass. An opaque palette step used as a hover fill punches a hole
+   in a translucent pane: at 74% chrome alpha over a lit substrate, --bg2 is
+   both more opaque than the pane and nearly the same net luminance, so hover
+   broke the material and read as almost nothing at the same time. These are
+   ink and light rather than surfaces — they tint whatever they are laid on,
+   which is what a state on glass has to do. The active well stays opaque,
+   because a well is opaque by definition. */
+[data-theme="dark"],
+:root:not([data-theme]) {
+  --ink-hover:  rgba(255, 255, 255, 0.065);
+  --ink-active: rgba(255, 255, 255, 0.115);
+}
+[data-theme="light"] {
+  --ink-hover:  rgba(18, 22, 32, 0.055);
+  --ink-active: rgba(18, 22, 32, 0.092);
+}
+
+/* Overlay scrim. A raw rgba(0,0,0,…) is two wrong things at once: it is not
+   the ground's hue, and the same value that reads as "dimmed" over graphite
+   reads as "switched off" over paper. Each theme sets its own, and the light
+   one is far lighter — dimming a bright room does not take 55% black. */
+[data-theme="dark"],
+:root:not([data-theme]) {
+  --scrim: rgba(3, 5, 10, 0.64);
+}
+[data-theme="light"] {
+  --scrim: rgba(18, 22, 32, 0.30);
+}
+
 /* ===== Chrome material ======================================================
    Glass in the workspace is chrome and nothing else. The rail, the notebook
    list, the bars, the apparatus margin, the palette and the dialogs float over
@@ -198,12 +227,15 @@
   --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 [data-theme="light"] {
-  /* On a light ground the specular is a shade of the ground rather than
-     white, which would be invisible, and the fill carries more of the job. */
+  /* On a light ground a white specular is invisible — the comment used to
+     say so and the value used to be white anyway. A pane in daylight catches
+     the light as a *darker* line where it turns, so the top edge is a tint of
+     the ground and there is a soft one under the bottom to seat it. */
   --chrome:      color-mix(in srgb, var(--bg1) 80%, transparent);
   --chrome-2:    color-mix(in srgb, var(--bg2) 82%, transparent);
   --chrome-blur: blur(22px) saturate(150%);
-  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+                 inset 0 -1px 0 color-mix(in srgb, var(--bd2) 70%, transparent);
 }
 
 /* Where the browser has no backdrop-filter, the fill has to carry it alone or
@@ -228,9 +260,15 @@
 .sb-app-shell::before {
   content: '';
   position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  /* Lit where the chrome actually is. The first pass put these at 14%/8%
+     and 88%/92% — full-bleed page coordinates — which dropped most of the
+     light under the opaque editor, so two of the four glass zones were
+     lifting a flat ground. Hard left behind the rail and the notebook list,
+     hard right behind the apparatus margin, and nothing wasted on the middle
+     where the page is opaque anyway. */
   background:
-    radial-gradient(1200px 900px at 14% 8%, color-mix(in srgb, var(--acc) 22%, transparent), transparent 62%),
-    radial-gradient(1000px 820px at 88% 92%, color-mix(in srgb, var(--blu) 14%, transparent), transparent 64%);
+    radial-gradient(780px 1100px at -4% 26%, color-mix(in srgb, var(--acc) 30%, transparent), transparent 66%),
+    radial-gradient(680px 1000px at 104% 72%, color-mix(in srgb, var(--blu) 22%, transparent), transparent 68%);
 }
 
 /* Scrollbars, form controls, the native <select> popup and the spellcheck

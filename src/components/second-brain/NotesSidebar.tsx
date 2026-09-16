@@ -573,7 +573,7 @@ export function NotesSidebar({
         style={{
           width: fill ? 'auto' : 240, minWidth: fill ? 0 : 240,
           flex: fill ? 1 : undefined, height: '100%',
-          background: 'var(--chrome)',
+          background: 'var(--chrome-2)',
           backdropFilter: 'var(--chrome-blur)',
           WebkitBackdropFilter: 'var(--chrome-blur)',
           boxShadow: 'var(--chrome-edge)', borderRight: fill ? 'none' : '1px solid var(--bd)',

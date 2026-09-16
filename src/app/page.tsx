@@ -982,7 +982,7 @@ export default function Home() {
 
   return (
     <div
-      className="sb-app-shell"
+      className="sb-app-shell world-ink"
       style={{
         display: 'flex',
         flexDirection: 'column',

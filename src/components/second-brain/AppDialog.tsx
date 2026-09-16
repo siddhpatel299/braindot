@@ -65,7 +65,7 @@ export function AppDialog({ dialog, onClose }: { dialog: DialogState; onClose: (
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
-        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)',
+        background: 'var(--scrim)', backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
       }}
     >
@@ -74,8 +74,11 @@ export function AppDialog({ dialog, onClose }: { dialog: DialogState; onClose: (
         className="sb-fade-in"
         style={{
           width: 400, maxWidth: '100%',
-          background: 'var(--bg2)', border: '1px solid var(--bd2)', borderRadius: 8,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)', padding: 20,
+          background: 'var(--chrome-2)', backdropFilter: 'var(--chrome-blur)',
+          WebkitBackdropFilter: 'var(--chrome-blur)',
+          border: '1px solid var(--bd2)', borderRadius: 14,
+          boxShadow: 'var(--chrome-edge), 0 24px 64px -20px rgba(0,0,0,0.6)',
+          padding: 20,
         }}
       >
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: isPrompt ? 14 : 8 }}>

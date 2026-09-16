@@ -84,8 +84,8 @@ function IconButton({
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.35 : 1,
       }}
-      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--t1)'; } }}
-      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = active ? 'var(--bg3)' : 'transparent'; e.currentTarget.style.color = active ? 'var(--t1)' : 'var(--t2)'; } }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = 'var(--ink-hover)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = active ? 'var(--ink-active)' : 'transparent'; e.currentTarget.style.color = active ? 'var(--t1)' : 'var(--t2)'; } }}
     >
       <Icon size={14} strokeWidth={2} />
     </button>
@@ -153,7 +153,7 @@ export function EditorBar(props: EditorBarProps) {
           gap: 1,
           padding: 2,
           borderRadius: 5,
-          background: 'var(--bg2)',
+          background: 'var(--ink-hover)',
           flexShrink: 0,
           opacity: disabled ? 0.4 : 1,
         }}

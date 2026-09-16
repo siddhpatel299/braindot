@@ -64,7 +64,7 @@ export function NoteRow({ note, depth = 0, active, onSelect, onTogglePinned, onD
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          e.currentTarget.style.background = 'var(--bg2)';
+          e.currentTarget.style.background = 'var(--ink-hover)';
           e.currentTarget.style.color = 'var(--t1)';
         }
       }}

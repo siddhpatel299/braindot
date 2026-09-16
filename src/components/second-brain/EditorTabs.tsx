@@ -166,7 +166,7 @@ export function EditorTabs({
           justifyContent: 'center',
           flexShrink: 0,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.background = 'var(--bg3)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.background = 'var(--ink-hover)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; e.currentTarget.style.background = 'transparent'; }}
       >
         <Plus size={14} strokeWidth={2} />

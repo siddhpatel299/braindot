@@ -65,7 +65,7 @@ export function MobileSheet({ open, onClose, title, height = '82dvh', children }
       <div
         onClick={onClose}
         aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }}
+        style={{ position: 'absolute', inset: 0, background: 'var(--scrim)' }}
       />
 
       <div
@@ -80,7 +80,9 @@ export function MobileSheet({ open, onClose, title, height = '82dvh', children }
           maxHeight: height,
           display: 'flex',
           flexDirection: 'column',
-          background: 'var(--bg1)',
+          background: 'var(--chrome-2)',
+          backdropFilter: 'var(--chrome-blur)',
+          WebkitBackdropFilter: 'var(--chrome-blur)',
           borderTop: '1px solid var(--bd2)',
           borderRadius: '12px 12px 0 0',
           boxShadow: '0 -12px 40px rgba(0,0,0,0.45)',

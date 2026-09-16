@@ -245,10 +245,12 @@ export function CommandPalette({
           width: 560,
           maxWidth: '90vw',
           maxHeight: '60vh',
-          background: 'var(--bg2)',
+          background: 'var(--chrome-2)',
+          backdropFilter: 'var(--chrome-blur)',
+          WebkitBackdropFilter: 'var(--chrome-blur)',
           border: '1px solid var(--bd2)',
-          borderRadius: 8,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px var(--acc-bd)',
+          borderRadius: 14,
+          boxShadow: 'var(--chrome-edge), 0 24px 64px -18px rgba(0,0,0,0.6), 0 0 0 1px var(--acc-bd)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -397,10 +399,10 @@ export function CommandPalette({
             gap: 14,
             fontSize: 9,
             color: 'var(--t3)',
-            background: 'var(--chrome)',
-            backdropFilter: 'var(--chrome-blur)',
-            WebkitBackdropFilter: 'var(--chrome-blur)',
-            boxShadow: 'var(--chrome-edge)',
+            /* Deliberately not glass: its only backdrop is the panel it sits
+               inside, so a blur here would be blurring a flat colour — the
+               grey-plastic case the chrome tokens exist to avoid. The panel
+               is the pane; this is a hairline inside it. */
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

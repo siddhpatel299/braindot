@@ -3,16 +3,17 @@
    ============================================================
 
    This is the design system for the surfaces a visitor meets before they
-   have an account: /landing and /auth. It is deliberately NOT the workspace's
-   world — the workspace runs "slip-box" (warm graphite or warm paper, ink on
-   paper, apparatus in the margin), and that stays.
+   have an account: /landing and /auth. The workspace runs the same world —
+   the same blue-black ground, the same iron-gall indigo, the same glass —
+   with its semantic palette in globals.css and its chrome material alongside
+   it. What differs is register, not world: the storefront is Persuade and is
+   always night, the workspace is Operate and keeps a light theme, and glass
+   there is chrome only, never the page someone writes on.
 
-   Two worlds is a decision, not drift. The storefront is always night: the
-   material here is real glass, and glass needs a dark ground and something
-   worth looking through to read as glass rather than as grey plastic. The
-   workspace is a surface you stare at for eight hours and it gets a choice of
-   two grounds. The thing that holds them together is the ink — iron-gall
-   indigo is the accent in both, because it is the one fixed piece of brand.
+   (Until September 2026 the workspace ran a separate "slip-box" world, warm
+   graphite and warm paper. It does not any more. If this paragraph ever again
+   describes the app as a different world, check whether that is true before
+   believing it — a stale header in this file is how the last drift began.)
 
    ONE FILE, TWO CONSUMERS. This is the point of the file existing:
      - globals.css imports it, so /auth and the app can use it
