@@ -75,7 +75,7 @@
      workspace learned the hard way. */
   --ink-t1: #f2f4f9;
   --ink-t2: #a8b0c4;
-  --ink-t3: #757f9b;
+  --ink-t3: #7a849f;
 
   /* ---- Accent -------------------------------------------------------
      --accent is Braindot's iron-gall indigo, carried over unchanged: it is
@@ -101,10 +101,15 @@
 
      CHROME  floats over everything and must stay light enough to see past
      PANE    holds the argument; heavier blur, so the graph behind goes soft
-     WELL    is where text actually lives, and is NOT glass: it is a recessed
-             opaque floor. Body copy never sits on a backdrop-filter, because
-             the contrast of a blur is whatever happens to be behind it that
-             second, and that is not a contrast ratio you can hold. */
+     WELL    a recessed opaque floor, no blur at all
+
+     The rule about text is not "never on glass", it is never on a fill that
+     inherits its luminance from whatever is drifting past. A white-alpha fill
+     does exactly that and has no contrast ratio, only a weather report. These
+     fills are floored on the ground instead, so a pane can carry copy — the
+     hero's lede does — while a long read (the writing surface, the reader)
+     still gets a WELL, because an hour of prose should not be negotiating
+     with a backdrop at all. */
   /* Floored on the ground, not on white. A white-alpha fill inherits
      whatever luminance is behind it, so text on it has no contrast ratio —
      only whatever happened to be drifting past. Basing the fill on --ink-1
