@@ -12,8 +12,8 @@ export default function DemoPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#0c0c0e', display: 'flex',
-      alignItems: 'center', justifyContent: 'center', color: '#444450',
+      minHeight: '100dvh', background: 'var(--bg)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', color: 'var(--t2)',
       fontFamily: 'var(--font-mono)', fontSize: 13,
     }}>
       loading demo…

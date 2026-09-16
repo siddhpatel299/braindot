@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Note, Task, LibraryItem, Highlight } from '@/types';
 import { relativeTime, plural } from '@/utils/markdown';
+import { buildEdges, degreeMap } from '@/utils/graph';
 import { LucideIcon } from 'lucide-react';
 import { ArrowRight, Calendar, Download, Upload, Plus, Sparkles, GraduationCap, FolderDown } from 'lucide-react';
 
@@ -111,36 +112,14 @@ export function Dashboard({
   onToggleTask,
   onNavigate,
 }: DashboardProps) {
-  /* ---------- link graph: edges + degree, computed once ---------- */
+  /* ---------- link graph: edges + degree, computed once ----------
+     buildEdges/degreeMap are the same functions the graph view and the status
+     bar count with. This used to be a private copy of them, which is how the
+     masthead and the status bar ended up quoting two different numbers for
+     the same vault. One definition of "a connection", in one place. */
   const linkGraph = useMemo(() => {
-    const titleToId = new Map<string, string>();
-    for (const n of notes) {
-      titleToId.set(n.title.toLowerCase(), n.id);
-      titleToId.set(n.filename.toLowerCase().replace(/\.md$/, ''), n.id);
-    }
-    const edges: { from: string; to: string }[] = [];
-    const seen = new Set<string>();
-    for (const n of notes) {
-      const re = /\[\[([^\]]+)\]\]/g;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(n.body)) !== null) {
-        const targetId = titleToId.get(m[1].trim().toLowerCase());
-        if (targetId && targetId !== n.id) {
-          const key = [n.id, targetId].sort().join('→');
-          if (!seen.has(key)) {
-            seen.add(key);
-            edges.push({ from: n.id, to: targetId });
-          }
-        }
-      }
-    }
-    const degree = new Map<string, number>();
-    for (const n of notes) degree.set(n.id, 0);
-    for (const e of edges) {
-      degree.set(e.from, (degree.get(e.from) || 0) + 1);
-      degree.set(e.to, (degree.get(e.to) || 0) + 1);
-    }
-    return { edges, degree };
+    const edges = buildEdges(notes);
+    return { edges, degree: degreeMap(notes, edges) };
   }, [notes]);
 
   const stats = useMemo(() => {

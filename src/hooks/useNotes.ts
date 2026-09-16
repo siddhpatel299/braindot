@@ -76,7 +76,7 @@ function loadLocalState(): PersistedState {
             notes, folders,
             openTabs: legacy.openTabs?.length ? legacy.openTabs : [notes[0].id],
             activeTab: legacy.activeTab && notes.find((n) => n.id === legacy.activeTab) ? legacy.activeTab : notes[0].id,
-            streak: legacy.streak ?? 14, totalConnections: legacy.totalConnections ?? 1084,
+            streak: legacy.streak ?? 0, totalConnections: legacy.totalConnections ?? 0,
             lastEditDay: legacy.lastEditDay ?? todayKey(),
           };
         }
@@ -96,7 +96,7 @@ function seedState(): PersistedState {
   return {
     notes, folders,
     openTabs: [notes[0].id], activeTab: notes[0].id,
-    streak: 14, totalConnections: 1084, lastEditDay: todayKey(),
+    streak: 0, totalConnections: 0, lastEditDay: todayKey(),
   };
 }
 

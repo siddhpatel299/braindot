@@ -9,6 +9,7 @@ import { useBacklinks } from '@/hooks/useBacklinks';
 import { Folder, Note } from '@/types';
 import { SEED_FOLDER_IDS, todayDateKey } from '@/utils/seedData';
 import { extractWikiLinks } from '@/utils/markdown';
+import { buildEdges } from '@/utils/graph';
 import { IconRail, IconRailView } from '@/components/second-brain/IconRail';
 import { NotesSidebar } from '@/components/second-brain/NotesSidebar';
 import { EditorBar, ViewMode } from '@/components/second-brain/EditorBar';
@@ -886,7 +887,15 @@ export default function Home() {
   }, []);
 
   // ---------- Backlink + word count for status bar ----------
-  const { backlinks, totalConnections } = useBacklinks(state.notes);
+  const { backlinks } = useBacklinks(state.notes);
+
+  // "Connections" means one per linked pair, the same thing the dashboard
+  // masthead and the graph view count. The status bar used to read
+  // state.totalConnections, which is seeded at 1084 and never recomputed, so
+  // it reported a number out of the seed data; counting backlink entries
+  // instead would have been closer but still different, because two notes
+  // that link to each other are two backlinks and one connection.
+  const totalConnections = useMemo(() => buildEdges(state.notes).length, [state.notes]);
 
   const activeLinkCount = useMemo(() => {
     if (!activeNote) return 0;
@@ -1314,7 +1323,7 @@ export default function Home() {
         linkCount={activeLinkCount}
         dirty={editor.dirty}
         totalNotes={state.notes.length}
-        totalConnections={state.totalConnections}
+        totalConnections={totalConnections}
         streak={state.streak}
         syncState={
           authMode === 'user'
