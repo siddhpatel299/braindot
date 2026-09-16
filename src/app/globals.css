@@ -209,66 +209,114 @@
   --scrim: rgba(18, 22, 32, 0.30);
 }
 
-/* ===== Chrome material ======================================================
-   Glass in the workspace is chrome and nothing else. The rail, the notebook
-   list, the bars, the apparatus margin, the palette and the dialogs float over
-   the work; the page you write on and the page you read stay opaque, because
-   prose is read for an hour at a time and must not depend on what happens to
-   be behind it.
+/* ===== The wallpaper ========================================================
+   Glass is not a colour, it is a lens — it reads as glass only when you can
+   see something move and bloom behind it. The first attempt put translucent
+   panels edge-to-edge over a near-flat ground, which is a tinted rectangle
+   with extra steps. This is the thing they are a lens onto: deep, saturated,
+   low-luminance colour, the way a dark wallpaper is vivid in hue and still
+   dark enough to carry white text over it.
 
-   --chrome is the fill, --chrome-blur the lens, --chrome-edge the specular
-   line along the top where the pane turns toward the light. Components
-   reference these three rather than re-declaring a material each. */
-[data-theme="dark"],
-:root:not([data-theme]) {
-  --chrome:      color-mix(in srgb, var(--bg1) 74%, transparent);
-  --chrome-2:    color-mix(in srgb, var(--bg2) 76%, transparent);
-  --chrome-blur: blur(22px) saturate(170%);
-  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.055);
-}
-[data-theme="light"] {
-  /* On a light ground a white specular is invisible — the comment used to
-     say so and the value used to be white anyway. A pane in daylight catches
-     the light as a *darker* line where it turns, so the top edge is a tint of
-     the ground and there is a soft one under the bottom to seat it. */
-  --chrome:      color-mix(in srgb, var(--bg1) 80%, transparent);
-  --chrome-2:    color-mix(in srgb, var(--bg2) 82%, transparent);
-  --chrome-blur: blur(22px) saturate(150%);
-  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9),
-                 inset 0 -1px 0 color-mix(in srgb, var(--bd2) 70%, transparent);
-}
-
-/* Where the browser has no backdrop-filter, the fill has to carry it alone or
-   the chrome is a 74%-transparent rectangle with the page legible through the
-   labels. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  [data-theme="dark"], :root:not([data-theme]) { --chrome: var(--bg1); --chrome-2: var(--bg2); }
-  [data-theme="light"] { --chrome: var(--bg1); --chrome-2: var(--bg2); }
-}
-/* And where someone has asked their system for less transparency, the panes
-   stay — they are the composition — but they stop being see-through. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-theme="dark"], :root:not([data-theme]) { --chrome: var(--bg1); --chrome-2: var(--bg2); --chrome-blur: none; }
-  [data-theme="light"] { --chrome: var(--bg1); --chrome-2: var(--bg2); --chrome-blur: none; }
-}
-
-/* The luminance the chrome lifts. A backdrop-filter over a flat ground is
-   grey plastic; this is the deep colour under the whole shell. Static, with
-   no drift: this is a surface someone stares at for eight hours, and
-   Operate-mode motion conveys state or it does not happen. */
+   It sits on the shell, fixed, behind everything. */
 .sb-app-shell { position: relative; isolation: isolate; }
 .sb-app-shell::before {
   content: '';
   position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  /* Lit where the chrome actually is. The first pass put these at 14%/8%
-     and 88%/92% — full-bleed page coordinates — which dropped most of the
-     light under the opaque editor, so two of the four glass zones were
-     lifting a flat ground. Hard left behind the rail and the notebook list,
-     hard right behind the apparatus margin, and nothing wasted on the middle
-     where the page is opaque anyway. */
-  background:
-    radial-gradient(780px 1100px at -4% 26%, color-mix(in srgb, var(--acc) 30%, transparent), transparent 66%),
-    radial-gradient(680px 1000px at 104% 72%, color-mix(in srgb, var(--blu) 22%, transparent), transparent 68%);
+  background-color: var(--wall-base);
+  background-image:
+    radial-gradient(58% 70% at 8% 6%,   var(--wall-1), transparent 70%),
+    radial-gradient(52% 62% at 92% 12%, var(--wall-2), transparent 68%),
+    radial-gradient(60% 66% at 74% 96%, var(--wall-3), transparent 70%),
+    radial-gradient(46% 58% at 26% 88%, var(--wall-4), transparent 68%);
+}
+
+[data-theme="dark"], :root:not([data-theme]) {
+  --wall-base: #070a14;
+  --wall-1: rgba(96, 78, 224, 0.42);
+  --wall-2: rgba(38, 106, 196, 0.34);
+  --wall-3: rgba(132, 74, 214, 0.34);
+  --wall-4: rgba(26, 128, 150, 0.26);
+
+  /* The material. Dark and translucent rather than white and translucent:
+     over a dark wallpaper a white fill lifts the panel until the quiet text
+     tiers fall under the bar, and Apple's own dark glass is a dark material
+     too. What makes it read as glass is the other three things — a heavy
+     blur, a saturation boost that lets the colour behind bloom through, and
+     a lit edge where the pane turns. */
+  --chrome:      rgba(12, 16, 30, 0.52);
+  --chrome-2:    rgba(16, 20, 36, 0.60);
+  --chrome-blur: blur(30px) saturate(210%);
+  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+                 inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+  --pane-shadow: 0 1px 2px rgba(0, 0, 0, 0.34),
+                 0 12px 32px -12px rgba(0, 0, 0, 0.55),
+                 0 40px 80px -40px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] {
+  --wall-base: #e9edf6;
+  --wall-1: rgba(120, 104, 236, 0.30);
+  --wall-2: rgba(72, 148, 224, 0.26);
+  --wall-3: rgba(158, 112, 232, 0.24);
+  --wall-4: rgba(64, 176, 196, 0.20);
+
+  --chrome:      rgba(255, 255, 255, 0.62);
+  --chrome-2:    rgba(255, 255, 255, 0.72);
+  --chrome-blur: blur(30px) saturate(190%);
+  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.95),
+                 inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  --pane-shadow: 0 1px 2px rgba(31, 41, 71, 0.10),
+                 0 12px 32px -12px rgba(31, 41, 71, 0.18),
+                 0 40px 80px -40px rgba(31, 41, 71, 0.22);
+}
+
+/* ===== The layout ===========================================================
+   The zones used to be flush, edge to edge, which is the other half of why
+   none of this read as glass: with no ground showing between them there was
+   nothing to be in front of. They float now — inset from the window, spaced
+   apart, each one a rounded pane with its own shadow — so the wallpaper runs
+   behind and between them and the panes are plainly objects on top of it. */
+.sb-zones {
+  padding: 10px;
+  gap: 10px;
+}
+.sb-zones > * {
+  border-radius: 18px;
+  box-shadow: var(--pane-shadow);
+  /* A pane clips its own contents to its corners; without this the lists and
+     bars inside square the corners off again. */
+  overflow: hidden;
+}
+/* The rail is a column of icons, not a panel of content: it gets the pill it
+   deserves rather than the same rectangle as everything else. */
+.sb-zones > .sb-rail { border-radius: 22px; }
+
+/* The status bar floats too, rather than being welded to the bottom edge. */
+.sb-statusbar {
+  margin: 0 10px 10px;
+  border-radius: 14px;
+  box-shadow: var(--pane-shadow);
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  /* A phone has no room to spend on gutters; the panes go back to filling it,
+     and the wallpaper shows through the bars instead. */
+  .sb-zones { padding: 0; gap: 0; }
+  .sb-zones > * { border-radius: 0; box-shadow: none; }
+  .sb-statusbar { margin: 0; border-radius: 0; }
+}
+
+/* Where there is no backdrop-filter, or where someone has asked their system
+   for less transparency, the panes stay panes — they are the composition —
+   and simply stop being see-through. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-theme="dark"], :root:not([data-theme]) { --chrome: #0d1120; --chrome-2: #131829; }
+  [data-theme="light"] { --chrome: #fbfcfe; --chrome-2: #f3f5fa; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme="dark"], :root:not([data-theme]) { --chrome: #0d1120; --chrome-2: #131829; --chrome-blur: none; }
+  [data-theme="light"] { --chrome: #fbfcfe; --chrome-2: #f3f5fa; --chrome-blur: none; }
 }
 
 /* Scrollbars, form controls, the native <select> popup and the spellcheck

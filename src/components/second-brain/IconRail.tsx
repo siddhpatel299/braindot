@@ -86,6 +86,7 @@ export function IconRail({ active, onSelect, onOpenPalette, onCreateNote, onSign
 
   return (
     <div
+      className="sb-rail"
       style={{
         width: 50,
         minWidth: 50,

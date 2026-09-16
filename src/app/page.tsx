@@ -987,7 +987,7 @@ export default function Home() {
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        background: 'var(--bg)',
+        /* No fill: the wallpaper on ::before is the ground now. */
         color: 'var(--t1)',
         overflow: 'hidden',
       }}
@@ -1022,7 +1022,7 @@ export default function Home() {
       )}
 
       {/* Middle: 4-zone horizontal flex */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      <div className="sb-zones" style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {!isMobile && (
           <IconRail
             active={iconView}

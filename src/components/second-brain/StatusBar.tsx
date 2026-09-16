@@ -39,6 +39,7 @@ export function StatusBar({
 }: StatusBarProps) {
   return (
     <div
+      className="sb-statusbar"
       style={{
         height: 24,
         background: 'var(--chrome)',

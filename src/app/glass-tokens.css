@@ -110,24 +110,26 @@
      hero's lede does — while a long read (the writing surface, the reader)
      still gets a WELL, because an hour of prose should not be negotiating
      with a backdrop at all. */
-  /* Floored on the ground, not on white. A white-alpha fill inherits
-     whatever luminance is behind it, so text on it has no contrast ratio —
-     only whatever happened to be drifting past. Basing the fill on --ink-1
-     at 0.72-0.80 keeps the backdrop visible as colour and movement while
-     putting a known floor under every glyph. The white sheen that makes it
-     read as glass moves to the specular edge and a top-light gradient. */
-  --glass-chrome-fill: rgba(10, 14, 24, 0.72);
-  --glass-chrome-blur: blur(24px) saturate(180%);
-  --glass-pane-fill:   rgba(10, 14, 24, 0.78);
-  --glass-pane-blur:   blur(40px) saturate(160%);
-  --glass-edge:        rgba(255, 255, 255, 0.10);
-  --glass-edge-strong: rgba(255, 255, 255, 0.16);
+  /* Dark and translucent rather than white and translucent. A white-alpha
+     fill inherits whatever luminance is behind it, which leaves text on it
+     with no contrast ratio, only a weather report; a dark fill keeps a floor
+     under every glyph. What makes these read as glass is not lightness — it
+     is the heavy blur, the saturation boost that lets colour behind bloom
+     through, the lit edge where the pane turns, and the ground being visible
+     around the pane in the first place. */
+  --glass-chrome-fill: rgba(10, 14, 26, 0.50);
+  --glass-chrome-blur: blur(28px) saturate(210%);
+  --glass-pane-fill:   rgba(10, 14, 26, 0.56);
+  --glass-pane-blur:   blur(44px) saturate(200%);
+  --glass-edge:        rgba(255, 255, 255, 0.14);
+  --glass-edge-strong: rgba(255, 255, 255, 0.22);
   --well-fill:         rgba(8, 11, 20, 0.90);
 
   /* The specular line along a pane's top edge. This single inset highlight is
      most of what separates glass from a translucent rectangle: real glass
      catches the light at the edge where it turns. */
-  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.22),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   --glass-underside: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 
   /* ---- Elevation ----------------------------------------------------
