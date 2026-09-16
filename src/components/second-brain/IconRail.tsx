@@ -95,7 +95,6 @@ export function IconRail({ active, onSelect, onOpenPalette, onCreateNote, onSign
         backdropFilter: 'var(--chrome-blur)',
         WebkitBackdropFilter: 'var(--chrome-blur)',
         boxShadow: 'var(--chrome-edge)',
-        borderRight: '1px solid var(--bd)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

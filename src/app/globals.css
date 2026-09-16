@@ -238,8 +238,13 @@
   --chrome:      rgba(14, 14, 18, 0.52);
   --chrome-2:    rgba(20, 20, 25, 0.60);
   --chrome-blur: blur(30px) saturate(150%);
-  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16),
-                 inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+  --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.20),
+                 inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  /* The pane's own edge. On a near-black ground a black drop shadow
+     separates nothing — the light theme reads because its shadow has
+     something to darken — so in the dark the boundary has to be a lit rim
+     rather than a cast one. */
+  --pane-rim: rgba(255, 255, 255, 0.11);
   --pane-shadow: 0 1px 2px rgba(0, 0, 0, 0.34),
                  0 12px 32px -12px rgba(0, 0, 0, 0.55),
                  0 40px 80px -40px rgba(0, 0, 0, 0.6);
@@ -257,6 +262,9 @@
   --chrome-blur: blur(30px) saturate(140%);
   --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.95),
                  inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  /* Light already separates on its shadow, so the rim only has to close the
+     shape, not carry it. */
+  --pane-rim: rgba(23, 23, 26, 0.09);
   --pane-shadow: 0 1px 2px rgba(31, 41, 71, 0.10),
                  0 12px 32px -12px rgba(31, 41, 71, 0.18),
                  0 40px 80px -40px rgba(31, 41, 71, 0.22);
@@ -274,6 +282,7 @@
 }
 .sb-zones > * {
   border-radius: 18px;
+  border: 1px solid var(--pane-rim);
   box-shadow: var(--pane-shadow);
   /* A pane clips its own contents to its corners; without this the lists and
      bars inside square the corners off again. */
@@ -287,6 +296,7 @@
 .sb-statusbar {
   margin: 0 10px 10px;
   border-radius: 14px;
+  border: 1px solid var(--pane-rim);
   box-shadow: var(--pane-shadow);
   overflow: hidden;
 }

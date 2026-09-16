@@ -125,7 +125,6 @@ export function ContextPanel({
         backdropFilter: 'var(--chrome-blur)',
         WebkitBackdropFilter: 'var(--chrome-blur)',
         boxShadow: 'var(--chrome-edge)',
-        borderLeft: fill ? 'none' : '1px solid var(--bd)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
