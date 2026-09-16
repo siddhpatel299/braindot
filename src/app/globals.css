@@ -222,6 +222,12 @@
     radial-gradient(46% 58% at 26% 88%, var(--wall-4), transparent 68%);
 }
 
+/* Geometry is not a theme. This sits outside both blocks so it is one number
+   for light and dark alike -- declared inside the dark block it would be
+   undefined under [data-theme="light"], and border-radius: var(--pane-r)
+   would quietly resolve to square corners. */
+:root { --pane-r: 18px; }
+
 [data-theme="dark"], :root:not([data-theme]) {
   --wall-base: #0a0a0c;
   --wall-1: rgba(120, 116, 180, 0.09);
@@ -280,22 +286,27 @@
   padding: 10px;
   gap: 10px;
 }
+/* One corner for every floating pane.
+   The rail used to carry 22px and the status bar 14px, on the theory that a
+   column of icons and a thin strip each wanted their own shape. Side by side
+   on the same ground that does not read as three considered decisions, it
+   reads as three people. A material has one corner regardless of how big the
+   piece cut from it is. */
 .sb-zones > * {
-  border-radius: 18px;
+  border-radius: var(--pane-r);
   border: 1px solid var(--pane-rim);
   box-shadow: var(--pane-shadow);
   /* A pane clips its own contents to its corners; without this the lists and
      bars inside square the corners off again. */
   overflow: hidden;
 }
-/* The rail is a column of icons, not a panel of content: it gets the pill it
-   deserves rather than the same rectangle as everything else. */
-.sb-zones > .sb-rail { border-radius: 22px; }
-
 /* The status bar floats too, rather than being welded to the bottom edge. */
 .sb-statusbar {
   margin: 0 10px 10px;
-  border-radius: 14px;
+  /* Same token. At 24px tall the browser clamps this to a pill, which is what
+     a strip this thin can physically carry -- the point is that there is one
+     number in the system, not that every pane renders an identical arc. */
+  border-radius: var(--pane-r);
   border: 1px solid var(--pane-rim);
   box-shadow: var(--pane-shadow);
   overflow: hidden;

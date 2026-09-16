@@ -10,6 +10,8 @@
 // This puts them back together. It runs on read, leaves correctly-imported
 // text untouched, and never writes — so it cannot make anything worse.
 
+import { safeUrl } from './markdownHtml.ts';
+
 /** Lines that are structure rather than prose, and must stay on their own. */
 const STRUCTURAL = /^(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|```|\||---\s*$)/;
 
@@ -118,10 +120,51 @@ function dedupeHeadings(blocks: string[]): string[] {
 }
 
 /**
+ * Drop image references the reader has no way to resolve.
+ *
+ * An epub chapter says `<img src="../images/00040.jpeg">`, which becomes
+ * `![The Secret to Money](../images/00040.jpeg)`. That path means something
+ * only inside the zip. The importer inlines those as data URLs now, but a book
+ * imported before it did still carries the bare path in its stored text, and
+ * the original file is not kept to re-extract from.
+ *
+ * The renderer refuses a URL it cannot vouch for and prints the literal text
+ * instead, so what the reader actually sees is markdown source sitting in the
+ * middle of a chapter. Turning it into its caption is what the importer
+ * already does with an image it cannot resolve; this applies the same rule on
+ * read, for the books that never got the chance.
+ *
+ * The test is `safeUrl` — the very predicate the renderer uses — so whatever
+ * survives this is something that will render.
+ */
+export function dropDanglingImages(content: string): string {
+  if (!content.includes('![')) return content;
+  // Fenced blocks are held out. A book about code can legitimately print
+  // `![alt](path)` as an example, and rewriting it there would be corruption
+  // rather than repair.
+  return content
+    .split(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g)
+    .map((chunk, i) => (i % 2 === 1 ? chunk : chunk.replace(
+      /!\[([^\]]*)\]\(([^)\s]*)\)/g,
+      (whole: string, alt: string, href: string) => {
+        if (safeUrl(href)) return whole;
+        const caption = alt.trim();
+        return caption ? `*${caption}*` : '';
+      },
+    )))
+    .join('');
+}
+
+/**
  * Put an imported book back together, or return it untouched if it is fine.
  */
 export function repairImportedText(content: string): string {
-  if (!content || !looksHardWrapped(content)) return content;
-  const blocks = content.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+  if (!content) return content;
+  // Unconditional, unlike the rejoining below: a dangling image is not a
+  // symptom of the hard-wrap bug and turns up in books that are otherwise
+  // perfectly well formed, so it must not sit behind the looksHardWrapped gate.
+  const text = dropDanglingImages(content);
+  if (!looksHardWrapped(text)) return text;
+  const blocks = text.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
   return dedupeHeadings(unwrap(unmarkFalseHeadings(blocks))).join('\n\n');
 }
