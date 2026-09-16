@@ -1,462 +1,474 @@
 # Braindot — Design System
 
-Recorded from the shipped code on 2026-09-16. Every value below was read out of
-the build, not out of a brief. Where the direction contract and the build
-disagree, the build is recorded and the divergence is named.
+Recorded from the shipped code on 2026-09-16, rewritten from scratch after the
+pass that brought the workspace into the entry world. Every value below was read
+out of the build. Contrast ratios were computed from the hex in the stylesheets,
+not estimated. Where a direction contract and the build disagree, the build is
+recorded and the divergence is named in §9.
 
 Sources of truth, in precedence order:
 
-1. `src/app/glass-tokens.css` — the entry world's whole token layer and its
-   material classes.
-2. `src/app/globals.css` — the workspace world's palettes (`[data-theme]`
-   blocks) and the `.auth*` rules.
-3. `src/app/landing/landing.html` — the entry world's page-level rules.
-4. `src/app/layout.tsx`, `src/app/landing/route.ts` — how faces and tokens
-   reach each surface.
+1. `src/app/glass-tokens.css` — the shared token layer: ground, ink, accent, the
+   three glass grades, elevation, radii, faces, motion, the `.world-ink`
+   browser-surface rules, and the self-hosted `@font-face` declarations.
+2. `src/app/globals.css` — the workspace's semantic palette (three theme
+   blocks), the chrome material, the state tokens, the scrim, the luminance
+   field, and the `.auth*` rules. It `@import`s glass-tokens.css.
+3. `src/app/landing/landing.html` + `src/app/landing/route.ts` — the Persuade
+   page and the token-inlining arrangement.
+4. `src/components/second-brain/*` — how the material is actually applied.
 
 ---
 
-## 0. Two worlds, on purpose
+## 0. One world, two registers
 
-Braindot ships **two** visual worlds. This is a decision, not drift, and it is
-declared in code at the top of `glass-tokens.css`.
+Braindot ships **one** visual world: **midnight ink**. A blue-black ground, an
+iron-gall indigo accent, and glass as a specific, budgeted material. The
+workspace's former "slip-box" world — warm graphite and warm paper — is
+**retired**; no token, palette or rule from it survives in the build, and the
+header comments in both stylesheets say so.
 
-| World | Governs | Ground | Material |
-|---|---|---|---|
-| **Midnight ink** | `/landing`, `/auth` | blue-black `#05070d`, always night | real glass over a live graph |
-| **Slip-box** | the entire workspace app, `/demo`, published pages | warm graphite (dark) or warm paper (light), user's choice | ink on paper, apparatus in the margin |
+The world runs in two registers. A register is a set of constraints on the same
+materials, not a different world.
 
-Neither world is deprecated. They are separated by job, not by age:
+| | **Persuade** | **Operate** |
+|---|---|---|
+| Surfaces | `/landing`, `/auth` | the workspace app, `/demo`, published pages |
+| Theme | always night; `color-scheme: dark` is declared in the landing `<head>` | `[data-theme="dark"]` and `[data-theme="light"]`, reader's choice |
+| Ground | `--ink-0 #05070d` | `--bg` `#06080f` (dark) / `#eef1f7` (light) |
+| Type | Manrope throughout; mono for measured values and key caps only | JetBrains Mono chrome; a reader-chosen prose face for prose |
+| Glass | full-bleed — CHROME, PANE and WELL over a live force-directed graph | chrome **only**; never the page someone writes or reads on |
+| Motion | one arrival animation, then still | state or nothing |
 
-- The storefront is met once, by someone with no account and no theme
-  preference. It is always dark because glass needs a dark ground and something
-  worth looking through, or a `backdrop-filter` resolves to grey plastic.
-- The workspace is stared at for eight hours and therefore gets a light/dark
-  choice, a reading face, and a quiet ground that does not compete with prose.
-
-**What holds them together is the ink.** `#6f63e0` iron-gall indigo is
-`--accent` in the entry world and `--acc` in the workspace's dark theme — the
-same hex, the one fixed piece of brand. The blinking block-caret wordmark is the
-other: it appears as `.caret` on `/landing` and `.sb-caret` on `/auth` and in
-the app.
-
-**Crossing the boundary is a defect.** A surface is in exactly one world. Entry
-surfaces carry the `world-ink` class (`<html class="world-ink">` on the landing
-page; `<div className="auth world-ink">` on `/auth`) and use only `--ink-*`,
-`--accent*`, `--glass-*`, `--r-*`, `--step-*`, `--face-*`. Workspace surfaces
-use only `--bg*`, `--t*`, `--acc*`, `--paper`, `--rule`, `--hair`.
+**What holds them together** is the accent and the ground family. `#6f63e0` is
+`--accent` in the token layer and `--acc` in the workspace's dark theme — the
+same hex, the one piece of this that is brand rather than styling. The blinking
+block-caret wordmark is the other: `.caret` on `/landing`, `.sb-caret` in the
+Next app.
 
 **One token file, two consumers.** `glass-tokens.css` is `@import`-ed by
 `globals.css` for the bundler, and read off disk and inlined by
 `src/app/landing/route.ts` at the `/*@design-tokens@*/` marker for the raw-HTML
 route. `/landing` is served outside the Next layout because the app's `body` is
-`overflow:hidden` and a marketing page must scroll, so it cannot import a
-bundler-owned stylesheet. The route throws rather than serving an unstyled page
-if the marker is missing. **Add an entry-world token to `glass-tokens.css` and
-nowhere else** — the previous hand-copied palette is how `/landing` ended up a
-generation behind the app.
+`height:100dvh; overflow:hidden` and a marketing page must scroll, so it cannot
+import a bundler-owned stylesheet. The route **throws** rather than serving an
+unstyled page if the marker is missing. Add a shared token to
+`glass-tokens.css` and nowhere else — the hand-copied palette that preceded it
+is how `/landing` ended up a generation behind the app.
 
 ---
 
-# World 1 — Midnight ink
+## 1. Ground and ink
 
-Governs `/landing` and `/auth` only.
+### 1.1 The shared ground (`glass-tokens.css`)
 
-## 1.1 Ground and ink
+Blue-black, never neutral. A neutral grey ground under a white-alpha glass fill
+turns the glass grey too; the blue is what leaves the `saturate()` in the
+backdrop filter something to lift.
 
 | Token | Value | Job |
 |---|---|---|
 | `--ink-0` | `#05070d` | the page itself |
 | `--ink-1` | `#0a0e18` | a raised field |
 | `--ink-2` | `#111726` | a well's floor |
-| `--ink-3` | `#1a2133` | hairline, track, disabled fill, scrollbar thumb |
-| `--ink-t1` | `#f2f4f9` | primary text — 18.3:1 on `--ink-0` |
-| `--ink-t2` | `#a8b0c4` | secondary text, all body copy — 9.3:1 |
-| `--ink-t3` | `#6f7994` | quietest tier — 4.64:1 on `--ink-0`, 4.53:1 on `--well-fill` |
+| `--ink-3` | `#1a2133` | a hairline, a track, a disabled fill |
+| `--ink-t1` | `#f2f4f9` | primary ink — 18.3:1 on `--ink-0` |
+| `--ink-t2` | `#a8b0c4` | secondary — 9.28:1 on `--ink-0` |
+| `--ink-t3` | `#757f9b` | quiet tier — 5.05:1 on `--ink-0`, 4.84:1 on `--ink-1`, 4.48:1 on `--ink-2` |
 
-The ground is blue-black and **never neutral grey**: a neutral ground under a
-white-alpha fill gives the `saturate()` in the backdrop filter nothing to lift,
-and the glass comes out grey.
+### 1.2 The workspace palette (`globals.css`)
 
-`--ink-t3` is a measured floor, not an eyeballed one. It clears 4.5:1 on the two
-grounds it is specified against (`--ink-0`, `--well-fill`). See §1.9 for where
-it does not.
-
-## 1.2 Accent and state
-
-| Token | Value | Job |
-|---|---|---|
-| `--accent` | `#6f63e0` | filled surfaces only — buttons, the skip link, pips. **Not a text colour** (4.35:1). |
-| `--accent-lum` | `#9d93ff` | anything that emits: live node, focus ring, link, wiki-link, caret. 7.72:1, so it may also be text. |
-| `--accent-deep` | `#4a3fb8` | declared; reserved. |
-| `--on-accent` | `#ffffff` | ink on an accent fill — 4.63:1 on `--accent`. |
-| `--amber` | `#efb45c` | state, and the reader's highlight |
-| `--green` | `#4ad6a4` | state, live/ok, the lock glyph |
-| `--red` | `#ff7a72` | state, error iconography |
-
-State keeps its own reserved hues so the accent never has to double as a
-warning. This rule is shared with the workspace world.
-
-## 1.3 Glass — three grades, and the difference is the point
-
-Glass is a specific effect here — a pane you look at the vault through — not a
-finish sprayed on every box.
-
-| Grade | Class | Fill | Filter | Edge / shadow |
-|---|---|---|---|---|
-| **CHROME** | `.g-chrome` | `rgba(255,255,255,.055)` | `blur(24px) saturate(180%)` | 1px `--glass-edge` bottom, `--glass-specular` |
-| **PANE** | `.g-pane` | `rgba(255,255,255,.075)` | `blur(40px) saturate(160%)` | 1px `--glass-edge`, `--r-lg`, specular + underside + `--lift-2` |
-| **WELL** | `.g-well` | `rgba(8,11,20,.90)` opaque | **none** | 1px `--glass-edge`, `--r-md`, `inset 0 1px 3px rgba(0,0,0,.5)` |
-
-- `--glass-edge` `rgba(255,255,255,.10)` · `--glass-edge-strong` `rgba(255,255,255,.16)`
-- `--glass-specular` `inset 0 1px 0 rgba(255,255,255,.18)` — the single inset
-  highlight along a pane's top edge is most of what separates glass from a
-  translucent rectangle. **A pane without it is not in this system.**
-- `--glass-underside` `inset 0 -1px 0 rgba(0,0,0,.35)`
-
-CHROME floats over everything and must stay light enough to see past. PANE holds
-the argument; the heavier blur is what softens the graph behind it. WELL is a
-recessed opaque floor and is **not glass** — the contrast of a blur is whatever
-happens to be behind it that second, which is not a ratio anyone can hold.
-
-**Two mandatory degradations, both shipped:**
-
-- `@supports not (backdrop-filter)` → CHROME `rgba(10,14,24,.94)`, PANE
-  `rgba(12,16,28,.92)`. Without this a "pane" is a 7% white rectangle with the
-  graph legible straight through the type.
-- `@media (prefers-reduced-transparency: reduce)` → CHROME `rgba(10,14,24,.96)`,
-  PANE `rgba(12,16,28,.96)`, filters `none`. The panes stay, because they are
-  the composition; they stop being transparent.
-
-Any new glass surface inherits both fallbacks or it is not glass.
-
-## 1.4 The luminance substrate
-
-Glass in this world is never over flat colour. Both entry surfaces lay down the
-same three-lobe wash before any pane:
-
-```
-radial-gradient(… rgba(111,99,224,.34) …)   the accent lobe
-radial-gradient(… rgba(58,116,214,.20) …)   a cooler blue lobe
-radial-gradient(… rgba(157,147,255,.14–.16) …) a luminous lobe
-```
-
-`.wash` on `/landing` (fixed, positions 72%/24%, 14%/78%, 92%/88%) and
-`.auth-wash` on `/auth` (absolute, mirrored to 22%/26%, 84%/74%, 62%/8%). Never
-seen as shapes; only ever as the thing the panes lift. `/landing` adds a
-34s `drift` translate/scale animation, gated on `prefers-reduced-motion`.
-
-Over that, `/landing` runs `#field`: a 44-node force-directed canvas graph of an
-example vault, fixed, `pointer-events:none`, `aria-hidden`, masked by a
-`radial-gradient(120% 95% at 62% 40%)` vignette. Four cluster hues
-`#9d93ff #6f8fe0 #7fd6c0 #b89bf0`; edges as 1px hairlines at
-`rgba(157,147,255,.30)` within a cluster and `.16` across; nodes sized by degree
-with a `r*3.4` glow on hubs. It settles and stops, and stops when the page is
-hidden. `/auth` carries the still SVG equivalent (`.auth-field-svg`, opacity
-0.6, radially masked).
-
-**Rule: a PANE is only ever placed over the wash or the field.** A pane over
-flat `--ink-0` is grey plastic and the material fails.
-
-## 1.5 Elevation
-
-Three layers, because one blurred drop shadow reads as a sticker: a tight
-contact shadow, a mid shadow for the gap, a wide ambient one for the room.
-
-| Token | Value |
-|---|---|
-| `--lift-1` | `0 1px 2px rgba(0,0,0,.30), 0 4px 12px -4px rgba(0,0,0,.40)` |
-| `--lift-2` | `0 1px 2px rgba(0,0,0,.32), 0 10px 28px -10px rgba(0,0,0,.50), 0 36px 72px -32px rgba(0,0,0,.60)` |
-| `--lift-glow` | `0 8px 32px -8px rgba(111,99,224,.45)` — accent-filled controls only |
-
-All shadows are centred (no x offset) and soft. A hard offset shadow does not
-exist in this world.
-
-## 1.6 Radii
-
-`--r-xs 8px` · `--r-sm 12px` · `--r-md 18px` · `--r-lg 26px` · `--r-xl 34px` ·
-`--r-pill 999px`
-
-Nested radii stay concentric: a child's radius is the parent's minus its inset,
-so corners run parallel instead of crossing. Assignments as shipped: PANE
-`--r-lg`, WELL and cards `--r-md`, inputs and nav items `--r-sm`, focus ring and
-icon buttons `--r-xs`, every button, chip, tag and toggle `--r-pill`.
-
-## 1.7 Type
-
-| Token | Stack |
-|---|---|
-| `--face-ui` | `var(--font-manrope,'Manrope')`, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif |
-| `--face-mono` | `var(--font-jetbrains,'JetBrains Mono')`, ui-monospace, 'Fira Mono', monospace |
-
-Manrope carries everything read. The mono keeps exactly two jobs: **measured
-values and key caps** — plus, as shipped, the `.meta` caption line, the
-`.src-kind` format badges, the `.urlbar`, the `.tree`, and the `[[` brackets in
-the wiki-link demo, all of which are machine-shaped text. It is not the display
-voice and it is not decoration.
-
-Fluid ramp, all `clamp()`:
-
-| Step | min → max | Used by |
-|---|---|---|
-| `--step--1` | 0.80 → 0.86rem | captions, small buttons, quotes, nav |
-| `--step-0` | 0.95 → 1.06rem | body |
-| `--step-1` | 1.13 → 1.35rem | `.lede`, `h3`, auth sub |
-| `--step-2` | 1.45 → 2.00rem | card titles, auth `h2` |
-| `--step-3` | 1.95 → 3.10rem | section `h2` |
-| `--step-4` | 2.60 → 4.75rem | hero `h1`, closing `h2` |
-
-Headings: weight 800, `letter-spacing:-0.035em`, `line-height:1.04`,
-`text-wrap:balance`. `h3` softens to `-0.02em / 1.2`. Body `line-height:1.65`;
-`.lede` 1.6. Measure is capped: `.lede` 62ch, `.body` 70ch, auth sub 46ch, auth
-`h1` 15ch.
-
-Weights loaded: 300/400/500/600/800.
-
-## 1.8 Motion
-
-One ease everywhere, so the surface moves like one object.
-`--ease cubic-bezier(.16,1,.3,1)` (exponential-out: leaves fast, lands slow,
-never overshoots), `--ease-in-out cubic-bezier(.65,0,.35,1)` for loops.
-Durations `--t-fast 160ms` (hover, focus, state), `--t-mid 320ms` (a component
-reacting to another component), `--t-slow 620ms` (arrival).
-
-**One authored motion on the page**: `.rise` — `translateY(26px)`, `opacity 0`,
-`filter: blur(6px)` → settled, at `--t-slow`. The blur is load-bearing: it is
-the page's own material coming into focus. Everything else is hover feedback.
-Hover lift is exactly `translateY(-1px)`; nothing scales.
-
-All decorative motion is inside `@media (prefers-reduced-motion: no-preference)`
-and the default state is the **visible** one, so a failed observer or a reduced
--motion preference can never leave content hidden.
-
-## 1.9 Text on glass — the rule as shipped
-
-Declared rule: body copy never sits on a `backdrop-filter`; reading surfaces are
-WELLs. As built, that holds for the sustained reading passages (`.note-well`,
-the two `.capture` cells, the `.tree`, every `.auth-input`, which is a
-`rgba(6,9,16,.72→.88)` well rather than glass).
-
-It does **not** hold for short display copy: the hero `h1`/`.lede`, the tutor
-transcript, the `.auth-card`, the `.bl` backlink cards and the `.src` shelf
-cards all read on PANE-family glass. That is what the two opaque fallbacks in
-§1.3 exist to cover, and it is the working rule going forward:
-
-> **Sustained prose sits on a WELL. Display copy and card-level copy may sit on
-> a PANE, provided the pane carries both the `@supports` and the
-> `prefers-reduced-transparency` opaque fallbacks.**
-
-## 1.10 Browser surfaces
-
-Scoped to `.world-ink`, because defaults here belong to no design system and are
-the cheapest tell that a page was assembled rather than built:
-
-- `::selection` `rgba(157,147,255,.28)` on `--ink-t1`
-- `caret-color: --accent-lum`, `accent-color: --accent`
-- scrollbar: thin, `--ink-3` thumb on transparent, `--r-pill`, 3px transparent
-  border via `background-clip:content-box`, hover `#27304a`
-- `:focus-visible` → `2px solid --accent-lum`, `outline-offset:2px`,
-  `border-radius: --r-xs`. Never removed, never replaced with a shadow alone.
-- `.fig` → `tabular-nums` on any figure meant to be compared
-- links → `text-underline-offset:.22em`, `text-decoration-thickness:1px`
-
-## 1.11 Controls
-
-| Control | Shape |
-|---|---|
-| `.btn` base | pill, `min-height:48px`, `padding:0 22px`, `--step-0`/600, `gap:9px`, `touch-action:manipulation` |
-| `.btn-primary` | `--accent` fill, `--on-accent`, `--lift-2` + `inset 0 1px 0 rgba(255,255,255,.24)`, hover `#7d71ee` + `-1px` |
-| `.btn-glass` | `rgba(255,255,255,.07)`, `--glass-edge-strong`, `blur(18px) saturate(160%)`, specular; hover `.12` / edge `.26` |
-| `.btn-sm` | `min-height:40px`, `padding:0 16px`, `--step--1` |
-| `.auth-submit` | full-width pill, `min-height:50px`, `--lift-1` + `--lift-glow` + specular |
-| `.auth-demo` | the `.btn-glass` recipe, full width, `min-height:48px` |
-
-Every interactive target clears 40px of height, including inline ones: the
-sign-in/sign-up switch in `.auth-foot` is a real 28px-min button with negative
-margins so the sentence's spacing reads unchanged.
-
-Icons are **inline Lucide SVG** — the same set the app renders — either inlined
-as `<symbol>`s in the landing document or imported as React components on
-`/auth`. `svg.ic` is `1em` square, `fill:none`, `stroke:currentColor`,
-`stroke-width:1.75`, round caps and joins. No icon font, no emoji, no glyph
-characters standing in for icons.
-
-## 1.12 Layout and rhythm
-
-- Page gutter: `clamp(16px, 4vw, 40px)`, used identically by the bar, sections
-  and footer.
-- Section padding: `clamp(96px, 13vh, 172px)` vertical. More room above a
-  heading than below it, so a section reads as belonging to what follows.
-- Measure: `.wrap` `max-width:1180px`, centred. Narrow passage `720px`.
-- Two-column splits are `1.05fr / .95fr` with `clamp(28px,5vw,72px)` gutter,
-  collapsing to one column at 900px.
-- `/auth` is `1.02fr / .98fr`; below 940px the left-hand pitch is dropped
-  entirely (it was made on the page before) and the form takes the width.
-- Landing collapses nav anchors at 700px but never the demo link.
-- Hero pane `max-width:616px`, `padding: clamp(28px,4vw,46px)`.
-
-## 1.13 Named rules
-
-1. **Glass needs something to look through.** No pane over flat colour; the wash
-   and the field are structural, not decoration.
-2. **The specular edge makes the glass.** Every pane carries
-   `--glass-specular`.
-3. **Three grades, chosen by job.** CHROME to float, PANE to argue, WELL to
-   read. A WELL is never blurred.
-4. **Every glass surface degrades twice** — `@supports` and
-   `prefers-reduced-transparency`.
-5. **The quiet tier is measured, not eyeballed.** A text colour enters the
-   system with its ratio against the ground it actually sits on.
-6. **The accent is for light, not for warning.** Amber, green and red keep
-   their own reserved hues.
-7. **One ease, three durations, one authored motion.** Hover lift is 1px;
-   nothing scales; reduced-motion defaults to the visible state.
-8. **Mono earns its place twice only** — measured values and key caps (and the
-   machine-shaped strings that are literally those: URLs, file trees, `[[`).
-9. **One token file, two consumers.** Never a second copy of the palette.
-10. **The demo link survives every breakpoint.** It is the cheapest way in and
-    the only one needing no email.
-
-## 1.14 Prohibitions
-
-Checked against the world's own materials; none of these bans a device the build
-itself uses.
-
-- **No eyebrow or kicker text above a heading.** Format badges that name real
-  data (`.src-kind`: EPUB / ARXIV / ARTICLE / PDF / EDITION) and caption labels
-  that name a real place (`.meta`: "In the reader") are *not* kickers — they
-  carry information. A decorative line of small caps above a headline is.
-- **No icon-heading-text card grid.** The page's evidence is arranged as
-  demonstrations: a live wiki-link driving a backlink stack, a horizontally
-  scrolling shelf, a transcript. A three-by-three feature grid describes a
-  product that connects your thinking without connecting anything in front of
-  you.
-- **No section numbers.**
-- **No hard-offset shadows.** All elevation is soft and centred; this is not a
-  neobrutalist world.
-- **No glyph or emoji icons.** Lucide SVG only.
-- **No system display face.** Manrope carries display; the system stack is a
-  fallback, never a choice.
-- **No blur as a finish.** If a surface is not CHROME, PANE or WELL, it does not
-  get a `backdrop-filter`.
-- **No focus state without a visible ring.**
-- **No claim that outruns the tree.** Copy names only shipped behaviour;
-  `/landing` carried "Voice-to-note capture" for months with no speech code
-  anywhere.
-
----
-
-# World 2 — Slip-box
-
-Governs the workspace app, `/demo`, published pages, and the editor. Declared in
-the header comment of `src/app/globals.css`. **Current, not deprecated.**
-
-## 2.1 Direction
-
-A note is a card under a desk lamp, not a console. The ground is warm graphite
-(dark) or warm paper (light), never the blue-black of a terminal. The accent
-stays in the iron-gall ink family — cool indigo against a warm ground, which is
-what ink on paper actually is. Apparatus lives in the margin; one row of chrome;
-vertical space in the editor is protected.
-
-## 2.2 Palette
-
-Three theme blocks ship identically-keyed tokens: `[data-theme="dark"]`,
+Three blocks ship identically-keyed tokens: `[data-theme="dark"]`,
 `[data-theme="light"]`, and `:root:not([data-theme])` (the pre-JS default,
-duplicating dark). The `:not()` is load-bearing — a plain `:root` would outrank
-`[data-theme="light"]` and permanently defeat light mode.
+duplicating dark). **The `:not()` is load-bearing** — a plain `:root` has the
+same specificity as `[data-theme="light"]` and, coming later in the file, would
+permanently defeat light mode.
 
 | Token | Dark | Light |
 |---|---|---|
-| `--bg` … `--bg4` | `#141310 #1b1917 #23201d #2c2925 #363229` | `#efece4 #f8f6f1 #e6e2d8 #dbd6ca #cdc7b9` |
-| `--bd` / `--bd2` | `#2a2723` / `#3b3630` | `#dcd7cb` / `#c4bdaf` |
-| `--t1` / `--t2` / `--t3` | `#efeae0` / `#a19890` / `#8f867a` | `#1e1b16` / `#5b554b` / `#675f54` |
-| `--acc` / `--acc2` | `#6f63e0` / `#a79ef5` | `#5449c9` / `#3b32a8` |
-| `--acc-bg` / `--acc-bd` | `#1e1b33` / `#3b3480` | `#e9e7fa` / `#c0baef` |
+| `--bg` … `--bg4` | `#06080f #0b0f1a #121827 #1a2133 #252d42` | `#eef1f7 #f9fafd #e3e8f1 #d5dce8 #c3ccdb` |
+| `--bd` / `--bd2` | `#1a2031` / `#39435a` | `#dce2ec` / `#aeb8c9` |
+| `--t1` / `--t2` / `--t3` | `#f2f4f9` / `#a8b0c4` / `#8b94af` | `#121620` / `#4d5666` / `#525b6d` |
+| `--acc` / `--acc2` | `#6f63e0` / `#9d93ff` | `#5449c9` / `#3b32a8` |
+| `--acc-bg` / `--acc-bd` | `#1c1a38` / `#3b3480` | `#e8e6fb` / `#bfb9ee` |
 | `--on-acc` | `#ffffff` | `#ffffff` |
-| `--grn` / `--amb` / `--blu` / `--red` / `--coral` | `#43c495 #e9b14b #6fa8dc #e8746b #e8926f` | `#0f7a56 #9c5b12 #1d6fa4 #a8261f #b1470f` |
-| `--paper` / `--rule` / `--hair` | `#181614 / #4a443c / #2a2723` | `#f8f6f1 / #9d9689 / #dcd7cb` |
-| `--canvas-dot` | `#24211d` | `#d3cec1` |
+| `--grn` / `--amb` / `--blu` / `--red` / `--coral` | `#4ad6a4 #efb45c #7cb4ec #ff7a72 #f0996f` | `#0c7a59 #96590f #1c6ca5 #b4261d #a8480f` |
+| `--paper` / `--rule` / `--hair` | `#0b0f1a` / `#4a5570` / `#1a2031` | `#f9fafd` / `#9aa5b8` / `#dce2ec` |
+| `--canvas-dot` | `#1a2031` | `#ccd5e3` |
+| `--selection-bg` | `rgba(157,147,255,0.26)` | `rgba(84,73,201,0.18)` |
 
-Each state hue ships with its own `-bg` and `-bd` companions, so a state chip is
-a fill, an edge and an ink from one family rather than an opacity guess.
+Light is a **cool** near-white, not warm paper: the same glass and the same
+indigo sit on it, and warm paper under a cool blur goes muddy.
 
-`--t3` is the quietest tier — section labels, note metadata, inactive tabs, the
-status bar, empty-state hints. It was retuned in both directions (dark
-`#6e665c` → `#8f867a`, light `#8b8478` → `#675f54`) until it clears 4.5:1
-against `--bg`, `--bg1` and `--bg2`. **This is the same measured-floor rule as
-`--ink-t3`; it is the one law both worlds share besides the accent.**
+Each state hue ships `-bg` and `-bd` companions, so a state chip is a fill, an
+edge and an ink from one family rather than an opacity guess.
 
-## 2.3 Type
+### 1.3 Contrast is measured against the surface a tier sits on
 
-- **JetBrains Mono** is the chrome's identity and is applied by a blanket
-  element rule with `!important`.
-- **Source Serif 4** is the edition's face.
-- The editor's prose face is user-selectable (Settings › reading font):
-  `--font-reading-serif` (Iowan Old Style / Palatino / Charter / Georgia)
-  **by default — prose is prose** — with mono and sans one click away. Only the
-  writing surface changes; all chrome above stays monospace.
-- Faces are loaded by `next/font` in `layout.tsx` and served from our own
-  origin. They were once `@import`-ed, which cost a serialized round trip to a
-  third party on every cold load. `@theme inline` is required in the Tailwind
-  block so the hashed family names resolve at runtime rather than build time.
+Not against the darkest available ground. `--t3` is the quietest tier — section
+labels, note metadata, inactive tabs, the status bar, empty-state hints — and it
+was retuned until it clears 4.5:1 on **every** ground it is actually set on:
 
-## 2.4 Surfaces
+- dark `#8b94af`: 6.63 on `--bg`, 6.34 on `--bg1`, 5.86 on `--bg2`, 5.31 on `--bg3`
+- light `#525b6d`: 6.03 on `--bg`, 6.54 on `--bg1`, 5.55 on `--bg2`, 4.95 on `--bg3`
 
-- `--paper` is the edition: a sheet lifted slightly off the app's ground.
-- Two weights of rule: `--rule` separates sections, `--hair` divides columns.
-- Radii are small and literal (2–8px) — this world has no radius scale token.
-- Theme transition: `background-color 180ms`, `border-color 180ms`,
-  `color 100ms`, all `ease`, declared on `*`.
-- `color-scheme` is declared next to each palette, so a new theme cannot be
-  added without one; otherwise the app runs dark with a white scrollbar.
+`--on-acc` white clears 4.63:1 on dark `--acc` and 6.62:1 on light `--acc`, so a
+filled button can carry it in either theme. `--acc2` is 7.67:1 on dark `--bg`,
+so the lit accent can also just be text.
 
-## 2.5 The boundary rules
-
-- The blanket mono rule is the workspace's identity and it shouts, so the
-  storefront shouts back: `.auth, .auth *` sets `--face-ui` with `!important`
-  (a class beats an element selector), and `.auth .mono` restores
-  `--face-mono` for the two jobs mono keeps.
-- `/auth` is the only part of the Next app inside midnight ink, and it is
-  explicitly annotated as such in `globals.css`.
-- The workspace adopting midnight ink is an open question, not a plan. The token
-  layer is written so it *could*, deliberately — never by drift.
+**A token enters the system with its ratio against the grounds it is used on, or
+it does not enter.** This rule is inherited by anything new.
 
 ---
 
-## 3. Not canonized, not repaired
+## 2. Glass — three grades, and the difference is the point
 
-The following are recorded as defects or divergences the build carries. None is
-a design-system rule, and no future surface should inherit any of them.
+Glass is an effect with a job, not a finish sprayed on boxes.
 
-1. **`/auth`'s wordmark caret uses the workspace token.** `page.tsx` renders
-   `.sb-caret`, whose fill is `var(--acc)` — a slip-box token — inside a
-   `world-ink` surface. Under `[data-theme="light"]` that resolves to `#5449c9`
-   on a near-black ground. A cross-world token leak, not a permitted shortcut;
-   the entry world's caret colour is `--accent-lum` (`.caret` on `/landing`).
-2. **`--ink-t3` is below 4.5:1 on `--ink-2`** (4.12:1) and marginal on `--ink-1`
-   (4.44:1). The token's own comment claims 4.6:1 and that is true only against
-   `--ink-0` (4.64) and `--well-fill` (4.53). The higher number is **not**
-   recorded as blanket clearance; §1.1 records the grounds it was actually
-   validated against. Not retuned here.
-3. **Body-adjacent copy reads on glass.** `.bl-quote`, `.src .by`, `.src h3`,
-   the hero `.lede` and the tutor transcript sit on `backdrop-filter` surfaces,
-   against the token file's own "body copy never sits on a backdrop-filter".
-   §1.9 records what shipped and the fallback that makes it survivable; the
-   stricter brief text ("every reading surface is a WELL at ≥88%") is **not**
-   recorded as the rule, because the build does not obey it.
-4. **`/landing` fetches Manrope and JetBrains Mono from Google Fonts** via a
-   render-blocking third-party `<link>`, which is exactly the serialized
-   third-party round trip `globals.css` documents `next/font` as having fixed.
-   It is forced by the route having no bundler, and `layout.tsx` annotates it,
-   but it is a divergence from the house rule, not an exception the system
-   grants.
-5. **The direction contract's numbers were not what shipped**, and the build
-   wins throughout: CHROME/PANE fills are 5.5%/7.5% not 6%/8%; radii run
-   8–34px not "continuous 20–28px"; the hero pane is 616px not 560px. Recorded
-   as built.
-6. **Pre-existing slip-box drift, reported not repaired:** the workspace world
-   has no type-scale, spacing-scale or radius tokens. Font sizes are literal px
-   across ~26 declarations (6.5px–16.5px) and radii are ad-hoc 2–8px values.
-   That is a real inconsistency, but it predates this build and repairing it was
-   not asked for.
+| Grade | Fill | Lens | Carries |
+|---|---|---|---|
+| **CHROME** | `--glass-chrome-fill` `rgba(10,14,24,0.72)` | `blur(24px) saturate(180%)` | floats over everything; must stay light enough to see past |
+| **PANE** | `--glass-pane-fill` `rgba(10,14,24,0.78)` | `blur(40px) saturate(160%)` | holds the argument; heavier blur, so the graph behind goes soft |
+| **WELL** | `--well-fill` `rgba(8,11,20,0.90)` | **none** | a recessed opaque floor — where text actually lives |
+
+**Fills are floored on the ground, not tinted with white.** A white-alpha fill
+inherits whatever luminance drifts behind it, so text on it has no contrast
+ratio at all. Basing the fill on `--ink-1` at 0.72–0.90 keeps the backdrop
+visible as colour and movement while putting a **known floor** under every
+glyph. The white sheen that makes it read as glass moves to the specular edge
+and a top-light gradient:
+
+- `--glass-specular` `inset 0 1px 0 rgba(255,255,255,0.18)` — the line along the
+  top edge where the pane turns toward the light. This single inset is most of
+  what separates glass from a translucent rectangle.
+- `--glass-underside` `inset 0 -1px 0 rgba(0,0,0,0.35)`
+- `--glass-edge` `rgba(255,255,255,0.10)`, `--glass-edge-strong` `0.16`
+- `.g-pane` adds a top-light gradient: white at 5.5% → 1.2% at 42% → transparent
+  at 70%.
+
+The material classes `.g-chrome`, `.g-pane`, `.g-well` are declared once in the
+token file, so a pane on `/landing` and a pane on `/auth` are literally the same
+object.
+
+### 2.1 The workspace chrome material
+
+Operate does not use `.g-pane`. It uses three tokens the components reference
+rather than re-declaring a material each:
+
+| Token | Dark | Light |
+|---|---|---|
+| `--chrome` | `color-mix(in srgb, var(--bg1) 74%, transparent)` | `… var(--bg1) 80% …` |
+| `--chrome-2` | `color-mix(in srgb, var(--bg2) 76%, transparent)` | `… var(--bg2) 82% …` |
+| `--chrome-blur` | `blur(22px) saturate(170%)` | `blur(22px) saturate(150%)` |
+| `--chrome-edge` | `inset 0 1px 0 rgba(255,255,255,0.055)` | `inset 0 1px 0 rgba(255,255,255,0.9)`, plus a bottom inset of `--bd2` at 70% |
+
+On a light ground a white specular is invisible; a pane in daylight catches the
+light as a **darker** line where it turns, so the light theme's top edge is a
+tint of the ground with a soft under-line to seat it.
+
+Applied as CHROME (`--chrome`): `IconRail`, `EditorBar`, `StatusBar`,
+`ContextPanel`, `MobileTopBar`, `MobileTabBar`.
+Applied as heavier floating chrome (`--chrome-2`): `NotesSidebar`,
+`CommandPalette`, `AppDialog`, `ShareDialog`, `AskAIModal`, `MobileSheet`,
+`SlashMenu`.
+
+Overlays sit on `--scrim` with a `blur(3px)` of their own: `rgba(3,5,10,0.64)`
+in dark, `rgba(18,22,32,0.30)` in light. A raw black scrim is two wrong things
+at once — not the ground's hue, and the value that reads as "dimmed" over
+graphite reads as "switched off" over paper.
+
+### 2.2 State on glass
+
+An opaque palette step used as a hover fill punches a hole in a translucent
+pane. State tokens are **ink and light**, not surfaces — they tint whatever they
+are laid on:
+
+- dark: `--ink-hover` `rgba(255,255,255,0.065)`, `--ink-active` `rgba(255,255,255,0.115)`
+- light: `--ink-hover` `rgba(18,22,32,0.055)`, `--ink-active` `rgba(18,22,32,0.092)`
+
+An active **well** stays opaque, because a well is opaque by definition.
+
+---
+
+## 3. Text never sits on a backdrop-filter
+
+The contrast of a blur is whatever happens to be behind it that second, and that
+is not a ratio you can hold for an hour of reading. So:
+
+- `EditorCanvas` — the writing surface — is opaque `var(--bg)`.
+- `ReadingView` — the reader — is opaque `var(--bg)`.
+- The `NotesSidebar` spine strip is opaque `var(--bg)`.
+- On `/landing`, sustained reading happens in `.g-well`: the atomic-note
+  demonstration, the file tree, the data cards. A WELL is never blurred.
+
+Glass in Operate is chrome and nothing else — labels, icons, counts, a command
+list. Prose never crosses onto it.
+
+---
+
+## 4. The luminance substrate
+
+A `backdrop-filter` over flat colour is grey plastic. Both registers put deep,
+soft colour under the glass, never seen directly as shapes, only ever as the
+thing the panes are lifting.
+
+**Persuade** — `/landing` `.wash` (fixed, z-index 0), three radial fields:
+indigo `rgba(111,99,224,0.34)` at 72%/24%, blue `rgba(58,116,214,0.20)` at
+14%/78%, periwinkle `rgba(157,147,255,0.16)` at 92%/88%. Above it `#field`, the
+live force-directed graph canvas, masked by a slow vignette so the centre stays
+brightest. `/auth` runs the same substrate with the light moved left
+(`.auth-wash`) and a static field SVG at 0.6 opacity.
+
+The wash **settles once and holds**: `animation: drift 2.4s var(--ease) 1 both`,
+inside `prefers-reduced-motion: no-preference`. It used to drift on an infinite
+alternate, and as a fixed element under four backdrop-filters, every step
+invalidated all of them.
+
+**Operate** — `.sb-app-shell::before`, static with no drift: accent at 30% from
+`-4% 26%` and blue at 22% from `104% 72%`. Hard left behind the rail and the
+notebook list, hard right behind the apparatus margin, and nothing spent on the
+middle where the editor is opaque anyway. This is a surface someone stares at
+for eight hours; Operate-mode motion conveys state or it does not happen.
+
+---
+
+## 5. Degradation — every glass surface degrades twice
+
+Both are non-negotiable and both ship in both stylesheets.
+
+1. `@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))`
+   — the fill carries the whole job alone. `.g-chrome` and `.g-pane` go to
+   `rgba(10,14,24,0.95)`; `--chrome`/`--chrome-2` collapse to opaque
+   `--bg1`/`--bg2`. Without it a "pane" is a translucent rectangle with the page
+   legible straight through its labels.
+2. `@media (prefers-reduced-transparency: reduce)` — the panes stay, because
+   they are the composition, but they stop being see-through:
+   `rgba(10,14,24,0.96)`/`0.97` with `backdrop-filter: none`;
+   `--chrome-blur: none`.
+
+Motion degrades too: `prefers-reduced-motion: reduce` flattens every transition
+and animation to `0.01ms` across `*`, with `.sb-spin` exempt — a spinner is the
+only thing saying a request is in flight, and freezing it mid-rotation reads as
+"hung", the one state it exists to rule out.
+
+---
+
+## 6. Typography — split between the registers, on purpose
+
+Both faces are self-hosted variable woff2 in `/public/fonts`, declared once in
+`glass-tokens.css` with `font-display: swap` and a latin `unicode-range`, so
+both consumers get them from the same place and `/landing` has no third-party
+stylesheet on its critical path. The Next app additionally loads its faces via
+`next/font` in `layout.tsx`; `@theme inline` is required in the Tailwind block
+so the hashed family names resolve at runtime rather than build time.
+
+**Persuade — Manrope** (`--face-ui`, 300–800). Tight apertures, near-geometric,
+confident at display size, and not the face every generator reaches for. The
+system stack is a fallback, never a choice.
+
+**Operate — JetBrains Mono** (`--face-mono` / `--font-mono`, 400–600) as the
+chrome's identity, applied by a blanket element rule with `!important`. This is
+deliberate: the chrome is an instrument panel and reads as one, while prose gets
+a face chosen by the person reading it.
+
+**The prose face is the reader's.** `--editor-font` defaults to
+`--font-reading-serif` (Iowan Old Style / Palatino / Charter / Georgia) —
+**prose is prose** — with `[data-editor-font="mono"]` and `="sans"` one click
+away in Settings. It governs `.sb-editor-textarea`/`.sb-editor-pre` (which must
+share exact metrics or the caret drifts), `.sb-prose-input`, `.sb-reading`,
+`.sb-preview-prose` and `.sb-reader-prose`. Code inside prose keeps the
+typewriter face — it is not prose and should not pretend.
+
+**The boundary.** The blanket mono rule shouts, so the storefront shouts back:
+`.auth, .auth *` sets `--face-ui` with `!important` (a class beats an element
+selector), `.auth .mono` restores the mono for its two jobs, and
+`.auth .sb-caret` repaints the shared wordmark caret with `--accent-lum` so a
+light-theme visitor does not get `#5449c9` on a near-black ground.
+
+### 6.1 The shared ramp
+
+Fluid, `clamp()`-based, in `glass-tokens.css`:
+
+| Step | Value |
+|---|---|
+| `--step--1` | `clamp(0.80rem, 0.78rem + 0.10vw, 0.86rem)` |
+| `--step-0` | `clamp(0.95rem, 0.92rem + 0.16vw, 1.06rem)` |
+| `--step-1` | `clamp(1.13rem, 1.05rem + 0.38vw, 1.35rem)` |
+| `--step-2` | `clamp(1.45rem, 1.27rem + 0.90vw, 2.00rem)` |
+| `--step-3` | `clamp(1.95rem, 1.55rem + 2.00vw, 3.10rem)` |
+| `--step-4` | `clamp(2.60rem, 1.75rem + 4.20vw, 4.75rem)` |
+
+Persuade headings: weight 800, `letter-spacing: -0.035em`, `line-height: 1.04`,
+`text-wrap: balance`. `h1` in the hero is `--step-4`; `h2` is `--step-3`; `h3` is
+`--step-1` at `-0.02em`. `.lede` is `--step-1` at `line-height: 1.6`, capped at
+`62ch`; `.body` at `70ch`.
+
+Operate type is set in literal px (see §9.6); the reader's own ramp is
+proportional to `--reader-fs` (default 18px, `line-height: 1.75`), so one
+control moves the whole hierarchy: `h1` 1.7em, `h2` 1.32em, `h3` 1.12em.
+
+### 6.2 The reading room
+
+- Scrolling reading caps the measure at `68ch` (`ch`, so it tracks the reader's
+  chosen size rather than running wide when they size down).
+- `.sb-reader-page` is 920px max with a 218px right padding and a 190px outer
+  margin for the reader's own marks — the proportions of a book page, not a
+  centred web column. Below 1180px the margin is dropped and the marks move to a
+  drawer.
+- Paged reading (`.sb-book-flow`) is `column-fill: auto` with a 72px gutter,
+  sliding `transform 260ms cubic-bezier(0.22,0.7,0.25,1)`. Body is justified
+  **with** `hyphens: auto` and `hyphenate-limit-chars: 6 3 3` — the pair is the
+  point, since justifying a 40-character column without hyphenation opens rivers
+  down the page. Headings stay ranged left, `break-after: avoid-column`;
+  paragraphs carry `orphans: 2; widows: 2`.
+- A highlight is a mark on the page, not a chip: `mark` keeps its text colour
+  and takes a wash behind it.
+
+---
+
+## 7. Elevation, radii, motion
+
+**Elevation** — three layers, because one blurred drop shadow reads as a
+sticker: a tight contact shadow, a mid shadow for the gap, a wide ambient one
+for the room.
+
+- `--lift-1` `0 1px 2px rgba(0,0,0,.30), 0 4px 12px -4px rgba(0,0,0,.40)`
+- `--lift-2` adds `0 10px 28px -10px rgba(0,0,0,.50)` and `0 36px 72px -32px rgba(0,0,0,.60)`
+- `--lift-glow` `0 8px 32px -8px rgba(111,99,224,.45)`
+- Workspace overlays add `0 24px 64px -18…-20px rgba(0,0,0,0.6)` on top of
+  `--chrome-edge`; the palette and the AI modal add `0 0 0 1px var(--acc-bd)`.
+
+**Radii** — `--r-xs 8`, `--r-sm 12`, `--r-md 18`, `--r-lg 26`, `--r-xl 34`,
+`--r-pill 999`. Nested radii stay concentric: a child's radius is the parent's
+minus its inset, so corners run parallel instead of crossing. PANE is `--r-lg`,
+WELL is `--r-md`.
+
+**Motion** — one ease, used everywhere, so the whole surface moves like one
+object: `--ease cubic-bezier(0.16, 1, 0.3, 1)` (leaves fast, lands slow, never
+overshoots), with `--ease-in-out cubic-bezier(0.65,0,0.35,1)` for the
+symmetrical cases. Durations `--t-fast 160ms`, `--t-mid 320ms`, `--t-slow 620ms`.
+Theme changes cross-fade at `background-color 180ms`, `border-color 180ms`,
+`color 100ms`. Hover lift is **1px** and nothing scales.
+
+---
+
+## 8. Browser surfaces and layout
+
+`.world-ink` on `<html class="world-ink">` (`/landing`) and
+`<div className="auth world-ink">` (`/auth`) claims the surfaces the browser
+would otherwise paint with no design system at all: selection
+`rgba(157,147,255,0.28)`, caret `--accent-lum`, an 11px scrollbar with an
+`--ink-3` thumb clipped to its content box, `:focus-visible` as a 2px
+`--accent-lum` outline at 2px offset, `.fig { font-variant-numeric: tabular-nums }`
+for figures that get compared, and `text-underline-offset: 0.22em` so a link's
+underline clears its descenders. Operate covers the same ground through
+`color-scheme`, declared next to each palette so a new theme cannot be added
+without one — otherwise the app runs dark with a white scrollbar down the side.
+
+**Layout.** Persuade: `.wrap` is 1180px, `.sec` is
+`padding: clamp(96px,13vh,172px) clamp(16px,4vw,40px)`, the hero pane is 560px
+max at `clamp(28px,4vw,46px)` padding, `.narrow` is 720px. Breakpoints at 900px
+and 700px. Operate: `body` and the shell are `100vh` then `100dvh` — `vh` is
+measured against a hidden URL bar, so on a phone the last rows sit under the
+browser chrome — with `overflow: hidden`, because the app is a desk that owns
+the window. `/auth` opts out and becomes its own scroll container, because a
+form can be taller than a phone. `touch-action: manipulation` on everything
+clickable, in both registers: nothing here is a zoom target, so the ~300ms
+double-tap wait is pure latency.
+
+---
+
+## 9. Named rules
+
+1. **One world, two registers.** A surface picks Persuade or Operate; it does
+   not mix their constraints. Persuade is always night because glass needs a
+   dark ground and something worth looking through. Operate keeps both themes
+   because it is stared at for eight hours.
+2. **Glass needs something to look through.** No pane over flat colour; the
+   wash, the field and `.sb-app-shell::before` are structural, not decoration.
+3. **Three grades, chosen by job.** CHROME to float, PANE to argue, WELL to
+   read. A WELL is never blurred.
+4. **Text never sits on a backdrop-filter.** The writing surface and the reader
+   are opaque `var(--bg)`. In Operate, glass is chrome only.
+5. **Floored, not tinted.** A glass fill is the ground at high alpha, never
+   white-alpha, so every glyph has a known floor. The sheen lives in the
+   specular edge.
+6. **Every glass surface degrades twice** — `@supports` and
+   `prefers-reduced-transparency` — and the fill carries the job alone in both.
+7. **Contrast is measured against the surface a tier actually sits on**, not the
+   darkest one available. A tier enters the system with those numbers.
+8. **The accent is for light, not for warning.** Amber, green, blue, coral and
+   red keep their own reserved hues with `-bg`/`-bd` companions.
+9. **State on glass is ink, not a surface.** `--ink-hover`/`--ink-active` tint;
+   they never punch an opaque hole in a pane.
+10. **One ease, three durations.** Hover lift is 1px; nothing scales; Persuade
+    animates once on arrival; Operate animates only to convey state.
+11. **Mono earns its place twice in Persuade only** — measured values and key
+    caps — and is the whole chrome identity in Operate. Prose is never mono
+    unless the reader chose it.
+12. **One token file, two consumers.** Never a second copy of the palette; the
+    landing route throws rather than shipping an unstyled page.
+13. **The demo link survives every breakpoint.** It is the cheapest way in and
+    the only one needing no email.
+
+---
+
+## 10. Prohibitions
+
+Each checked against the world's own materials; none bans a device the build
+itself uses natively.
+
+- **No eyebrow or kicker text above a heading.** Format badges that name real
+  data (`.src-kind`: EPUB / ARXIV / ARTICLE / PDF; `.md-codeblock-lang`) and
+  column labels that name a real place (`.sb-shelf-head-label`, `.meta`) are not
+  kickers — they carry information. A decorative line of small caps above a
+  headline is.
+- **No icon-heading-text card grid.** Persuade's evidence is arranged as
+  demonstrations: a live wiki-link driving a backlink stack, a scrolling shelf, a
+  transcript.
+- **No section numbers in the product UI.**
+- **No hard-offset shadows.** All elevation is soft and centred; this is not a
+  neobrutalist world.
+- **No glyph or emoji icons.** SVG only — `svg.ic` with `currentColor` stroke in
+  Persuade, Lucide in Operate.
+- **No system display face.** Manrope carries display; the system stack is a
+  fallback, never a choice.
+- **No blur as a finish.** If a surface is not CHROME, PANE or workspace chrome,
+  it does not get a `backdrop-filter`.
+- **No warm ground.** The light theme is a cool near-white. Warm paper under a
+  cool blur goes muddy, and that is what retired slip-box.
+- **No focus state without a visible ring.**
+- **No claim that outruns the tree.** Copy names only shipped behaviour.
+
+---
+
+## 11. Not canonized, not repaired
+
+Recorded as defects or divergences the build carries. None is a design-system
+rule, and no future surface should inherit any of them.
+
+1. **`--ink-t3` is 4.48:1 on `--ink-2`** — a hair under 4.5:1. It clears on
+   `--ink-0` (5.05) and `--ink-1` (4.84). §1.1 records the measured numbers per
+   ground rather than a blanket clearance; the token is **not** re-recorded at a
+   rounder figure to make the shortfall disappear. Not retuned here.
+2. **Body-adjacent copy reads on glass in Persuade.** The hero `.lede` and
+   `.bl-quote` sit on `.g-pane` — a `backdrop-filter` — against the token file's
+   own "body copy never sits on a backdrop-filter". The floored 0.78 fill and the
+   two degradation paths make it survivable, and §3 records the rule as the build
+   obeys it (sustained reading is in a WELL). The stricter reading is not
+   recorded as satisfied.
+3. **The workspace has no spacing, type-scale or radius tokens.** Font sizes are
+   literal px across the stylesheet (6.5px–18px) and radii are ad-hoc 1–14px,
+   with 3/4/5px accounting for most of ~160 declarations in the components while
+   the shared scale starts at 8px. The `--r-*` and `--step-*` tokens exist and
+   Operate does not use them. Real inconsistency; predates this pass and
+   repairing it was not asked for.
+4. **`--t3`'s two themes are not the same distance from their ground** (dark
+   6.63:1 vs light 6.03:1 on `--bg`), so the quiet tier is slightly louder in
+   dark. Within spec, recorded rather than tuned.
+5. **Fixed from the previous record, confirmed in the build:** `/landing` no
+   longer fetches faces from Google Fonts (self-hosted variable woff2, preloaded,
+   same-origin), and `/auth`'s wordmark caret no longer leaks the workspace
+   accent (`.auth .sb-caret` paints `--accent-lum`). The slip-box palette is gone
+   entirely; the previous DESIGN.md's World 2 documented tokens that no longer
+   exist in the build.
