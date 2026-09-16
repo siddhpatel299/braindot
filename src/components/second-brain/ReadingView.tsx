@@ -66,10 +66,13 @@ interface Chapter {
 }
 
 const TYPE_ABBREV: Record<string, { label: string; color: string; bg: string }> = {
-  epub: { label: 'EP', color: '#b0a8fb', bg: '#1e1a3a' },
-  pdf: { label: 'PDF', color: '#60a5fa', bg: '#1e3a5a' },
-  rss: { label: 'RSS', color: '#fb923c', bg: '#3d2a10' },
-  url: { label: 'URL', color: '#34d399', bg: '#0a1f16' },
+  // Each source gets one of the app's reserved hues rather than a fixed chip
+  // colour, so these read as tinted labels on paper in the light theme
+  // instead of four dark blobs left over from the dark one.
+  epub: { label: 'EP', color: 'var(--acc2)', bg: 'var(--acc-bg)' },
+  pdf: { label: 'PDF', color: 'var(--blu)', bg: 'var(--blu-bg)' },
+  rss: { label: 'RSS', color: 'var(--coral)', bg: 'var(--coral-bg)' },
+  url: { label: 'URL', color: 'var(--grn)', bg: 'var(--grn-bg)' },
 };
 
 /* Theme tokens rather than fixed hexes, so highlights stay readable in light
@@ -2298,7 +2301,7 @@ function FeedPanel({
             )}
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => onRead(item)} style={{
-                background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 3,
+                background: 'var(--acc)', color: 'var(--on-acc)', border: 'none', borderRadius: 3,
                 padding: '4px 10px', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
               }}>read now</button>
               <button onClick={() => onAdd(item)} style={{
@@ -2491,14 +2494,14 @@ function ImportModal({ onClose, fileInputRef, onFileUpload, uploading, onAddRss,
             <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t3)', fontWeight: 600, marginBottom: 8, display: 'block' }}>add RSS feed</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input value={rssUrl} onChange={(e) => setRssUrl(e.target.value)} placeholder="https://example.com/feed.xml" style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--bd2)', borderRadius: 4, padding: '8px 10px', color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit', outline: 'none', caretColor: 'var(--acc2)' }} />
-              <button onClick={() => rssUrl.trim() && onAddRss(rssUrl.trim())} style={{ background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 4, padding: '0 14px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>add</button>
+              <button onClick={() => rssUrl.trim() && onAddRss(rssUrl.trim())} style={{ background: 'var(--acc)', color: 'var(--on-acc)', border: 'none', borderRadius: 4, padding: '0 14px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>add</button>
             </div>
           </div>
           <div>
             <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t3)', fontWeight: 600, marginBottom: 8, display: 'block' }}>clip article URL</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input value={articleUrl} onChange={(e) => setArticleUrl(e.target.value)} placeholder="https://example.com/article" style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--bd2)', borderRadius: 4, padding: '8px 10px', color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit', outline: 'none', caretColor: 'var(--acc2)' }} />
-              <button onClick={() => articleUrl.trim() && onAddUrl(articleUrl.trim())} style={{ background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 4, padding: '0 14px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>clip</button>
+              <button onClick={() => articleUrl.trim() && onAddUrl(articleUrl.trim())} style={{ background: 'var(--acc)', color: 'var(--on-acc)', border: 'none', borderRadius: 4, padding: '0 14px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600 }}>clip</button>
             </div>
           </div>
         </div>

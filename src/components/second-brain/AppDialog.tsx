@@ -126,7 +126,7 @@ export function AppDialog({ dialog, onClose }: { dialog: DialogState; onClose: (
             style={{
               padding: '8px 16px',
               background: danger ? 'var(--red)' : 'var(--acc)',
-              border: 'none', borderRadius: 5, color: '#fff', fontSize: 12,
+              border: 'none', borderRadius: 5, color: 'var(--on-acc)', fontSize: 12,
               fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
             }}
           >

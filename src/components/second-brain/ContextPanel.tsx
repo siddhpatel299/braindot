@@ -537,7 +537,7 @@ function MiniGraph({
       {distantPositions.map((p) => (
         <g key={`dist-${p.note.id}`} style={{ cursor: 'pointer' }} onClick={() => onOpenNote(p.note.id)}>
           <circle cx={p.x} cy={p.y} r={2.5} fill="var(--acc-bd)" />
-          <text x={p.x + 4} y={p.y + 2} fontSize={7} fill="var(--t2)" fontFamily="JetBrains Mono">
+          <text x={p.x + 4} y={p.y + 2} fontSize={7} fill="var(--t2)" style={{ fontFamily: 'var(--font-mono)' }}>
             {p.note.title.slice(0, 8)}
           </text>
         </g>
@@ -546,8 +546,8 @@ function MiniGraph({
       {/* Neighbor notes (medium) */}
       {neighborPositions.map((p) => (
         <g key={`nb-${p.note.id}`} style={{ cursor: 'pointer' }} onClick={() => onOpenNote(p.note.id)}>
-          <circle cx={p.x} cy={p.y} r={4} fill="#534AB7" />
-          <text x={p.x + 6} y={p.y + 2} fontSize={7} fill="var(--t2)" fontFamily="JetBrains Mono">
+          <circle cx={p.x} cy={p.y} r={4} fill="color-mix(in srgb, var(--acc) 72%, var(--bg))" />
+          <text x={p.x + 6} y={p.y + 2} fontSize={7} fill="var(--t2)" style={{ fontFamily: 'var(--font-mono)' }}>
             {p.note.title.slice(0, 10)}
           </text>
         </g>
@@ -560,7 +560,7 @@ function MiniGraph({
         y={cy + 3}
         fontSize={7}
         fill="var(--acc2)"
-        fontFamily="JetBrains Mono"
+        style={{ fontFamily: 'var(--font-mono)' }}
         fontWeight={600}
       >
         {note.title.slice(0, 12)}
@@ -654,7 +654,7 @@ function GraphPanel({
           const noteData = allNotes.find((x) => x.id === n.id);
           const isCurrent = n.id === note.id;
           const r = isCurrent ? 7 : Math.max(3, n.radius);
-          const fill = isCurrent ? 'var(--acc)' : n.degree > 0 ? '#534AB7' : 'var(--acc-bd)';
+          const fill = isCurrent ? 'var(--acc)' : n.degree > 0 ? 'color-mix(in srgb, var(--acc) 72%, var(--bg))' : 'var(--acc-bd)';
           return (
             <g
               key={n.id}
@@ -676,7 +676,7 @@ function GraphPanel({
                   y={n.y + 3}
                   fontSize={8}
                   fill={isCurrent ? 'var(--acc2)' : 'var(--t2)'}
-                  fontFamily="JetBrains Mono"
+                  style={{ fontFamily: 'var(--font-mono)' }}
                   fontWeight={isCurrent ? 600 : 400}
                 >
                   {noteData.title.slice(0, 14)}

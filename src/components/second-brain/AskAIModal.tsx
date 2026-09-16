@@ -419,7 +419,7 @@ export function AskAIModal({ open, onClose, note, allNotes, initialScope, onOpen
               height: 34,
               padding: '0 12px',
               background: question.trim() && !loading ? 'var(--acc)' : 'var(--bg3)',
-              color: question.trim() && !loading ? '#fff' : 'var(--t3)',
+              color: question.trim() && !loading ? 'var(--on-acc)' : 'var(--t3)',
               border: '1px solid ' + (question.trim() && !loading ? 'var(--acc)' : 'var(--bd2)'),
               borderRadius: 4,
               fontSize: 11,

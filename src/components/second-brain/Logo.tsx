@@ -37,7 +37,7 @@ export function LogoWordmark({
   return (
     <span
       style={{
-        fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
+        fontFamily: 'var(--font-mono)',
         fontWeight: 700,
         fontSize: size,
         letterSpacing: '-0.02em',

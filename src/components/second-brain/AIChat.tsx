@@ -380,7 +380,7 @@ export function AIChat({ mode, note, allNotes, onSaveToNote, onOpenNoteByTitle }
             height: 32,
             flexShrink: 0,
             background: input.trim() && !loading ? 'var(--acc)' : 'var(--bg2)',
-            color: input.trim() && !loading ? '#fff' : 'var(--t3)',
+            color: input.trim() && !loading ? 'var(--on-acc)' : 'var(--t3)',
             border: '1px solid ' + (input.trim() && !loading ? 'var(--acc)' : 'var(--bd2)'),
             borderRadius: 5,
             cursor: input.trim() && !loading ? 'pointer' : 'default',

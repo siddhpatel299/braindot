@@ -1,16 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-/* Source Serif 4 is the paper's face — an optical-size text serif, so the
-   masthead at 3em and the body at 1em are drawn for their sizes rather than
-   scaled from one master. Only the edition uses it. */
-@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..800;1,8..60,300..700&display=swap');
+/* The two web faces — JetBrains Mono (the chrome's identity) and Source Serif
+   4 (the edition's) — are loaded by next/font in app/layout.tsx, which fetches
+   them at build time and serves them from our own origin. They used to be
+   @import-ed here, which is the worst of the options: an @import cannot even
+   start downloading until the stylesheet containing it has been fetched and
+   parsed, so it cost a serialized round trip to a third party on every cold
+   load. next/font hands each face down as a CSS variable, and the stacks
+   below are built from those; --font-jetbrains and --font-source-serif come
+   from the classNames on <html>. */
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'JetBrains Mono', 'Fira Mono', monospace;
-  --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
+  /* `inline` matters here: it makes Tailwind emit these as references to the
+     next/font variables rather than resolving them at build time, when the
+     hashed family name does not exist yet. */
+  --font-sans: var(--font-jetbrains), 'Fira Mono', ui-monospace, monospace;
+  --font-mono: var(--font-jetbrains), 'Fira Mono', ui-monospace, monospace;
 }
 
 /* ===== Braindot Design System — Theme Variables =====
@@ -153,6 +160,15 @@
   --hair:   #2a2723;
 }
 
+/* Scrollbars, form controls, the native <select> popup and the spellcheck
+   underline are painted by the browser, not by us, and they follow
+   color-scheme rather than our variables. Without this the app runs dark
+   with a white scrollbar down the side of it. Declared next to the palettes
+   so a new theme cannot be added without one. */
+[data-theme="dark"],
+:root:not([data-theme]) { color-scheme: dark; }
+[data-theme="light"]    { color-scheme: light; }
+
 * {
   box-sizing: border-box;
 }
@@ -165,34 +181,76 @@
     color 100ms ease;
 }
 
+/* The theme fade is a nicety; for a vestibular user it is 180ms of every
+   surface on screen moving at once. The blanket selector means this has to
+   be just as blanket to undo it.
+
+   .sb-spin is exempt. A spinner is not decoration — it is the only thing
+   saying a request is still in flight — and a blanket reset does not stop it
+   so much as freeze it mid-rotation, which reads as "hung", the one state it
+   exists to rule out. It is small, off to the side of what you are reading,
+   and stops on its own, so it is not what the preference is asking about. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.sb-spin), *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  html { scroll-behavior: auto !important; }
+}
+
 html, body {
   margin: 0;
   padding: 0;
   background: var(--bg);
   color: var(--t1);
-  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-family: var(--font-mono);
   font-feature-settings: "calt" 1, "liga" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Same reasoning as .sb-app-shell below: vh is measured against a hidden
+     URL bar, so on a phone the last rows of the app sit under the browser
+     chrome. vh first as the fallback for browsers without dvh. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 #__next, body > div:first-child {
   height: 100vh;
+  height: 100dvh;
+}
+
+/* A tap on anything clickable waits ~300ms for a second tap that would mean
+   "zoom". Nothing here is a zoom target, so the wait is pure latency — it is
+   the difference between the app feeling native and feeling like a web page.
+   Pinch-zoom is untouched; only the double-tap gesture goes. */
+button,
+a,
+label,
+summary,
+[role="button"],
+[role="tab"],
+[role="option"],
+[role="menuitem"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+select {
+  touch-action: manipulation;
 }
 
 /* Force monospace on EVERYTHING (the chrome/UI identity) */
 button, input, textarea, select, div, span, p, h1, h2, h3, h4, h5, h6,
 li, a, label, code, pre, th, td, small, strong, em, b, i {
-  font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
+  font-family: var(--font-mono) !important;
 }
 
 /* ===== Editor prose font — user-selectable (Settings › reading font) =====
    Only the writing surface changes; all chrome above stays monospace.
    Class selectors + !important out-specify the blanket rule above. */
 :root {
-  --font-reading-mono:  'JetBrains Mono', 'Fira Mono', monospace;
+  --font-reading-mono:  var(--font-mono);
   --font-reading-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, 'Times New Roman', serif;
   --font-reading-sans:  system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   /* Serif by default: prose is prose. Mono stays one click away in the bar. */
@@ -383,12 +441,12 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
    rule carries !important, which an inline font-family cannot beat. */
 .sb-paper,
 .sb-paper * {
-  font-family: 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, serif !important;
+  font-family: var(--font-source-serif), 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, serif !important;
   font-variant-numeric: oldstyle-nums;
 }
 .sb-paper .sb-paper-ap,
 .sb-paper .sb-paper-ap * {
-  font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
+  font-family: var(--font-mono) !important;
   font-variant-numeric: normal;
 }
 /* Copy is justified, as a paper's is, with hyphenation so the narrow columns
@@ -710,7 +768,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   position: absolute;
   right: 0;
   width: 178px;
-  font-family: 'JetBrains Mono', 'Fira Mono', monospace !important;
+  font-family: var(--font-mono) !important;
   font-size: 10.5px;
   line-height: 1.5;
   color: var(--t3);
@@ -803,7 +861,7 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
    size in one place keeps the caret aligned with the rendered text. */
 .sb-editor-wrap {
   position: relative;
-  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 16.5px;
   line-height: 1.8;
   letter-spacing: 0;
@@ -1202,21 +1260,29 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 
 /* ===== Auth page: split layout (product left, form right) ===== */
+/* This page was built before the palette moved and kept its own hardcoded
+   blue-black, so in the light theme it stayed dark while the type on it went
+   dark too — the sign-in page was unreadable for anyone on light mode. It
+   runs on the same tokens as everything else now. */
 .auth-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: 1.05fr 1fr;
-  background: #0a0a0c;
+  background: var(--bg);
 }
 .auth-aside {
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 56px 52px;
+  /* The wash is the accent at low alpha rather than a fixed violet, so it
+     stays a tint of the ground in both themes instead of a stain on paper. */
   background:
-    radial-gradient(900px 520px at 12% 8%, rgba(124, 110, 247, 0.13), transparent 68%),
-    #0d0d10;
-  border-right: 1px solid #1e1e24;
+    radial-gradient(900px 520px at 12% 8%,
+      color-mix(in srgb, var(--acc) 13%, transparent), transparent 68%),
+    var(--bg1);
+  border-right: 1px solid var(--bd);
 }
 .auth-main {
   display: flex;
@@ -1563,7 +1629,7 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
    an inline font-family cannot beat it. */
 .sb-front-serif,
 .sb-front-serif * {
-  font-family: 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, serif !important;
+  font-family: var(--font-source-serif), 'Iowan Old Style', 'Palatino Linotype', Palatino, Charter, Georgia, serif !important;
   font-variant-numeric: oldstyle-nums;
 }
 /* Counts, dates and tallies sit in columns and are meant to be compared down

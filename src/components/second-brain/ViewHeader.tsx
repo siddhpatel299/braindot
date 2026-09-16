@@ -234,7 +234,7 @@ export function ViewEmptyState({
             borderRadius: 5,
             background: 'var(--acc)',
             border: '1px solid var(--acc)',
-            color: '#fff',
+            color: 'var(--on-acc)',
             fontSize: 11.5,
             fontWeight: 600,
             fontFamily: 'inherit',

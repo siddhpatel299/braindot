@@ -103,7 +103,7 @@ export function MobileTabBar({ active, onSelect, onCreateNote }: MobileTabBarPro
             height: 32,
             borderRadius: 8,
             background: 'var(--acc)',
-            color: '#fff',
+            color: 'var(--on-acc)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

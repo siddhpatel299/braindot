@@ -239,7 +239,7 @@ export function EditorBar(props: EditorBarProps) {
                     ? "'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif"
                     : opt.id === 'sans'
                       ? "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif"
-                      : "'JetBrains Mono','Fira Mono',monospace";
+                      : 'var(--font-mono)';
                 return (
                   <button
                     key={opt.id}

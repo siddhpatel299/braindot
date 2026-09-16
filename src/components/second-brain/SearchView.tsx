@@ -380,9 +380,9 @@ function ResultCard({
 
   // Score bar color
   const scoreColor = scorePct >= 90 ? 'var(--acc)' :
-    scorePct >= 75 ? '#534AB7' :
+    scorePct >= 75 ? 'color-mix(in srgb, var(--acc) 72%, var(--bg))' :
     scorePct >= 60 ? 'var(--acc-bd)' :
-    '#2e2e44';
+    'var(--bd2)';
 
   // Generate snippet
   const snippet = useMemo(() => {
@@ -634,7 +634,7 @@ function WhyMatchedPanel({
       {canSynthesize && (
         <div style={{ padding: '14px 16px' }}>
           <div style={{
-            background: 'var(--acc-bg)', border: '1px solid #3d378a', borderRadius: 5,
+            background: 'var(--acc-bg)', border: '1px solid var(--acc-bd)', borderRadius: 5,
             padding: '12px 14px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -650,7 +650,7 @@ function WhyMatchedPanel({
             <button
               onClick={onSynthesize}
               style={{
-                background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 4,
+                background: 'var(--acc)', color: 'var(--on-acc)', border: 'none', borderRadius: 4,
                 padding: '7px 12px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600,
               }}
@@ -672,9 +672,9 @@ function WhyMatchedPanel({
 function ConceptBar({ label, score }: { label: string; score: number }) {
   const pct = Math.round(score * 100);
   const color = pct >= 90 ? 'var(--acc)' :
-    pct >= 75 ? '#534AB7' :
+    pct >= 75 ? 'color-mix(in srgb, var(--acc) 72%, var(--bg))' :
     pct >= 60 ? 'var(--acc-bd)' :
-    '#2e2e44';
+    'var(--bd2)';
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>

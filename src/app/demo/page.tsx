@@ -14,7 +14,7 @@ export default function DemoPage() {
     <div style={{
       minHeight: '100vh', background: '#0c0c0e', display: 'flex',
       alignItems: 'center', justifyContent: 'center', color: '#444450',
-      fontFamily: "'JetBrains Mono', monospace", fontSize: 13,
+      fontFamily: 'var(--font-mono)', fontSize: 13,
     }}>
       loading demo…
     </div>

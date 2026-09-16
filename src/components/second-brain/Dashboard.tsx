@@ -581,7 +581,7 @@ function PrimaryButton({ label, onClick }: { label: string; onClick: () => void 
         height: 30,
         padding: '0 14px',
         background: 'var(--acc)',
-        color: '#fff',
+        color: 'var(--on-acc)',
         // No border: it was the accent over itself. Nothing on this page
         // carries a fill and a border at once.
         border: 'none',

@@ -943,7 +943,7 @@ export default function Home() {
       <div style={{
         height: '100vh', background: 'var(--bg)', color: 'var(--t3)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+        fontFamily: 'var(--font-mono)', fontSize: 11,
       }}>
         loading second brain…
       </div>
@@ -960,7 +960,7 @@ export default function Home() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontFamily: 'JetBrains Mono, monospace',
+          fontFamily: 'var(--font-mono)',
           fontSize: 11,
         }}
       >
@@ -1133,7 +1133,7 @@ export default function Home() {
               <button
                 onClick={() => canvas.createBoard('My First Canvas')}
                 style={{
-                  background: 'var(--acc)', color: '#fff', border: 'none', borderRadius: 5,
+                  background: 'var(--acc)', color: 'var(--on-acc)', border: 'none', borderRadius: 5,
                   padding: '12px 24px', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
                 }}
               >

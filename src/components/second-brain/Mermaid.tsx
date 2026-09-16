@@ -16,7 +16,7 @@ function getMermaid() {
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: 'var(--font-mono)',
       });
       return mermaid;
     });
@@ -72,7 +72,7 @@ export function Mermaid({ chart }: { chart: string }) {
           startOnLoad: false,
           securityLevel: 'strict',
           theme: 'base',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: 'var(--font-mono)',
           themeVariables: {
             darkMode: dark,
             background: dark ? '#111113' : '#ffffff',

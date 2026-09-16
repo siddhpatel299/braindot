@@ -1,13 +1,44 @@
 import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+
+// Both faces are fetched at build time and served from our own origin, so a
+// cold load makes no request to Google at all — no third-party connection to
+// warm, no render-blocking stylesheet on the critical path, and the metrics
+// are known up front, which is what keeps the swap from shifting the page.
+// Each exposes a CSS variable; globals.css builds the stacks from them.
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-jetbrains",
+});
+
+// Source Serif 4 is the edition's face. opsz is the point of using it: the
+// masthead at 3em and the body at 1em are drawn for their sizes rather than
+// scaled from one master, so the axis has to be carried through.
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+  display: "swap",
+  variable: "--font-source-serif",
+});
 import { Toaster } from "@/components/ui/toaster";
 import { StorageAlert } from "@/components/second-brain/StorageAlert";
 import { ConvexClientProvider } from "@/lib/convex";
 
 export const metadata: Metadata = {
-  title: "Braindot — PKM",
-  description: "A command-palette-first personal knowledge management app. VSCode dark aesthetic, JetBrains Mono throughout.",
-  keywords: ["PKM", "Braindot", "Zettelkasten", "Notes", "Markdown"],
+  // A template rather than a fixed string: a published note and the reader
+  // both have a subject of their own, and a tab that says only "Braindot"
+  // is useless once you have four of them open.
+  title: {
+    default: "Braindot — a thinking environment",
+    template: "%s — Braindot",
+  },
+  description:
+    "A personal knowledge management workspace where notes connect, reading flows in, and an AI tutor teaches you. Wiki-links, automatic backlinks, and a graph of your thinking.",
+  keywords: ["PKM", "Braindot", "Zettelkasten", "Notes", "Markdown", "Backlinks"],
   authors: [{ name: "Braindot" }],
   icons: {
     icon: "/logo.svg",
@@ -56,7 +87,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${jetbrainsMono.variable} ${sourceSerif.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
