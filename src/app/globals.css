@@ -215,25 +215,61 @@
   content: '';
   position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background-color: var(--wall-base);
+  /* Grain first, so it sits on top of the pools.
+     A blur is only visible when it has something to destroy, and a gradient
+     blurred is still the same gradient -- there is no frequency in it above
+     the blur radius. Grain is nothing but high frequency, so a pane over it
+     visibly eats the texture while the bare ground beside it keeps it. That
+     difference is what the eye reads as "there is a sheet of something here",
+     and it costs no colour at all, which matters because the ground already
+     spent its budget going brighter rather than more violet.
+     It also kills the banding that wide, low-alpha radials produce on an
+     8-bit panel. */
   background-image:
-    radial-gradient(58% 70% at 8% 6%,   var(--wall-1), transparent 70%),
-    radial-gradient(52% 62% at 92% 12%, var(--wall-2), transparent 68%),
-    radial-gradient(60% 66% at 74% 96%, var(--wall-3), transparent 70%),
-    radial-gradient(46% 58% at 26% 88%, var(--wall-4), transparent 68%);
+    var(--wall-grain),
+    radial-gradient(64% 76% at 6% 2%,   var(--wall-1), transparent 72%),
+    radial-gradient(58% 68% at 96% 8%,  var(--wall-2), transparent 70%),
+    radial-gradient(66% 72% at 78% 98%, var(--wall-3), transparent 72%),
+    radial-gradient(52% 64% at 22% 92%, var(--wall-4), transparent 70%);
+  background-blend-mode: soft-light, normal, normal, normal, normal;
+}
+/* Nothing to eat, nothing to see: without a filter the grain is just noise on
+   a page someone is trying to read on. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sb-app-shell::before { background-image:
+    radial-gradient(64% 76% at 6% 2%,   var(--wall-1), transparent 72%),
+    radial-gradient(58% 68% at 96% 8%,  var(--wall-2), transparent 70%),
+    radial-gradient(66% 72% at 78% 98%, var(--wall-3), transparent 72%),
+    radial-gradient(52% 64% at 22% 92%, var(--wall-4), transparent 70%); }
 }
 
 /* Geometry is not a theme. This sits outside both blocks so it is one number
    for light and dark alike -- declared inside the dark block it would be
    undefined under [data-theme="light"], and border-radius: var(--pane-r)
    would quietly resolve to square corners. */
-:root { --pane-r: 18px; }
+:root {
+  --pane-r: 18px;
+  /* Fractal noise, desaturated, tiled. Authored as a filter rather than shipped
+     as a PNG so it costs no request and cannot go blurry on a HiDPI panel. */
+  --wall-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+}
 
 [data-theme="dark"], :root:not([data-theme]) {
+  /* The room the glass stands in.
+     Glass is not a finish, it is a lens, and a lens over a flat field shows a
+     flat field. Measured: the previous ground ran from rgb(10,10,12) to
+     rgb(34,37,48) -- 1.30:1 of internal contrast. Blurring that returns the
+     same thing, which is why translucent panes over it read as outlines
+     around nothing rather than as a material.
+     These pools reach 2.14:1 while carrying HALF the colour cast of the ones
+     they replace (chroma 7.4 against 14.8): brighter for the lens to bend,
+     and less violet, not more. Light falls from the upper left, with one warm
+     bounce low and opposite so the room has a direction. */
   --wall-base: #0a0a0c;
-  --wall-1: rgba(120, 116, 180, 0.09);
-  --wall-2: rgba(90, 120, 150, 0.07);
-  --wall-3: rgba(130, 124, 170, 0.06);
-  --wall-4: rgba(80, 130, 135, 0.05);
+  --wall-1: rgba(186, 188, 208, 0.16);  /* key, upper left */
+  --wall-2: rgba(132, 150, 176, 0.12);  /* cool fill, upper right */
+  --wall-3: rgba(160, 156, 186, 0.10);  /* bounce, lower right */
+  --wall-4: rgba(204, 184, 158, 0.07);  /* one warm bounce, lower left */
 
   /* The material. Dark and translucent rather than white and translucent:
      over a dark wallpaper a white fill lifts the panel until the quiet text
@@ -250,10 +286,34 @@
      separates nothing — the light theme reads because its shadow has
      something to darken — so in the dark the boundary has to be a lit rim
      rather than a cast one. */
-  --pane-rim: rgba(255, 255, 255, 0.11);
+  --pane-rim: rgba(255, 255, 255, 0.09);
   --pane-shadow: 0 1px 2px rgba(0, 0, 0, 0.34),
                  0 12px 32px -12px rgba(0, 0, 0, 0.55),
                  0 40px 80px -40px rgba(0, 0, 0, 0.6);
+
+  /* ---- Liquid glass: three faces, near to far --------------------------
+     Depth is carried by lightness and opacity together, the way it is in the
+     reference: the sheet nearest you is the lightest AND the most opaque, and
+     each one behind it is darker and thinner. That ordering is what makes a
+     tile sitting on a panel read as ON it rather than as a differently
+     coloured patch of it.
+
+     Every fill is floored on a dark value rather than tinted with white. A
+     white-alpha fill inherits whatever luminance drifts behind it, so text on
+     it has no contrast ratio -- only the ratio it happens to have today, at
+     that scroll position. Flooring on ink puts a known worst case under every
+     glyph while still letting the room through as colour and movement. */
+  --lg-far:  rgba(20, 20, 26, 0.55);   /* the frame: rail, context panel */
+  --lg-mid:  rgba(28, 28, 36, 0.64);   /* lists and trays sitting on it */
+  --lg-near: rgba(30, 30, 38, 0.92);   /* the near face: where prose lives */
+  /* brightness() is the half of this that usually gets missed. Real glass
+     gathers light as well as scattering it, so a sheet is fractionally
+     brighter than the room behind it; without the lift, a blur is a smear. */
+  --lg-lens: blur(26px) saturate(165%) brightness(1.10);
+  /* Lit where it turns toward the light, dark where it turns away. This pair
+     is most of what separates glass from a grey rectangle. */
+  --lg-specular: inset 0 1px 0 rgba(255, 255, 255, 0.20),
+                 inset 0 -1px 0 rgba(0, 0, 0, 0.32);
 }
 
 [data-theme="light"] {
@@ -274,6 +334,18 @@
   --pane-shadow: 0 1px 2px rgba(31, 41, 71, 0.10),
                  0 12px 32px -12px rgba(31, 41, 71, 0.18),
                  0 40px 80px -40px rgba(31, 41, 71, 0.22);
+
+  /* Daylight runs the same three faces, and the same near-to-far ordering --
+     but toward white rather than toward ink, and the near face is opaque
+     enough to be paper. A white specular is invisible on a light ground, so
+     the lit edge is a near-white line and the turn away is a soft grey rather
+     than black, which on a pale surface reads as dirt. */
+  --lg-far:  rgba(255, 255, 255, 0.58);
+  --lg-mid:  rgba(255, 255, 255, 0.70);
+  --lg-near: rgba(252, 252, 254, 0.94);
+  --lg-lens: blur(26px) saturate(150%) brightness(1.04);
+  --lg-specular: inset 0 1px 0 rgba(255, 255, 255, 0.95),
+                 inset 0 -1px 0 rgba(31, 41, 71, 0.10);
 }
 
 /* ===== The layout ===========================================================
@@ -295,7 +367,15 @@
 .sb-zones > * {
   border-radius: var(--pane-r);
   border: 1px solid var(--pane-rim);
-  box-shadow: var(--pane-shadow);
+  /* The frame is the far face: the room shows through it, and the blur has
+     the grain and the light falloff behind to work on. An earlier attempt put
+     this same material over a ground measuring 1.30:1 end to end -- a lens
+     over a flat field shows a flat field, so it came out as an outline around
+     nothing and was rightly thrown out. The ground had to be built first. */
+  background: var(--lg-far);
+  -webkit-backdrop-filter: var(--lg-lens);
+  backdrop-filter: var(--lg-lens);
+  box-shadow: var(--lg-specular), var(--pane-shadow);
   /* A pane clips its own contents to its corners; without this the lists and
      bars inside square the corners off again. */
   overflow: hidden;

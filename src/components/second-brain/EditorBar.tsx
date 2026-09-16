@@ -116,10 +116,8 @@ export function EditorBar(props: EditorBarProps) {
         alignItems: 'center',
         gap: 6,
         padding: '0 6px',
-        background: 'var(--chrome)',
-        backdropFilter: 'var(--chrome-blur)',
-        WebkitBackdropFilter: 'var(--chrome-blur)',
-        boxShadow: 'var(--chrome-edge)',
+        background: 'var(--lg-mid)',
+        boxShadow: 'var(--lg-specular)',
         borderBottom: '1px solid var(--bd)',
       }}
     >

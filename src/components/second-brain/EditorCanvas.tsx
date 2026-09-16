@@ -907,7 +907,7 @@ export function EditorCanvas({
       style={{
         flex: 1,
         minWidth: 0,
-        background: 'var(--bg)',
+        background: 'var(--lg-near)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
