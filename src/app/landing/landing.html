@@ -11,11 +11,15 @@
 <meta property="og:title" content="Braindot — a note is worth what it connects to">
 <meta property="og:description" content="Not a filing cabinet. A thinking environment. Try it without an account.">
 <meta property="og:image" content="/logo.svg">
-<meta name="twitter:card" content="summary_large_image">
+<!-- summary, not summary_large_image: the only mark we have is an SVG
+     logo, and every major unfurler renders an SVG in a large card as blank. -->
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="/logo.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- The faces are declared in glass-tokens.css and served from this origin,
+     so there is no third-party stylesheet on the critical path. Preloaded
+     because a font referenced from inside a <style> block is only discovered
+     after the CSS has parsed, and the display face is wanted immediately. -->
+<link rel="preload" as="font" type="font/woff2" href="/fonts/manrope-latin-var.woff2" crossorigin>
 <style>
 /* The design system is injected here by landing/route.ts, read from
    src/app/glass-tokens.css. It is not copied into this file on purpose —
@@ -54,6 +58,13 @@ svg.ic {
 /* Nothing here is a double-tap zoom target. */
 a, button { touch-action: manipulation; }
 
+/* Available to assistive tech, absent from the page. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
 /* Off-screen until focused: the first stop for a keyboard, invisible to
    everyone else. */
 .skip {
@@ -86,12 +97,16 @@ a, button { touch-action: manipulation; }
     radial-gradient(900px 760px at 14% 78%, rgba(58, 116, 214, 0.20), transparent 64%),
     radial-gradient(760px 620px at 92% 88%, rgba(157, 147, 255, 0.16), transparent 66%);
 }
+/* The wash used to drift on an infinite alternate. It is a fixed element
+   underneath four backdrop-filters, so "cheap transform" is not the whole
+   story: every step invalidated all of them. It settles once on arrival and
+   then holds. */
 @media (prefers-reduced-motion: no-preference) {
-  .wash { animation: drift 34s var(--ease-in-out) infinite alternate; }
+  .wash { animation: drift 2.4s var(--ease) 1 both; }
 }
 @keyframes drift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(-3%, 2%, 0) scale(1.08); }
+  from { transform: translate3d(-2%, 1.5%, 0) scale(1.06); opacity: .6; }
+  to   { transform: none; opacity: 1; }
 }
 
 #field {
@@ -100,7 +115,7 @@ a, button { touch-action: manipulation; }
   z-index: 0; pointer-events: none;
   /* A slow vignette so the centre of the field stays the brightest part and
      the panes at the edges have something quiet to sit against. */
-  mask-image: radial-gradient(120% 95% at 62% 40%, #000 38%, rgba(0,0,0,.45) 100%);
+  mask-image: radial-gradient(135% 120% at 62% 42%, #000 62%, rgba(0,0,0,.62) 100%);
 }
 
 .page { position: relative; z-index: 1; }
@@ -186,12 +201,14 @@ h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
 }
 .hero-pane {
   padding: clamp(28px, 4vw, 46px);
-  max-width: 616px;
+  max-width: 560px;
   /* The pane is the one place the graph goes soft; everything the visitor
      has to read sits on it. */
 }
 .hero h1 { font-size: var(--step-4); margin-bottom: 20px; }
-.hero .lede { margin-bottom: 30px; }
+/* 17px, per the composition. A lede that climbs with the display size
+   crowds a 560px measure. */
+.hero .lede { font-size: 17px; line-height: 1.62; margin-bottom: 30px; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 26px; }
 .hero-note {
   display: flex; align-items: flex-start; gap: 9px;
@@ -245,7 +262,7 @@ h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
 .backlink-stack { display: flex; flex-direction: column; gap: 12px; }
 .bl {
   padding: 16px 18px; border-radius: var(--r-md);
-  background: rgba(255,255,255,.05);
+  background: rgba(10,14,24,.74);
   border: 1px solid var(--glass-edge);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   backdrop-filter: blur(20px) saturate(150%);
@@ -255,13 +272,13 @@ h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
 }
 .bl.on {
   border-color: rgba(157,147,255,.55);
-  background: rgba(157,147,255,.12);
+  background: rgba(38,32,74,.82);
   transform: translateX(6px);
 }
 .bl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
 .bl-head svg { color: var(--accent-lum); font-size: 14px; }
 .bl-title { font-weight: 600; font-size: var(--step-0); letter-spacing: -0.015em; }
-.bl-quote { color: var(--ink-t3); font-size: var(--step--1); line-height: 1.55; }
+.bl-quote { color: var(--ink-t2); font-size: var(--step--1); line-height: 1.55; }
 
 /* ---- Section 3: reading ----------------------------------------------
    A shelf, not a card grid: the sources are objects of different widths and
@@ -278,7 +295,9 @@ h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
   width: 212px; min-height: 268px;
   border-radius: var(--r-md); padding: 20px;
   display: flex; flex-direction: column;
-  background: rgba(255,255,255,.055);
+  background:
+    linear-gradient(rgba(255,255,255,.05), transparent 55%),
+    rgba(10,14,24,.76);
   border: 1px solid var(--glass-edge);
   -webkit-backdrop-filter: blur(24px) saturate(150%);
   backdrop-filter: blur(24px) saturate(150%);
@@ -290,7 +309,7 @@ h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
   padding: 4px 9px; border-radius: var(--r-pill); margin-bottom: 16px;
 }
 .src h3 { margin-bottom: 6px; }
-.src .by { color: var(--ink-t3); font-size: var(--step--1); }
+.src .by { color: var(--ink-t2); font-size: var(--step--1); }
 .src .prog {
   margin-top: auto; padding-top: 16px;
   display: flex; align-items: center; gap: 10px;
@@ -305,6 +324,14 @@ h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
   gap: 22px; align-items: center;
 }
 .capture .arrow { color: var(--ink-t3); font-size: 20px; }
+/* A citation, set under what it cites. It is the source, not a label
+   announcing that a source is coming. */
+.cite {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--glass-edge);
+  font-family: var(--face-mono); font-size: 12.5px;
+  color: var(--ink-t2); letter-spacing: .01em;
+}
 .hl-line {
   background: linear-gradient(rgba(239,180,92,.26), rgba(239,180,92,.26));
   border-radius: 3px; padding: 1px 3px;
@@ -502,6 +529,7 @@ footer {
 
           <div class="split-effect">
             <p class="meta" style="margin-bottom:12px">What those two links just did, elsewhere in the vault</p>
+            <p class="sr-only" id="bl-status" role="status" aria-live="polite"></p>
             <div class="backlink-stack" id="bls">
               <article class="bl" data-bl="spacing">
                 <div class="bl-head">
@@ -538,15 +566,15 @@ footer {
               </p>
               <p>
                 This is the claim behind
-                <button class="wl" data-wl="luhmann" type="button"><span class="br">[[</span>Zettelkasten method<span class="br">]]</span></button>,
+                <button class="wl" data-wl="luhmann" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Zettelkasten method<span class="br">]]</span></button>,
                 and the reason
-                <button class="wl" data-wl="spacing" type="button"><span class="br">[[</span>Spaced repetition<span class="br">]]</span></button>
+                <button class="wl" data-wl="spacing" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Spaced repetition<span class="br">]]</span></button>
                 works better on small notes than long ones: you can only review what
                 you can hold in one piece.
               </p>
               <p>
                 Which is also why
-                <button class="wl" data-wl="retrieval" type="button"><span class="br">[[</span>Retrieval practice<span class="br">]]</span></button>
+                <button class="wl" data-wl="retrieval" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Retrieval practice<span class="br">]]</span></button>
                 belongs here rather than in its own chapter.
               </p>
             </div>
@@ -614,24 +642,24 @@ footer {
       <div class="wrap">
         <div class="capture rise">
           <div class="g-well" style="padding:20px 22px">
-            <p class="meta" style="margin-bottom:10px">In the reader</p>
             <p style="color:var(--ink-t2)">
               Forte calls this the <span class="hl-line">intermediate packet: a small,
               reusable unit of work complete enough to use on its own</span>: a
               paragraph, a diagram, a short essay.
             </p>
+            <p class="cite">Building a Second Brain &middot; page&nbsp;114</p>
           </div>
           <div class="arrow" aria-hidden="true">
             <svg class="ic" style="width:24px;height:24px"><use href="#i-arrow-right"/></svg>
           </div>
           <div class="g-well" style="padding:20px 22px">
-            <p class="meta" style="margin-bottom:10px">In your vault, a minute later</p>
-            <p style="font-weight:600;margin-bottom:6px">Intermediate packets</p>
-            <p style="color:var(--ink-t3);font-size:var(--step--1)">
-              from <em style="font-style:normal;color:var(--accent-lum)">Building a Second Brain</em>,
-              p.&nbsp;114 · links to
-              <span style="color:var(--accent-lum)">Atomic notes</span>
+            <p style="font-weight:700;font-size:var(--step-1);letter-spacing:-0.02em;margin-bottom:8px">Intermediate packets</p>
+            <p style="color:var(--ink-t2);font-size:var(--step--1);line-height:1.6">
+              A note of your own, holding the passage and a line about why it
+              mattered, already linked to
+              <span style="color:var(--accent-lum)">Atomic notes</span>.
             </p>
+            <p class="cite">New note · captured a minute ago</p>
           </div>
         </div>
       </div>
@@ -779,8 +807,9 @@ footer {
    a backdrop-filter over a flat colour is grey plastic.
 
    Deliberately cheap: 44 nodes, O(n^2) repulsion is 1936 pairs a frame,
-   which is nothing, and it stops entirely once it has settled or when the
-   page is not visible.
+   which is nothing. It runs while it is finding its shape and then stops
+   dead — every repaint here invalidates four 40px backdrop-filters stacked
+   above it, so an idle animation would cost far more than it is worth.
 */
 (function () {
   var canvas = document.getElementById('field');
@@ -812,6 +841,9 @@ footer {
   var N = TITLES.length;
   var nodes = [], links = [];
   var W = 0, H = 0, dpr = 1;
+  /* One number tying the field's size to the window's, so a phone gets a
+     vault that fits in it rather than the middle of a laptop's. */
+  var scale = 1;
 
   function seedRandom(s) {
     return function () { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
@@ -852,6 +884,7 @@ footer {
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = window.innerWidth; H = window.innerHeight;
+    scale = Math.max(0.42, Math.min(1.1, Math.min(W, H) / 860));
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -866,8 +899,8 @@ footer {
         var b = nodes[j];
         var dx = b.x - a.x, dy = b.y - a.y;
         var d2 = dx * dx + dy * dy || 0.01;
-        if (d2 > 260000) continue;
-        var f = 2800 / d2;
+        if (d2 > 420000 * scale * scale) continue;
+        var f = 4400 * scale / d2;
         var d = Math.sqrt(d2);
         var ux = dx / d, uy = dy / d;
         a.vx -= ux * f; a.vy -= uy * f;
@@ -878,8 +911,8 @@ footer {
       var p = nodes[links[l][0]], q = nodes[links[l][1]];
       var dx2 = q.x - p.x, dy2 = q.y - p.y;
       var dd = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 0.01;
-      var target = p.c === q.c ? 132 : 290;
-      var s = (dd - target) * 0.0016;
+      var target = (p.c === q.c ? 176 : 384) * scale;
+      var s = (dd - target) * 0.0015;
       var vx = (dx2 / dd) * s, vy = (dy2 / dd) * s;
       p.vx += vx; p.vy += vy; q.vx -= vx; q.vy -= vy;
     }
@@ -887,13 +920,13 @@ footer {
     /* Pull toward the centre, and pull harder the further out a node is, so
        the whole field stays inside the window instead of settling into a
        shape wider than the screen. */
-    var reach = Math.min(W, H) * 0.66;
+    var reach = Math.max(W, H) * 0.70;
     var moved = 0;
     for (var k = 0; k < N; k++) {
       var n = nodes[k];
       var ox = n.x - cx, oy = n.y - cy;
       var dist = Math.sqrt(ox * ox + oy * oy) || 0.01;
-      var pull = 0.0011 + Math.max(0, dist - reach) * 0.00040;
+      var pull = 0.0007 + Math.max(0, dist - reach) * 0.00055;
       n.vx -= ox * pull; n.vy -= oy * pull;
       n.vx *= 0.86; n.vy *= 0.86;
       n.x += n.vx; n.y += n.vy;
@@ -904,19 +937,26 @@ footer {
 
   function draw(t) {
     ctx.clearRect(0, 0, W, H);
+    /* One pulse value per node per frame, because the links need it too: a
+       link brightens with whichever of its two notes is lit, which is the
+       whole argument of the page drawn in one channel. */
+    var pulses = new Array(N);
+    for (var pi = 0; pi < N; pi++) {
+      pulses[pi] = reduced ? 0.45 : Math.sin(t * 0.0006 + nodes[pi].phase) * 0.5 + 0.5;
+    }
     ctx.lineWidth = 1;
     for (var l = 0; l < links.length; l++) {
-      var p = nodes[links[l][0]], q = nodes[links[l][1]];
-      var cross = p.c !== q.c;
-      ctx.strokeStyle = cross ? 'rgba(157,147,255,0.16)' : 'rgba(157,147,255,0.30)';
+      var ai = links[l][0], bi = links[l][1];
+      var p = nodes[ai], q = nodes[bi];
+      var wake = pulses[ai] > pulses[bi] ? pulses[ai] : pulses[bi];
+      var base = p.c !== q.c ? 0.11 : 0.20;
+      ctx.strokeStyle = 'rgba(157,147,255,' + (base + wake * 0.22).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
     }
     for (var i = 0; i < N; i++) {
       var n = nodes[i];
       var r = 2.4 + Math.sqrt(n.deg) * 1.7;
-      /* A slow breath, out of phase per node, so the field is alive without
-         anything actually moving once it has settled. */
-      var pulse = reduced ? 0 : Math.sin(t * 0.0006 + n.phase) * 0.5 + 0.5;
+      var pulse = pulses[i];
       ctx.beginPath();
       ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
       ctx.fillStyle = HUE[n.c];
@@ -937,30 +977,45 @@ footer {
     var energy = step();
     frames++;
     draw(t || 0);
-    /* Stop once it has come to rest. A force graph that never stops is a
-       laptop fan that never stops. */
-    if (energy < 0.03 && frames > 360) { settled = true; }
-    if (!settled && !document.hidden) raf = requestAnimationFrame(loop);
-    else if (!reduced && !document.hidden) raf = requestAnimationFrame(breathe);
-  }
-  function breathe(t) {
-    raf = null;
-    draw(t || 0);
-    if (!document.hidden) raf = requestAnimationFrame(breathe);
+    /* Stop once it has come to rest, and mean it. A force graph that never
+       stops is a laptop fan that never stops — and here each frame also makes
+       every pane above it re-blur. */
+    if (energy < 0.055 && frames > 45) {
+      settled = true;
+      draw(0);
+      return;
+    }
+    if (!document.hidden) raf = requestAnimationFrame(loop);
   }
   function start() {
-    if (raf) return;
-    raf = requestAnimationFrame(settled ? breathe : loop);
+    if (raf || settled) return;
+    raf = requestAnimationFrame(loop);
   }
   function stop() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
 
   resize(); build();
+  /* Most of the settling is not worth watching: from a random scatter it takes
+     the better part of two thousand frames to find its shape, and the first
+     nine tenths of that is noise. Run it forward before the first paint so the
+     page opens on a field that is nearly settled, and animate only the last
+     part of the move. */
+  /* Runs only as far as it needs to. step() reports the field's energy, so
+     this stops the moment the layout is quiet instead of always paying for the
+     worst case — a phone settles in a few hundred steps where a wide desktop
+     wants a couple of thousand, and the cap is there for the pathological
+     case rather than the normal one. */
+  function warm(cap) {
+    for (var i = 0; i < cap; i++) {
+      if (step() < 0.05 && i > 150) return i;
+    }
+    return cap;
+  }
   if (reduced) {
-    /* Settle it silently, then paint one still frame: the composition is the
-       point, the motion is not. */
-    for (var w = 0; w < 900; w++) step();
+    /* The composition is the point; the motion is not. */
+    warm(2600);
     draw(0);
   } else {
+    warm(3000);
     start();
   }
 
@@ -972,8 +1027,8 @@ footer {
     clearTimeout(rt);
     rt = setTimeout(function () {
       resize();
-      if (reduced) { draw(0); return; }
-      settled = false; frames = 0; start();
+      if (reduced) { warm(2600); draw(0); return; }
+      settled = false; frames = 0; warm(900); start();
     }, 180);
   });
 })();
@@ -991,9 +1046,25 @@ footer {
   if (!wls.length) return;
   var auto = null, idx = 0, taken = false;
 
+  var status = document.getElementById('bl-status');
   function light(key) {
-    wls.forEach(function (w) { w.classList.toggle('on', w.dataset.wl === key); });
-    bls.forEach(function (b) { b.classList.toggle('on', b.dataset.bl === key); });
+    wls.forEach(function (w) {
+      var on = w.dataset.wl === key;
+      w.classList.toggle('on', on);
+      w.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    bls.forEach(function (b) {
+      var on = b.dataset.bl === key;
+      b.classList.toggle('on', on);
+      if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+    /* Only announce once a person has taken over. The idle cycle would
+       otherwise interrupt a screen reader every 2.6 seconds, forever. */
+    if (taken && status) {
+      var live = bls.filter(function (b) { return b.dataset.bl === key; })[0];
+      var title = live && live.querySelector('.bl-title');
+      status.textContent = title ? ('Backlink from ' + title.textContent) : '';
+    }
   }
   function cycle() { light(wls[idx % wls.length].dataset.wl); idx++; }
   function takeOver() {

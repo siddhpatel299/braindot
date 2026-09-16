@@ -277,6 +277,11 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .auth .mono {
   font-family: var(--face-mono) !important;
 }
+/* The wordmark caret is shared markup, and its own rule paints it with --acc,
+   the workspace's accent. On /auth that token still follows whatever theme the
+   visitor last chose in the app, so a light-mode visitor got the dark indigo
+   #5449c9 on a midnight ground. The entry world paints it with its own ink. */
+.auth .sb-caret { background: var(--accent-lum); }
 
 /* ===== Editor prose font — user-selectable (Settings › reading font) =====
    Only the writing surface changes; all chrome above stays monospace.
@@ -1316,28 +1321,34 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 
 .auth {
   position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* The app shell is height:100dvh/overflow:hidden, which is right for a desk
+     that owns the window and wrong for a form taller than a phone. This is
+     its own scroll container: the page behind stays fixed, this scrolls. */
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   background: var(--ink-0);
   color: var(--ink-t1);
   font-family: var(--face-ui);
   display: grid;
   grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
-  overflow: hidden;
+  align-content: start;
 }
 
 /* The same luminance substrate the landing page uses: a backdrop-filter can
    only lift what is behind it, and over a flat near-black the card would come
    out grey plastic. */
 .auth-wash {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
     radial-gradient(1100px 820px at 22% 26%, rgba(111, 99, 224, 0.34), transparent 62%),
     radial-gradient(900px 760px at 84% 74%, rgba(58, 116, 214, 0.20), transparent 64%),
     radial-gradient(700px 600px at 62% 8%, rgba(157, 147, 255, 0.14), transparent 66%);
 }
 .auth-field-svg {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
   width: 100%; height: 100%;
   opacity: 0.6;
   mask-image: radial-gradient(115% 95% at 34% 42%, #000 32%, rgba(0, 0, 0, 0.2) 100%);
@@ -1372,10 +1383,14 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 .auth-proof .t { font-size: var(--step-0); line-height: 1.55; color: var(--ink-t2); }
 
 .auth-form-col {
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
   padding: clamp(28px, 4vw, 56px) clamp(16px, 4vw, 40px);
+  min-height: 100dvh;
 }
-.auth-card { width: 100%; max-width: 432px; padding: clamp(26px, 3.4vw, 40px); }
+/* margin:auto rather than align-items:center — a flex item centred by
+   alignment gets its overflow clipped off the top, and this form is taller
+   than a phone in signup mode. */
+.auth-card { width: 100%; max-width: 432px; padding: clamp(26px, 3.4vw, 40px); margin: auto; }
 
 .auth-brand {
   display: none; align-items: baseline; text-decoration: none;
@@ -1509,7 +1524,8 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
      form is the entire job and the tell only pushes it under the fold. */
   .auth-tell { display: none; }
   .auth-brand { display: inline-flex; }
-  .auth-form-col { padding-top: clamp(36px, 8vh, 72px); align-items: flex-start; }
+  .auth { align-content: stretch; }
+  .auth-form-col { padding-top: clamp(28px, 5vh, 56px); min-height: auto; }
 }
 
 /* Braindot wordmark caret — the block cursor that IS the logo */

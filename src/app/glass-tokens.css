@@ -24,6 +24,39 @@
    Copies drift; a file does not. Add a token here, never there.
    ============================================================ */
 
+/* ---- The faces, served from our own origin --------------------------------
+   /landing cannot use next/font: it is raw HTML with no bundler, and its
+   answer used to be a <link> to fonts.googleapis.com — a render-blocking
+   stylesheet on a third-party origin, which is the one thing the rest of this
+   codebase went out of its way to remove. These are the latin subsets, 25KB
+   and 31KB, sitting in /public/fonts and declared once here so both consumers
+   of this file get them from the same place.
+
+   Variable, so one file covers 300 through 800 and nothing ships a weight
+   nobody uses. swap, because the fallback for half a second beats invisible
+   text; the file is same-origin and preloaded on /landing, so that window is
+   short. */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('/fonts/manrope-latin-var.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191,
+    U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono Web';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-var.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191,
+    U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   /* ---- Ground -------------------------------------------------------
      Blue-black, never neutral. A neutral grey ground under a white-alpha
@@ -35,11 +68,13 @@
   --ink-3: #1a2133;   /* a hairline, a track, a disabled fill */
 
   /* ---- Ink ----------------------------------------------------------
-     --ink-t3 is measured, not eyeballed: 4.6:1 on --ink-0, so the quietest
-     tier is still readable. Same rule the workspace learned the hard way. */
+     --ink-t3 is measured, not eyeballed, and measured against the surface it
+     actually sits on rather than the darkest one available: it clears 4.5:1
+     on the page ground AND on a floored pane, which is lighter. Same rule the
+     workspace learned the hard way. */
   --ink-t1: #f2f4f9;
   --ink-t2: #a8b0c4;
-  --ink-t3: #6f7994;
+  --ink-t3: #757f9b;
 
   /* ---- Accent -------------------------------------------------------
      --accent is Braindot's iron-gall indigo, carried over unchanged: it is
@@ -69,9 +104,15 @@
              opaque floor. Body copy never sits on a backdrop-filter, because
              the contrast of a blur is whatever happens to be behind it that
              second, and that is not a contrast ratio you can hold. */
-  --glass-chrome-fill: rgba(255, 255, 255, 0.055);
+  /* Floored on the ground, not on white. A white-alpha fill inherits
+     whatever luminance is behind it, so text on it has no contrast ratio —
+     only whatever happened to be drifting past. Basing the fill on --ink-1
+     at 0.72-0.80 keeps the backdrop visible as colour and movement while
+     putting a known floor under every glyph. The white sheen that makes it
+     read as glass moves to the specular edge and a top-light gradient. */
+  --glass-chrome-fill: rgba(10, 14, 24, 0.72);
   --glass-chrome-blur: blur(24px) saturate(180%);
-  --glass-pane-fill:   rgba(255, 255, 255, 0.075);
+  --glass-pane-fill:   rgba(10, 14, 24, 0.78);
   --glass-pane-blur:   blur(40px) saturate(160%);
   --glass-edge:        rgba(255, 255, 255, 0.10);
   --glass-edge-strong: rgba(255, 255, 255, 0.16);
@@ -111,7 +152,7 @@
      Braindot's own, kept for exactly two jobs: measured values and key caps.
      It is not the display voice and it is not decoration. */
   --face-ui: var(--font-manrope, 'Manrope'), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --face-mono: var(--font-jetbrains, 'JetBrains Mono'), ui-monospace, 'Fira Mono', monospace;
+  --face-mono: var(--font-jetbrains, 'JetBrains Mono Web'), ui-monospace, 'Fira Mono', monospace;
 
   --step--1: clamp(0.80rem, 0.78rem + 0.10vw, 0.86rem);
   --step-0:  clamp(0.95rem, 0.92rem + 0.16vw, 1.06rem);
@@ -145,7 +186,9 @@
 }
 
 .g-pane {
-  background: var(--glass-pane-fill);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012) 42%, transparent 70%),
+    var(--glass-pane-fill);
   -webkit-backdrop-filter: var(--glass-pane-blur);
   backdrop-filter: var(--glass-pane-blur);
   border: 1px solid var(--glass-edge);
@@ -164,8 +207,8 @@
    alone, or a "pane" is a 7%-white rectangle with the graph legible straight
    through the type behind it. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .g-chrome { background: rgba(10, 14, 24, 0.94); }
-  .g-pane   { background: rgba(12, 16, 28, 0.92); }
+  .g-chrome { background: rgba(10, 14, 24, 0.95); }
+  .g-pane   { background: rgba(10, 14, 24, 0.95); }
 }
 
 /* macOS and iOS let a person ask for less see-through UI system-wide, and a
@@ -178,7 +221,7 @@
     backdrop-filter: none;
   }
   .g-pane {
-    background: rgba(12, 16, 28, 0.96);
+    background: rgba(10, 14, 24, 0.97);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
