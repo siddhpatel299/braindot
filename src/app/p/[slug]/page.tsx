@@ -15,11 +15,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const data = await readPublicPage(slug, '');
   if (!data) {
-    return { title: 'Not found — braindot', robots: { index: false, follow: false } };
+    return { title: 'Not found', robots: { index: false, follow: false } };
   }
   const description = data.page.subtitle || summarise(data.page.body);
   return {
-    title: `${data.page.title} — braindot`,
+    title: data.page.title,
     description,
     // Unlisted and indexed are different kinds of public. A link is shared
     // with the people it was sent to unless the author says otherwise.

@@ -67,7 +67,8 @@ export function PublishedPage({ data }: { data: PublicPage }) {
           {page.children.length === 0 && <p className="pub-empty">Nothing in here yet.</p>}
           {[...notes, ...folders].map((child) => (
             <Link key={child.path} href={href(publication.slug, child.path)} className="pub-index-row">
-              <span className="pub-index-kind">{child.kind === 'folder' ? '▸' : '·'}</span>
+              <span className="pub-index-kind" aria-hidden="true">{child.kind === 'folder' ? '▸' : '·'}</span>
+              {child.kind === 'folder' && <span className="sb-sr-only">Folder: </span>}
               <span className="pub-index-text">
                 <span className="pub-index-title">{child.title}</span>
                 {child.subtitle && <span className="pub-index-sub">{child.subtitle}</span>}

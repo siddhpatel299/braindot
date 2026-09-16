@@ -6,5 +6,5 @@
 // back.
 
 export default function PublishedLayout({ children }: { children: React.ReactNode }) {
-  return <div className="pub-shell sb-scroll">{children}</div>;
+  return <main className="pub-shell sb-scroll">{children}</main>;
 }

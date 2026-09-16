@@ -994,8 +994,8 @@ export default function Home() {
     >
       {/* Demo banner */}
       {authMode === 'demo' && (
-        <div style={{
-          height: 28, background: 'var(--amb-bg)', borderBottom: '1px solid #4a3010',
+        <div className="sb-demo-banner" style={{
+          background: 'var(--amb-bg)', borderBottom: '1px solid var(--amb-bd)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           fontSize: 11, color: 'var(--amb)', fontFamily: 'inherit', flexShrink: 0,
         }}>
@@ -1005,7 +1005,7 @@ export default function Home() {
             localStorage.removeItem('second-brain-demo');
             window.location.href = '/landing';
           }} style={{
-            background: 'transparent', border: '1px solid #4a3010', borderRadius: 3,
+            background: 'transparent', border: '1px solid var(--amb-bd)', borderRadius: 3,
             padding: '2px 8px', color: 'var(--amb)', fontSize: 10, fontFamily: 'inherit', cursor: 'pointer',
           }}>exit</button>
         </div>

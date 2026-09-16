@@ -1024,6 +1024,19 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
    of it. So this is the reader's typography, not the desk's: one column at a
    real reading size, the apparatus reduced to a line of grey under the title,
    and no control anywhere that would only mean something to the author. */
+/* Available to assistive tech, absent from the page. The clip-path pairs
+   with the 1px box because clip() alone is deprecated and clip-path alone
+   still lets some screen readers skip the node. */
+.sb-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .pub-shell {
   height: 100%;
   overflow-y: auto;
@@ -1665,6 +1678,22 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
    the app — which is where the tab bar lives — sits under the browser chrome
    until you scroll. dvh tracks the visible viewport instead. The vh line is
    the fallback for browsers that never learned dvh. */
+/* The demo banner. 28px on a desk, where a 17px link is a comfortable
+   click; on a touch device the two controls in it have to clear 24px, so the
+   row grows rather than the targets overflowing it. Keyed on pointer
+   coarseness rather than width — a small window on a laptop is still a
+   mouse, and the row should not grow for it. */
+.sb-demo-banner { height: 28px; }
+@media (pointer: coarse) {
+  .sb-demo-banner { height: 40px; }
+  .sb-demo-banner a,
+  .sb-demo-banner button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+  }
+}
+
 .sb-app-shell {
   height: 100vh;
   height: 100dvh;
@@ -1696,6 +1725,30 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
     font-size: 16px !important;
   }
 
+  /* The title and the subtitle are single-line inputs, so their text cannot
+     wrap — it scrolls inside the box, and at rest that reads as a title cut
+     off mid-word with nothing to say there is more. The measure here is about
+     311px: at 30px that holds nineteen characters. Dropping the title to 23px
+     and the subtitle's line-height buys back roughly a third of a title's
+     worth, which covers most of them. A genuinely long title still runs past
+     the end; fixing that for good means a wrapping field rather than an
+     input. */
+  .sb-title-input {
+    font-size: 23px !important;
+    letter-spacing: -0.03em !important;
+  }
+  /* Both fields scroll to the caret while you type, so the end of a long
+     title is reachable — it is only the resting state that hides it. Give
+     them a visible edge so the clip does not read as the whole value. */
+  .sb-title-input,
+  .sb-prose-input {
+    mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent 100%);
+  }
+  .sb-title-input:focus,
+  .sb-prose-input:focus {
+    mask-image: none;
+  }
+
   /* Nothing on a phone has a pointer to hover with, so hover-only chrome is
      either always on or never reachable. These are the always-on ones. */
   .sb-spine { display: none; }
@@ -1725,6 +1778,21 @@ div:hover > .sb-tab-close:hover { opacity: 1 !important; background: var(--bg3) 
   }
   .sb-front-body > * { padding-top: 0 !important; }
   .sb-front-page { padding: 18px 18px 24px !important; }
+
+  /* A masthead is a name on the left and the dateline on the right, which
+     needs a broadsheet's width to work. At 375px the dateline gets about
+     150px and breaks into four ragged right-aligned lines beside the title.
+     Stacked and ranged left it is one quiet line under the name, which is
+     what the front page of something narrow does. */
+  .sb-front-masthead {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  .sb-front-dateline {
+    text-align: left !important;
+    padding-bottom: 0 !important;
+  }
 
   /* The reader already drops its outer margin at 1180px. Here it also gives
      up the page's side padding — at this measure the gutter costs more

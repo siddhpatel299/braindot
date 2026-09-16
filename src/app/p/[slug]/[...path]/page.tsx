@@ -20,7 +20,7 @@ async function load(params: Props['params']) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { data } = await load(params);
   if (!data) {
-    return { title: 'Not found — braindot', robots: { index: false, follow: false } };
+    return { title: 'Not found', robots: { index: false, follow: false } };
   }
   const description = data.page.subtitle || summarise(data.page.body);
   return {

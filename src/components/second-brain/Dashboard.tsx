@@ -245,6 +245,7 @@ export function Dashboard({
 
         {/* ============ 1. Masthead ============ */}
         <div
+          className="sb-front-masthead"
           style={{
             borderBottom: '3px double var(--bd2)', paddingBottom: 12,
             display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24,
@@ -257,7 +258,7 @@ export function Dashboard({
             Braindot
           </span>
           <span
-            className="sb-fig"
+            className="sb-fig sb-front-dateline"
             style={{ fontSize: 10.5, color: 'var(--t3)', letterSpacing: '0.04em', paddingBottom: 4, textAlign: 'right' }}
           >
             {dateline}
@@ -475,7 +476,7 @@ export function Dashboard({
                 </HoverRow>
               ))}
             </div>
-            <div style={{ marginTop: 'auto', paddingTop: 14, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ marginTop: 'auto', paddingTop: 14, display: 'flex', flexWrap: 'wrap', gap: '14px 20px' }}>
               <FootLink icon={Plus} label="new note" onClick={onCreateNote} />
               <FootLink icon={Calendar} label="daily journal" onClick={onCreateJournal} />
               <FootLink icon={Sparkles} label="ask ai" onClick={onAskAI} />
@@ -621,7 +622,13 @@ function FootLink({ icon: Icon, label, onClick, disabled = false }: {
       style={{
         background: 'transparent',
         border: 'none',
-        padding: 0,
+        // 10.5px text with no padding is a 16px target. The guideline floor is
+        // 24px, and these are the vault's exits — export, backup, import — so
+        // they are the last controls that should be fiddly on a phone. The
+        // negative inline margin keeps the row looking exactly as it did:
+        // the padding grows the hit area, not the gap between the labels.
+        padding: '7px 6px',
+        margin: '-7px -6px',
         color: 'var(--t3)',
         fontSize: 10.5,
         fontFamily: 'inherit',
