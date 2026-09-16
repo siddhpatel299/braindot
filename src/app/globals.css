@@ -9,6 +9,11 @@
    from the classNames on <html>. */
 @import "tailwindcss";
 @import "tw-animate-css";
+/* The entry world's tokens — /landing and /auth. One file, imported here for
+   the bundler and read off disk by landing/route.ts for the raw-HTML route,
+   so the two surfaces cannot fall out of step the way the old hand-copied
+   palette did. */
+@import "./glass-tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -258,6 +263,19 @@ select {
 button, input, textarea, select, div, span, p, h1, h2, h3, h4, h5, h6,
 li, a, label, code, pre, th, td, small, strong, em, b, i {
   font-family: var(--font-mono) !important;
+}
+
+/* …except the entry world. The rule above is the workspace's identity and it
+   shouts, so the storefront has to shout back: a class beats an element
+   selector, and both carry !important. /auth is the only part of the Next app
+   in the midnight-ink world, and its face is Manrope. */
+.auth,
+.auth * {
+  font-family: var(--face-ui) !important;
+}
+/* The two jobs the mono keeps here: measured values and key caps. */
+.auth .mono {
+  font-family: var(--face-mono) !important;
 }
 
 /* ===== Editor prose font — user-selectable (Settings › reading font) =====
@@ -1287,42 +1305,211 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 
 /* ===== Auth page: split layout (product left, form right) ===== */
-/* This page was built before the palette moved and kept its own hardcoded
-   blue-black, so in the light theme it stayed dark while the type on it went
-   dark too — the sign-in page was unreadable for anyone on light mode. It
-   runs on the same tokens as everything else now. */
-.auth-page {
+/* ============================================================
+   /auth — the entry world
+   ============================================================
+   The sign-in page belongs to the storefront, not the workspace: it runs the
+   "midnight ink" glass system from glass-tokens.css rather than the slip-box
+   palette the app uses. Someone arriving here has not picked a theme yet, and
+   this is the surface the landing page just handed them off from.
+   ============================================================ */
+
+.auth {
+  position: relative;
   min-height: 100vh;
   min-height: 100dvh;
+  background: var(--ink-0);
+  color: var(--ink-t1);
+  font-family: var(--face-ui);
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  background: var(--bg);
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  overflow: hidden;
 }
-.auth-aside {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 56px 52px;
-  /* The wash is the accent at low alpha rather than a fixed violet, so it
-     stays a tint of the ground in both themes instead of a stain on paper. */
-  background:
-    radial-gradient(900px 520px at 12% 8%,
-      color-mix(in srgb, var(--acc) 13%, transparent), transparent 68%),
-    var(--bg1);
-  border-right: 1px solid var(--bd);
-}
-.auth-main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 32px;
-}
-.auth-mobile-brand { display: none; }
 
-@media (max-width: 900px) {
-  .auth-page { grid-template-columns: 1fr; }
-  .auth-aside { display: none; }
-  .auth-mobile-brand { display: flex; justify-content: center; }
+/* The same luminance substrate the landing page uses: a backdrop-filter can
+   only lift what is behind it, and over a flat near-black the card would come
+   out grey plastic. */
+.auth-wash {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(1100px 820px at 22% 26%, rgba(111, 99, 224, 0.34), transparent 62%),
+    radial-gradient(900px 760px at 84% 74%, rgba(58, 116, 214, 0.20), transparent 64%),
+    radial-gradient(700px 600px at 62% 8%, rgba(157, 147, 255, 0.14), transparent 66%);
+}
+.auth-field-svg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  width: 100%; height: 100%;
+  opacity: 0.6;
+  mask-image: radial-gradient(115% 95% at 34% 42%, #000 32%, rgba(0, 0, 0, 0.2) 100%);
+}
+
+.auth-tell, .auth-form-col { position: relative; z-index: 1; }
+
+.auth-tell {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: clamp(40px, 6vw, 84px);
+  gap: 30px;
+}
+.auth-tell h1 {
+  font-size: clamp(2.1rem, 1.3rem + 2.6vw, 3.4rem);
+  font-weight: 800; letter-spacing: -0.035em; line-height: 1.05;
+  margin: 0; max-width: 15ch; text-wrap: balance;
+}
+.auth-tell p.sub {
+  font-size: var(--step-1); line-height: 1.6; color: var(--ink-t2);
+  margin: 0; max-width: 46ch;
+}
+.auth-proof { display: flex; flex-direction: column; gap: 15px; margin: 0; padding: 0; list-style: none; }
+.auth-proof li { display: flex; gap: 13px; align-items: flex-start; }
+.auth-proof .pip {
+  flex: none; width: 30px; height: 30px; border-radius: 9px;
+  display: grid; place-items: center; margin-top: 1px;
+  background: rgba(111, 99, 224, 0.18);
+  border: 1px solid rgba(157, 147, 255, 0.30);
+  color: var(--accent-lum);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.auth-proof .t { font-size: var(--step-0); line-height: 1.55; color: var(--ink-t2); }
+
+.auth-form-col {
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(28px, 4vw, 56px) clamp(16px, 4vw, 40px);
+}
+.auth-card { width: 100%; max-width: 432px; padding: clamp(26px, 3.4vw, 40px); }
+
+.auth-brand {
+  display: none; align-items: baseline; text-decoration: none;
+  color: var(--ink-t1); font-weight: 800; font-size: 19px;
+  letter-spacing: -0.035em; margin-bottom: 22px;
+}
+
+.auth-switch {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+  padding: 4px; border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-edge);
+  margin-bottom: 26px;
+}
+.auth-switch button {
+  appearance: none; border: 0; cursor: pointer;
+  min-height: 38px; border-radius: var(--r-pill);
+  font-family: inherit; font-size: var(--step--1); font-weight: 600;
+  background: transparent; color: var(--ink-t2);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.auth-switch button[data-on="true"] {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--ink-t1);
+  box-shadow: var(--glass-specular), var(--lift-1);
+}
+
+.auth-card h2 {
+  font-size: var(--step-2); font-weight: 800; letter-spacing: -0.03em;
+  line-height: 1.1; margin: 0 0 8px;
+}
+.auth-card .blurb { font-size: var(--step--1); color: var(--ink-t2); margin: 0 0 24px; line-height: 1.55; }
+
+.auth-label { display: block; margin-bottom: 16px; }
+.auth-label .lbl {
+  display: block; margin-bottom: 7px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+  color: var(--ink-t2);
+}
+.auth-input {
+  width: 100%;
+  /* A WELL, not glass. What someone types has to stay readable whatever
+     happens to be drifting behind the card at the time. */
+  background: rgba(6, 9, 16, 0.72);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-sm);
+  padding: 13px 14px;
+  font-family: inherit; font-size: 15px; color: var(--ink-t1);
+  outline: none;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
+              background var(--t-fast) var(--ease);
+}
+.auth-input::placeholder { color: var(--ink-t3); }
+.auth-input:focus {
+  border-color: var(--accent-lum);
+  background: rgba(6, 9, 16, 0.88);
+  box-shadow: 0 0 0 4px rgba(157, 147, 255, 0.18);
+}
+
+.auth-pw { position: relative; }
+.auth-pw .auth-input { padding-right: 46px; }
+.auth-peek {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px; border-radius: var(--r-xs);
+  display: grid; place-items: center;
+  background: transparent; border: 0; cursor: pointer; color: var(--ink-t3);
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.auth-peek:hover { color: var(--ink-t1); background: rgba(255, 255, 255, 0.07); }
+
+.auth-submit {
+  width: 100%; min-height: 50px; margin-top: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--accent); color: var(--on-accent);
+  font-family: inherit; font-size: var(--step-0); font-weight: 600;
+  box-shadow: var(--lift-1), var(--lift-glow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease),
+              opacity var(--t-fast) var(--ease);
+}
+.auth-submit:hover:not(:disabled) { background: #7d71ee; transform: translateY(-1px); }
+.auth-submit:disabled { cursor: progress; opacity: 0.74; }
+
+.auth-error {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: rgba(255, 122, 114, 0.12);
+  border: 1px solid rgba(255, 122, 114, 0.34);
+  border-radius: var(--r-sm);
+  padding: 12px 14px; margin-bottom: 18px;
+  font-size: var(--step--1); line-height: 1.5; color: #ffb9b4;
+  outline: none;
+}
+.auth-error svg { flex: none; margin-top: 2px; color: var(--red); }
+
+.auth-or {
+  display: flex; align-items: center; gap: 14px; margin: 22px 0;
+  font-size: 12px; color: var(--ink-t2); letter-spacing: 0.04em;
+}
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--glass-edge); }
+
+.auth-demo {
+  width: 100%; min-height: 48px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  border-radius: var(--r-pill); text-decoration: none;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--glass-edge-strong);
+  color: var(--ink-t1); font-size: var(--step--1); font-weight: 600;
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--glass-specular);
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.auth-demo:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.26); }
+
+.auth-foot { margin: 18px 0 0; text-align: center; font-size: 12px; color: var(--ink-t2); line-height: 1.6; }
+.auth-foot button {
+  background: none; border: 0; cursor: pointer;
+  font: inherit; color: var(--accent-lum); font-weight: 600;
+  text-decoration: underline; text-underline-offset: 0.2em;
+  /* Inline in a sentence, but still the only route from sign-in to sign-up,
+     so it gets a real target. The negative margin keeps the sentence's
+     spacing exactly as it reads. */
+  display: inline-flex; align-items: center; min-height: 28px;
+  padding: 4px 6px; margin: -4px -6px; border-radius: var(--r-xs);
+}
+.auth-foot button:hover { background: rgba(157, 147, 255, 0.12); }
+
+@media (max-width: 940px) {
+  .auth { grid-template-columns: minmax(0, 1fr); }
+  /* The pitch was already made on the page before this one; on a phone the
+     form is the entire job and the tell only pushes it under the fold. */
+  .auth-tell { display: none; }
+  .auth-brand { display: inline-flex; }
+  .auth-form-col { padding-top: clamp(36px, 8vh, 72px); align-items: flex-start; }
 }
 
 /* Braindot wordmark caret — the block cursor that IS the logo */

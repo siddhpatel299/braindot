@@ -1,818 +1,1049 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="world-ink">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Braindot — Your knowledge, alive</title>
-<meta name="description" content="A personal knowledge management workspace where notes connect, reading flows in, and an AI tutor teaches you. Wiki-links, automatic backlinks, and a graph of your thinking.">
-<meta name="theme-color" content="#141310" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#efece4" media="(prefers-color-scheme: light)">
+<title>Braindot — a note is worth what it connects to</title>
+<meta name="description" content="A personal knowledge workspace where every note links to the rest of your thinking. Wiki-links, automatic backlinks, a live graph, a reader that brings sources in, and an AI tutor that can see the whole vault.">
+<meta name="theme-color" content="#05070d">
+<meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Braindot — your knowledge, alive">
-<meta property="og:description" content="A PKM workspace where notes, reading, tasks and ideas connect — and stay alive. Not a filing cabinet. A thinking environment.">
+<meta property="og:title" content="Braindot — a note is worth what it connects to">
+<meta property="og:description" content="Not a filing cabinet. A thinking environment. Try it without an account.">
 <meta property="og:image" content="/logo.svg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/logo.svg">
-<!-- Runs before the first paint so the page never flashes the wrong ground.
-     It reads the same localStorage key the app writes, so arriving here from
-     a signed-in session does not change theme underneath you; with nothing
-     stored it follows the OS. Kept inline and tiny for that reason — an
-     external file would be fetched after the first paint, which is the one
-     thing this must beat. -->
-<script>
-(function(){try{
-  var saved = localStorage.getItem('sb-theme');
-  var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme',
-    (saved === 'dark' || saved === 'light') ? saved : system);
-}catch(e){document.documentElement.setAttribute('data-theme','dark')}})();
-</script>
-<!-- The stylesheet is served by googleapis, the font binaries by gstatic.
-     Two origins, two handshakes; warm both while the HTML is still streaming.
-     crossorigin is required on the gstatic hint or the connection it opens
-     cannot be reused by the font request, which is fetched in CORS mode. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-/* ===== Palette — the same one the app runs on =====
-   These values are copied from src/app/globals.css and must stay copied.
-   The landing page is served as raw HTML outside the Next layout (see
-   landing/route.ts), so it cannot import the app's stylesheet — which is
-   exactly how it drifted a whole generation behind: the app moved to the
-   warm-graphite "slip-box" ground and this page stayed on the old blue-black
-   terminal, so the product a visitor saw here was not the product they got
-   when they signed up. If you retune globals.css, retune this block too. */
-:root,
-[data-theme="dark"]{
-  color-scheme:dark;
-  --bg:#141310;--bg1:#1b1917;--bg2:#23201d;--bg3:#2c2925;--bg4:#363229;
-  --bd:#2a2723;--bd2:#3b3630;
-  --t1:#efeae0;--t2:#a19890;--t3:#8f867a;
-  --acc:#6f63e0;--acc2:#a79ef5;--acc-bg:#1e1b33;--acc-bd:#3b3480;
-  --grn:#43c495;--grn-bg:#0e1f18;--grn-bd:#1f4a33;
-  --amb:#e9b14b;--amb-bg:#201808;--amb-bd:#4a3413;
-  --blu:#6fa8dc;--blu-bg:#0f1f2b;--blu-bd:#1a3a4e;
-  --red:#e8746b;--red-bg:#2a1310;
-  --coral:#e8926f;--coral-bg:#2a1810;--coral-bd:#4a2818;
-  --callout-text:#a49dd4;
-  --selection-bg:rgba(111,99,224,.26);
-  /* Ink for a fill. --acc is dark in both themes so it always takes white;
-     --acc2 flips — it is the *light* tint in the dark theme and the *dark*
-     one in the light theme — so the ink on it has to flip with it. */
-  --on-acc:#ffffff;
-  --on-acc2:#141310;
-  /* The nav is a sheet of frosted glass over the page; it needs the ground
-     colour with an alpha, which no solid token can give it. */
-  --scrim:rgba(20,19,16,.88);
-  --glow:rgba(111,99,224,.16);
-  --canvas-dot:#24211d;
-  /* Two layers, per the way a real object sits on a surface: a wide soft
-     ambient occlusion plus a tighter directional shadow under the edge. */
-  --lift:0 32px 64px -12px rgba(0,0,0,.62), 0 8px 20px -8px rgba(0,0,0,.5);
-  --mono:'JetBrains Mono',monospace;
+/* The design system is injected here by landing/route.ts, read from
+   src/app/glass-tokens.css. It is not copied into this file on purpose —
+   see the comment at the top of that file. */
+/*@design-tokens@*/
+
+/* ============================================================
+   The page
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+body, h1, h2, h3, p, figure, blockquote, ul, ol { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--ink-0);
+  color: var(--ink-t1);
+  font-family: var(--face-ui);
+  font-size: var(--step-0);
+  line-height: 1.65;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
-[data-theme="light"]{
-  color-scheme:light;
-  --bg:#efece4;--bg1:#f8f6f1;--bg2:#e6e2d8;--bg3:#dbd6ca;--bg4:#cdc7b9;
-  --bd:#dcd7cb;--bd2:#c4bdaf;
-  --t1:#1e1b16;--t2:#5b554b;--t3:#675f54;
-  --acc:#5449c9;--acc2:#3b32a8;--acc-bg:#e9e7fa;--acc-bd:#c0baef;
-  --grn:#0f7a56;--grn-bg:#e2f2ea;--grn-bd:#86ceae;
-  --amb:#9c5b12;--amb-bg:#f7ecd4;--amb-bd:#dcb579;
-  --blu:#1d6fa4;--blu-bg:#e2ecf5;--blu-bd:#9dc0dd;
-  --red:#a8261f;--red-bg:#f7e4e0;
-  --coral:#b1470f;--coral-bg:#f8e9dc;--coral-bd:#e0bb9a;
-  --callout-text:#3b32a8;
-  --selection-bg:rgba(84,73,201,.18);
-  --on-acc:#ffffff;
-  --on-acc2:#ffffff;
-  --scrim:rgba(239,236,228,.88);
-  --glow:rgba(84,73,201,.13);
-  --canvas-dot:#d3cec1;
-  /* On paper the same shadow has to be far weaker and tinted toward the
-     ground's hue, or it reads as grime rather than depth. */
-  --lift:0 32px 64px -12px rgba(63,54,38,.20), 0 8px 20px -8px rgba(63,54,38,.16);
+a { color: inherit; }
+button, input { font: inherit; color: inherit; }
+svg.ic {
+  width: 1em; height: 1em; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.75;
+  stroke-linecap: round; stroke-linejoin: round;
 }
 
-html{scroll-behavior:smooth}
-body{font-family:var(--mono);background:var(--bg);color:var(--t1);line-height:1.6;overflow-x:hidden}
-::selection{background:var(--selection-bg)}
+/* Nothing here is a double-tap zoom target. */
+a, button { touch-action: manipulation; }
 
-/* Keyboard focus is always visible; a mouse click stays quiet. Same rule and
-   same ring as the app, so tabbing from this page into the product does not
-   change what focus looks like. */
-a:focus-visible,button:focus-visible,[tabindex]:focus-visible{
-  outline:2px solid var(--acc2);outline-offset:2px;border-radius:3px
+/* Off-screen until focused: the first stop for a keyboard, invisible to
+   everyone else. */
+.skip {
+  position: absolute; left: 0; top: 0; z-index: 90;
+  background: var(--accent); color: var(--on-accent);
+  padding: 12px 18px; border-radius: 0 0 var(--r-sm) 0;
+  text-decoration: none; font-weight: 600; font-size: var(--step--1);
+  /* Clipped rather than parked off-screen: body clips the x axis, so an
+     element at left:-9999px is inside a clip it is relying on to be
+     reachable. This takes it out of the picture where it stands. */
+  clip-path: inset(50%);
+}
+.skip:focus { clip-path: none; }
+
+/* ---- The field --------------------------------------------------------
+   The graph is the page's ground, not an ornament on it: it is what the
+   glass is looking through, and without it every pane would blur an empty
+   colour and read as grey plastic. Fixed, so the panes travel over a vault
+   that stays put. */
+/* The luminance the glass lifts.
+   A backdrop-filter can only work with what is behind it, and a near-black
+   page crossed by hairlines gives a 40px blur nothing at all — the pane comes
+   out flat grey and the whole material fails. This is the deep colour under
+   the vault: three very soft fields in the ink's own family, never seen
+   directly as shapes, only ever as the thing the panes are lifting. */
+.wash {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(1100px 820px at 72% 24%, rgba(111, 99, 224, 0.34), transparent 62%),
+    radial-gradient(900px 760px at 14% 78%, rgba(58, 116, 214, 0.20), transparent 64%),
+    radial-gradient(760px 620px at 92% 88%, rgba(157, 147, 255, 0.16), transparent 66%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wash { animation: drift 34s var(--ease-in-out) infinite alternate; }
+}
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(-3%, 2%, 0) scale(1.08); }
 }
 
-/* Nothing on this page is a double-tap zoom target, so nothing should pay the
-   ~300ms the browser spends waiting to find out. */
-a,button{touch-action:manipulation}
+#field {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+  /* A slow vignette so the centre of the field stays the brightest part and
+     the panes at the edges have something quiet to sit against. */
+  mask-image: radial-gradient(120% 95% at 62% 40%, #000 38%, rgba(0,0,0,.45) 100%);
+}
 
-/* An icon stands in for a glyph, so it takes its size from the font-size it
-   inherits and its colour from currentColor — the same way the webfont it
-   replaced did, which is what lets the inline styles on the call sites keep
-   working untouched. */
-.ic{width:1em;height:1em;display:inline-block;vertical-align:-.125em;flex:none;
-  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.page { position: relative; z-index: 1; }
 
-/* Every animation here is decoration — a blinking caret, a pulsing dot, a
-   card lifting on hover. For a vestibular user that is a page that will not
-   sit still, and none of it carries meaning that the stillness loses. */
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{
-    animation-duration:.01ms!important;animation-iteration-count:1!important;
-    transition-duration:.01ms!important;scroll-behavior:auto!important
+/* ---- Chrome -----------------------------------------------------------*/
+.bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  height: 62px; display: flex; align-items: center; gap: 28px;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+.mark {
+  display: inline-flex; align-items: baseline; gap: 0;
+  font-weight: 800; font-size: 19px; letter-spacing: -0.035em;
+  text-decoration: none; color: var(--ink-t1);
+}
+/* The caret is the mark. It is the one thing carried over untouched. */
+.caret {
+  display: inline-block; width: .5em; height: .95em;
+  background: var(--accent-lum); border-radius: 1.5px;
+  margin-left: .1em; transform: translateY(.06em);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .caret { animation: blink 1.2s steps(1, end) infinite; }
+}
+@keyframes blink { 0%, 55% { opacity: 1 } 56%, 100% { opacity: .18 } }
+
+.bar-nav { display: flex; gap: 4px; margin-left: auto; align-items: center; }
+.bar-nav a {
+  display: inline-flex; align-items: center; min-height: 40px;
+  padding: 0 14px; border-radius: var(--r-sm);
+  font-size: var(--step--1); font-weight: 500; color: var(--ink-t2);
+  text-decoration: none; transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.bar-nav a:hover { color: var(--ink-t1); background: rgba(255,255,255,.06); }
+
+/* ---- Controls ---------------------------------------------------------*/
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 48px; padding: 0 22px;
+  border-radius: var(--r-pill); border: 1px solid transparent;
+  font-size: var(--step-0); font-weight: 600; letter-spacing: -0.01em;
+  text-decoration: none; cursor: pointer;
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
+              background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.btn-primary {
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: var(--lift-2), inset 0 1px 0 rgba(255,255,255,.24);
+}
+.btn-primary:hover { background: #7d71ee; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-glass {
+  background: rgba(255,255,255,.07); color: var(--ink-t1);
+  border-color: var(--glass-edge-strong);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--glass-specular);
+}
+.btn-glass:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.26); }
+.btn-sm { min-height: 40px; padding: 0 16px; font-size: var(--step--1); }
+
+/* ---- Rhythm -----------------------------------------------------------
+   One spacing scale for the whole page, and more room above a heading than
+   below it, so a section reads as belonging to what follows. */
+.sec { padding: clamp(96px, 13vh, 172px) clamp(16px, 4vw, 40px); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+h1, h2, h3 { font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; text-wrap: balance; }
+h2 { font-size: var(--step-3); }
+h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
+.lede { font-size: var(--step-1); line-height: 1.6; color: var(--ink-t2); font-weight: 400; max-width: 62ch; }
+.body { color: var(--ink-t2); max-width: 70ch; }
+.meta {
+  font-family: var(--face-mono); font-size: var(--step--1);
+  color: var(--ink-t3); letter-spacing: .01em;
+}
+
+/* ---- Hero -------------------------------------------------------------*/
+.hero {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: center;
+  padding: 108px clamp(16px, 4vw, 40px) clamp(64px, 10vh, 120px);
+}
+.hero-pane {
+  padding: clamp(28px, 4vw, 46px);
+  max-width: 616px;
+  /* The pane is the one place the graph goes soft; everything the visitor
+     has to read sits on it. */
+}
+.hero h1 { font-size: var(--step-4); margin-bottom: 20px; }
+.hero .lede { margin-bottom: 30px; }
+.hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 26px; }
+.hero-note {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding-top: 20px; border-top: 1px solid var(--glass-edge);
+}
+.hero-note .dot { margin-top: .55em; }
+.hero-note .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); flex: none;
+}
+
+/* ---- Section 2: the link ---------------------------------------------*/
+.split {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: clamp(28px, 5vw, 72px); align-items: center;
+}
+/* Three parts on one grid so the phone can reorder them without the markup
+   deciding for it. */
+.split-causal {
+  grid-template-areas: "say show" "effect show";
+  align-items: start;
+  row-gap: 28px;
+}
+.split-say { grid-area: say; }
+.split-show { grid-area: show; align-self: center; }
+.split-effect { grid-area: effect; }
+.note-well { padding: clamp(22px, 3vw, 34px); }
+.note-well .note-title {
+  font-size: var(--step-2); font-weight: 800; letter-spacing: -0.03em;
+  line-height: 1.1; margin-bottom: 6px;
+}
+.note-well .note-sub { color: var(--ink-t3); font-size: var(--step--1); margin-bottom: 20px; }
+.note-body p { color: var(--ink-t2); margin-bottom: 14px; font-size: var(--step-0); }
+.note-body p:last-child { margin-bottom: 0; }
+
+/* The live link. This is the demonstration, so it is a real control: it
+   carries its own focus state and it drives the panel beside it. */
+.wl {
+  color: var(--accent-lum); font-weight: 600;
+  background: none; border: 0; padding: 0 1px; cursor: pointer;
+  border-bottom: 1px solid rgba(157,147,255,.42);
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  border-radius: 3px;
+}
+.wl:hover, .wl.on {
+  background: rgba(157,147,255,.16);
+  border-bottom-color: var(--accent-lum);
+}
+.wl .br { color: rgba(157,147,255,.45); font-weight: 400; }
+
+.backlink-stack { display: flex; flex-direction: column; gap: 12px; }
+.bl {
+  padding: 16px 18px; border-radius: var(--r-md);
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: var(--glass-specular);
+  transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease),
+              transform var(--t-mid) var(--ease);
+}
+.bl.on {
+  border-color: rgba(157,147,255,.55);
+  background: rgba(157,147,255,.12);
+  transform: translateX(6px);
+}
+.bl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.bl-head svg { color: var(--accent-lum); font-size: 14px; }
+.bl-title { font-weight: 600; font-size: var(--step-0); letter-spacing: -0.015em; }
+.bl-quote { color: var(--ink-t3); font-size: var(--step--1); line-height: 1.55; }
+
+/* ---- Section 3: reading ----------------------------------------------
+   A shelf, not a card grid: the sources are objects of different widths and
+   they run off the right edge because a library does not end at the fold. */
+.shelf {
+  display: flex; gap: 18px; overflow-x: auto; padding: 8px 4px 24px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  margin: 0 calc(clamp(16px, 4vw, 40px) * -1);
+  padding-left: clamp(16px, 4vw, 40px); padding-right: clamp(16px, 4vw, 40px);
+}
+.src {
+  scroll-snap-align: start; flex: none;
+  width: 212px; min-height: 268px;
+  border-radius: var(--r-md); padding: 20px;
+  display: flex; flex-direction: column;
+  background: rgba(255,255,255,.055);
+  border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: var(--glass-specular), var(--lift-1);
+}
+.src-kind {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  font-family: var(--face-mono); font-size: 11px; letter-spacing: .06em;
+  padding: 4px 9px; border-radius: var(--r-pill); margin-bottom: 16px;
+}
+.src h3 { margin-bottom: 6px; }
+.src .by { color: var(--ink-t3); font-size: var(--step--1); }
+.src .prog {
+  margin-top: auto; padding-top: 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--face-mono); font-size: 11px; color: var(--ink-t3);
+}
+.prog-track { flex: 1; height: 3px; border-radius: 2px; background: var(--ink-3); overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 2px; background: var(--accent-lum); }
+
+.capture {
+  margin-top: 34px; display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 22px; align-items: center;
+}
+.capture .arrow { color: var(--ink-t3); font-size: 20px; }
+.hl-line {
+  background: linear-gradient(rgba(239,180,92,.26), rgba(239,180,92,.26));
+  border-radius: 3px; padding: 1px 3px;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+
+/* ---- Section 4: the tutor --------------------------------------------
+   The page's quiet passage. One narrow column, centred, after two dense
+   full-width ones. */
+.narrow { max-width: 720px; margin: 0 auto; }
+.turn { display: flex; gap: 14px; margin-bottom: 20px; }
+.turn-who {
+  flex: none; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+  margin-top: 2px;
+}
+.turn-you { background: var(--ink-3); color: var(--ink-t2); }
+.turn-ai { background: rgba(111,99,224,.24); color: var(--accent-lum); border: 1px solid rgba(157,147,255,.34); }
+.turn-body { padding-top: 3px; }
+.turn-body p { color: var(--ink-t2); }
+.turn-body strong { color: var(--ink-t1); font-weight: 600; }
+
+.diagram {
+  margin-top: 8px; padding: 20px; border-radius: var(--r-md);
+  background: rgba(255,255,255,.04); border: 1px solid var(--glass-edge);
+}
+.diagram svg { width: 100%; height: auto; display: block; }
+
+/* ---- Section 5: the door ---------------------------------------------*/
+.urlbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-radius: var(--r-pill);
+  background: rgba(255,255,255,.05); border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: var(--glass-specular);
+  font-family: var(--face-mono); font-size: var(--step--1);
+  overflow: hidden;
+}
+.urlbar .lock { color: var(--green); flex: none; }
+.urlbar .host { color: var(--ink-t3); }
+.urlbar .path { color: var(--ink-t1); }
+.urlbar .tag {
+  margin-left: auto; flex: none;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  background: rgba(74,214,164,.14); color: var(--green);
+  border: 1px solid rgba(74,214,164,.3); font-size: 11px;
+}
+.tree { margin-top: 20px; font-family: var(--face-mono); font-size: var(--step--1); }
+.tree li { display: flex; align-items: center; gap: 8px; padding: 7px 0; color: var(--ink-t2); }
+.tree li svg { color: var(--ink-t3); font-size: 13px; }
+.tree .depth-1 { padding-left: 22px; }
+.tree .out { color: var(--ink-t3); }
+
+/* ---- Close ------------------------------------------------------------*/
+.close { text-align: center; padding-bottom: clamp(80px, 12vh, 150px); }
+.close h2 { font-size: var(--step-4); margin-bottom: 18px; }
+.close .lede { margin: 0 auto 32px; }
+.close-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+footer {
+  border-top: 1px solid var(--glass-edge);
+  padding: 30px clamp(16px, 4vw, 40px);
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+}
+.foot-links { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.foot-links a {
+  display: inline-flex; align-items: center; min-height: 36px; padding: 0 10px;
+  font-size: var(--step--1); color: var(--ink-t2); text-decoration: none;
+  border-radius: var(--r-sm);
+}
+.foot-links a:hover { color: var(--ink-t1); background: rgba(255,255,255,.06); }
+.copy { font-size: var(--step--1); color: var(--ink-t3); }
+
+/* ---- The one authored motion ------------------------------------------
+   Sections rise and settle once as they arrive, from an already-visible
+   default so nothing is ever hidden by a failed observer. Blur is part of
+   it, not just transform and opacity — it is the same material the page is
+   made of, coming into focus. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise { opacity: 0; transform: translateY(26px); filter: blur(6px); }
+  .rise.in {
+    opacity: 1; transform: none; filter: blur(0);
+    transition: opacity var(--t-slow) var(--ease),
+                transform var(--t-slow) var(--ease),
+                filter var(--t-slow) var(--ease);
   }
 }
 
-/* Off-screen until focused — the standard treatment: it must not cost a
-   sighted mouse user anything, and it must be the first thing a keyboard
-   user lands on. */
-.skip{position:absolute;left:-9999px;top:0;z-index:200;
-  background:var(--acc);color:var(--on-acc);font-size:12px;padding:10px 16px;
-  border-radius:0 0 4px 0;text-decoration:none}
-.skip:focus{left:0}
-/* The target is under a 52px fixed nav; without this the heading it jumps to
-   lands behind the bar. */
-#main{scroll-margin-top:52px}
-#main:focus{outline:none}
-
-/* NAV */
-nav{position:fixed;top:0;left:0;right:0;height:52px;background:var(--scrim);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 48px;gap:24px;z-index:100}
-.nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
-.nav-logo-name{font-size:16px;font-weight:700;color:var(--t1);letter-spacing:-0.02em;display:inline-flex;align-items:baseline}
-.nav-caret{display:inline-block;width:.52em;height:.94em;background:var(--acc);vertical-align:-.11em;margin-left:.12em;border-radius:1px}
-@media (prefers-reduced-motion:no-preference){.nav-caret{animation:nav-blink 1.15s steps(1,end) infinite}}
-@keyframes nav-blink{0%,55%{opacity:1}56%,100%{opacity:.16}}
-.nav-links{display:flex;gap:24px;margin-left:auto}
-.nav-links a{font-size:12px;color:var(--t2);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:0 2px}
-.nav-links a:hover{color:var(--t1)}
-.nav-demo{color:var(--grn)}
-.nav-demo:hover{color:var(--grn)}
-.nav-signin{font-size:12px;color:var(--t2);text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
-.nav-signin:hover{color:var(--t1)}
-.nav-cta{font-family:var(--mono);font-size:12px;padding:0 14px;min-height:32px;display:inline-flex;align-items:center;background:var(--acc);color:var(--on-acc);border:none;border-radius:4px;cursor:pointer;text-decoration:none;margin-left:8px}
-.nav-cta:hover{background:var(--acc2);color:var(--on-acc2)}
-
-/* HERO */
-/* justify-content:flex-start, not center — the hero content is now taller
-   than the viewport on short screens, and centering pushed the headline up
-   behind the fixed nav. */
-.hero{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:118px 48px 80px;position:relative;overflow:hidden;text-align:center}
-.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:48px 48px;opacity:.3;pointer-events:none;z-index:0}
-.hero-glow{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,var(--glow) 0%,transparent 68%);pointer-events:none;z-index:0}
-/* Lift all hero content above the absolute grid/glow layers so they sit
-   behind, not on top (positioned siblings otherwise paint over static flow). */
-.hero>*:not(.hero-grid):not(.hero-glow){position:relative;z-index:1}
-.hero-eyebrow{font-size:11px;color:var(--acc2);text-transform:uppercase;letter-spacing:.14em;margin-bottom:22px;display:flex;align-items:center;justify-content:center;gap:8px}
-.eyebrow-pulse{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-.hero-h1{font-size:clamp(34px,5.5vw,70px);font-weight:700;color:var(--t1);line-height:1.1;letter-spacing:-.03em;margin-bottom:0}
-.hero-h1 .dim{margin-bottom:6px;display:block}
-.hero-h1 .dim{color:var(--t3)}
-.hero-typewriter{display:block;font-size:clamp(34px,5.5vw,70px);font-weight:700;color:var(--acc2);line-height:1.1;letter-spacing:-.03em;min-height:1.15em;margin-bottom:30px}
-.tw-cursor{display:inline-block;width:3px;height:.82em;background:var(--acc);vertical-align:-.05em;margin-left:2px;animation:blink .85s step-end infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-.hero-sub{font-size:15px;color:var(--t2);max-width:540px;line-height:1.85;margin-bottom:40px}
-.hero-sub em{color:var(--t1);font-style:normal}
-.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:40px}
-.btn-acc{font-family:var(--mono);font-size:13px;padding:11px 22px;background:var(--acc);color:var(--on-acc);border:none;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
-.btn-acc:hover{background:var(--acc2);color:var(--on-acc2)}
-.btn-ghost{font-family:var(--mono);font-size:13px;padding:11px 22px;background:transparent;color:var(--t2);border:1px solid var(--bd2);border-radius:4px;cursor:pointer}
-.btn-ghost:hover{border-color:var(--acc);color:var(--acc2)}
-
-/* PREVIEW */
-.hero-preview{text-align:left;width:100%;max-width:880px;background:var(--bg1);border:1px solid var(--bd2);border-radius:10px;overflow:hidden;box-shadow:var(--lift),0 0 0 1px var(--bd)}
-
-.ptitlebar{height:36px;background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:6px}
-.ptb-dot{width:10px;height:10px;border-radius:50%}
-.ptb-title{font-size:11px;color:var(--t3);margin:0 auto}
-.pbody{display:flex;height:360px}
-.prail{width:40px;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;flex-shrink:0}
-.pri{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--t3)}
-.pri.active{background:var(--acc-bg);color:var(--acc2)}
-.pfiletree{width:155px;background:var(--bg1);border-right:1px solid var(--bd);flex-shrink:0;overflow:hidden}
-.pft-sec{padding:7px 10px 3px;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em}
-.pft-item{display:flex;align-items:center;gap:5px;padding:4px 10px;font-size:10px;color:var(--t2)}
-.pft-item.active{color:var(--acc2);background:var(--acc-bg);border-left:2px solid var(--acc)}
-.pft-badge{margin-left:auto;font-size:8px;color:var(--t2);background:var(--bg3);border-radius:2px;padding:0 3px}
-.peditor{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0}
-.petabs{height:30px;background:var(--bg1);border-bottom:1px solid var(--bd);display:flex;align-items:flex-end;padding:0 10px;gap:1px;flex-shrink:0}
-.petab{font-size:9px;color:var(--t3);padding:5px 10px;border-bottom:2px solid transparent;white-space:nowrap}
-.petab.active{color:var(--t1);border-bottom-color:var(--acc);background:var(--bg);border-top:1px solid var(--bd);border-left:1px solid var(--bd);border-right:1px solid var(--bd);margin-bottom:-1px}
-.petab .unsaved{width:5px;height:5px;border-radius:50%;background:var(--amb);display:inline-block;margin-right:4px}
-.pecontent{flex:1;padding:18px 26px;overflow:hidden}
-.pnmeta{font-size:9px;color:var(--t3);margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.ptag{font-size:8px;padding:1px 6px;border-radius:3px;color:var(--acc2);background:var(--acc-bg);border:1px solid var(--acc-bd)}
-.ptitle{font-size:16px;font-weight:700;color:var(--t1);margin-bottom:3px;line-height:1.2}
-.psub{font-size:10px;color:var(--t3);font-style:italic;margin-bottom:14px}
-.ph2{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:6px}
-.ph2::after{content:'';flex:1;height:1px;background:var(--bd)}
-.pp{font-size:10px;color:var(--t2);line-height:1.75;margin-bottom:8px}
-.pp em{color:var(--acc2);font-style:normal}
-.pcallout{border-left:2px solid var(--acc);padding:6px 10px;background:var(--acc-bg);border-radius:0 4px 4px 0;margin-bottom:10px}
-.pcallout p{font-size:9px;color:var(--callout-text);line-height:1.6}
-.pstatus{height:22px;border-top:1px solid var(--bd);background:var(--bg1);display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0}
-.psi{font-size:9px;color:var(--t3)}
-.pctx{width:175px;border-left:1px solid var(--bd);background:var(--bg1);flex-shrink:0;overflow:hidden}
-.pctabs{display:flex;border-bottom:1px solid var(--bd)}
-.pctab{flex:1;font-size:9px;color:var(--t3);padding:5px 0;text-align:center;border-bottom:2px solid transparent}
-.pctab.active{color:var(--acc2);border-bottom-color:var(--acc)}
-.pcbody{padding:8px}
-.pcard{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:7px 8px;margin-bottom:5px}
-.pctype{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
-.pctext{font-size:9px;color:var(--t2);line-height:1.5}
-.pctext em{color:var(--acc2);font-style:normal}
-.pcaction{font-size:9px;color:var(--acc2);margin-top:3px}
-
-/* SECTIONS */
-.sec-wrap{padding:88px 48px;max-width:1100px;margin:0 auto}
-.eyebrow{font-size:10px;color:var(--acc2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px}
-.sec-h2{font-size:clamp(24px,3.8vw,44px);font-weight:700;color:var(--t1);line-height:1.2;letter-spacing:-.025em;margin-bottom:16px}
-.sec-sub{font-size:14px;color:var(--t2);line-height:1.85;max-width:560px}
-.divider{height:1px;background:linear-gradient(90deg,transparent,var(--bd2),transparent);margin:0}
-
-/* FEATURES GRID */
-.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-top:52px}
-.feat-card{background:var(--bg1);padding:26px 26px 30px;position:relative;transition:background .2s}
-.feat-card:hover{background:var(--bg2)}
-.ficon{width:34px;height:34px;border-radius:6px;background:var(--acc-bg);border:1px solid var(--acc-bd);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--acc2);margin-bottom:12px}
-.ftitle,.hiw-title{font-weight:700}
-.ftitle{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:7px}
-.fdesc{font-size:11px;color:var(--t2);line-height:1.75}
-/* The tenth card closes the grid rather than orphaning a third of a row. */
-.feat-card-wide{grid-column:1/-1}
-.feat-card-wide .fdesc{max-width:76ch}
-.fbadge{display:inline-block;font-size:9px;padding:1px 7px;border-radius:3px;margin-top:10px;border:1px solid}
-
-/* HOW IT WORKS */
-.hiw{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-top:48px}
-.hiw-step{background:var(--bg1);padding:30px 26px}
-.hiw-num{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.hiw-num-box{width:22px;height:22px;border-radius:4px;background:var(--acc-bg);border:1px solid var(--acc-bd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--acc2)}
-.hiw-num-label{font-size:10px;color:var(--acc2);text-transform:uppercase;letter-spacing:.08em}
-.hiw-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:8px}
-.hiw-desc{font-size:11px;color:var(--t2);line-height:1.75}
-
-/* SPLIT SECTIONS */
-.split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;padding:80px 48px;max-width:1100px;margin:0 auto}
-.split.flip{direction:rtl}
-.split.flip>*{direction:ltr}
-.split-visual{border:1px solid var(--bd2);border-radius:10px;overflow:hidden}
-.split-copy{display:flex;flex-direction:column;gap:12px}
-.split-copy .sec-h2{font-size:clamp(20px,2.8vw,34px);margin-bottom:10px}
-.chip-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
-.chip{font-size:10px;padding:3px 9px;border-radius:3px;border:1px solid;color:var(--t2);border-color:var(--bd2)}
-
-/* READING VISUAL */
-.rv-wrap{display:flex;min-height:280px}
-.rv-lib{width:130px;border-right:1px solid var(--bd);background:var(--bg2);flex-shrink:0}
-.rv-sec{padding:7px 9px 3px;font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em}
-.rv-item{display:flex;align-items:center;gap:5px;padding:5px 9px;cursor:pointer}
-.rv-item.active{background:var(--acc-bg)}
-.rv-thumb{width:18px;height:24px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex-shrink:0}
-.rv-meta-text{min-width:0}
-.rv-ititle{font-size:9px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rv-item.active .rv-ititle{color:var(--acc2)}
-.rv-imeta{font-size:7px;color:var(--t3)}
-.rv-prog{height:2px;background:var(--bg4);border-radius:1px;margin-top:2px}
-.rv-prog-fill{height:100%;border-radius:1px;background:var(--acc)}
-.rv-reader{flex:1;padding:14px 18px;background:var(--bg)}
-.rv-ch{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
-.rv-htitle{font-size:12px;font-weight:700;color:var(--t1);margin-bottom:10px;line-height:1.3}
-.rv-p{font-size:9px;color:var(--t2);line-height:1.8;margin-bottom:8px}
-.hly{background:var(--amb-bg);border-bottom:1px solid var(--amb);color:var(--t1)}
-.hlp{background:var(--acc-bg);border-bottom:1px solid var(--acc);color:var(--t1)}
-.rv-toolbar{display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;padding:3px 6px;margin-top:4px}
-.rv-tbtn{font-size:8px;color:var(--t2);padding:2px 5px;border-radius:2px;background:var(--bg3);cursor:pointer}
-
-/* CANVAS VISUAL */
-.cv-wrap{padding:20px;min-height:280px;background:radial-gradient(circle,var(--canvas-dot) .5px,transparent .5px) 0 0/16px 16px,var(--bg)}
-
-/* STATS */
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
-.stats-caption{font-size:11px;color:var(--t3);letter-spacing:.04em;margin-bottom:12px;text-align:center;font-style:italic}
-.stat{background:var(--bg1);padding:30px 24px;text-align:center}
-.stat-n{font-size:38px;font-weight:700;color:var(--t1);letter-spacing:-.03em;margin-bottom:5px}
-.stat-n .a{color:var(--acc2)}
-.stat-l{font-size:11px;color:var(--t3)}
-
-/* TESTIMONIALS */
-.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:48px}
-.builder-note{margin-top:40px;max-width:64ch;background:var(--bg1);border:1px solid var(--bd);border-left:3px solid var(--acc);border-radius:0 10px 10px 0;padding:28px 30px}
-.builder-note p{font-size:14.5px;line-height:1.75;color:var(--t2);margin:0 0 14px}
-.builder-note p:last-of-type{margin-bottom:0}
-.builder-sig{display:flex;align-items:baseline;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--bd)}
-.builder-name{font-size:13px;font-weight:700;color:var(--t1)}
-.builder-role{font-size:11.5px;color:var(--t3)}
-.testi{background:var(--bg1);border:1px solid var(--bd);border-radius:8px;padding:22px}
-.tq{font-size:12px;color:var(--t2);line-height:1.85;margin-bottom:14px;font-style:italic}
-.tq em{color:var(--t1);font-style:normal}
-.ta{display:flex;align-items:center;gap:9px}
-.tav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--on-acc);flex-shrink:0}
-.tn{font-size:11px;color:var(--t1)}
-.tr{font-size:10px;color:var(--t3)}
-
-/* CTA */
-.cta-wrap{padding:96px 48px;text-align:center;position:relative;overflow:hidden;max-width:100%}
-.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:300px;background:radial-gradient(ellipse,var(--glow) 0%,transparent 70%);pointer-events:none}
-.cta-h2{font-size:clamp(26px,4vw,52px);font-weight:700;color:var(--t1);letter-spacing:-.03em;margin-bottom:14px;line-height:1.2}
-.cta-sub{font-size:14px;color:var(--t2);margin-bottom:36px;max-width:460px;margin-left:auto;margin-right:auto;line-height:1.85}
-.cta-row{display:flex;gap:8px;max-width:400px;margin:0 auto 14px;justify-content:center}
-.cta-input{font-family:var(--mono);font-size:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--t1);outline:none;flex:1;min-width:0}
-.cta-input:focus{border-color:var(--acc)}
-.cta-input::placeholder{color:var(--t3)}
-.cta-hint{font-size:10px;color:var(--t3)}
-
-/* FOOTER */
-footer{border-top:1px solid var(--bd);padding:28px 48px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-.fl{display:flex;align-items:center;gap:8px;text-decoration:none;min-height:32px}
-.fl-mark{width:20px;height:20px;background:var(--acc);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--on-acc)}
-.fl-name{font-size:12px;color:var(--t2)}
-.flinks{display:flex;gap:20px;margin-left:auto}
-.flinks a{font-size:11px;color:var(--t2);text-decoration:none;display:inline-flex;align-items:center;min-height:32px}
-.flinks a:hover{color:var(--t1)}
-.fcopy{font-size:10px;color:var(--t3)}
-
-@media(max-width:800px){
-  nav{padding:0 16px;gap:10px}
-  /* The section anchors go — there is no room for four of them — but "try
-     demo" stays. It was going with them, which left a phone with no way to
-     see the product without handing over an email first. */
-  .nav-links a:not(.nav-demo){display:none}
-  .nav-links{margin-left:auto;gap:0}
-  .nav-signin{display:none}
-
-  .hero{padding:96px 16px 56px}
-  /* The mock used to be display:none here, so a phone — most of the traffic —
-     got the pitch for a workspace without ever being shown one. It stays;
-     what goes is the three columns of chrome that need a desk to make sense.
-     What is left is the page itself, which is the part worth seeing. */
-  .prail,.pfiletree,.pctx{display:none}
-  .pbody{height:300px}
-  .pecontent{padding:14px 16px}
-  .ptb-title{font-size:10px}
-  .sec-wrap{padding:60px 20px}
-  .feat-grid{grid-template-columns:1fr}
-  .feat-card-wide{grid-column:auto}
-  .hiw{grid-template-columns:1fr}
-  .split{grid-template-columns:1fr;gap:32px;padding:60px 20px}
-  .split.flip{direction:ltr}
-  .stats-row{grid-template-columns:1fr 1fr}
-  .testi-grid{grid-template-columns:1fr}
-  .cta-wrap{padding:60px 20px}
-  .cta-row{flex-direction:column}
-  footer{flex-direction:column;gap:16px;padding:24px 20px}
-  .flinks{margin-left:0}
+/* ---- Responsive -------------------------------------------------------*/
+@media (max-width: 900px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  /* Claim, then the note, then what the note produced. */
+  .split-causal { grid-template-areas: "say" "show" "effect"; }
+  .capture { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .capture .arrow { transform: rotate(90deg); justify-self: center; }
+}
+@media (max-width: 700px) {
+  .bar { height: 56px; gap: 10px; }
+  /* The section anchors go; the demo does not. It is the cheapest way in and
+     the only one that needs no email. */
+  .bar-nav a:not(.bar-demo) { display: none; }
+  .hero { padding-top: 92px; }
+  .hero-pane { padding: 24px 20px; }
+  .hero-cta .btn { flex: 1 1 100%; }
 }
 </style>
 </head>
 <body>
-<!-- Icons are inlined from Lucide — the same set the app renders — rather
-     than pulled as a webfont from a CDN. It costs ~4KB in the document
-     instead of a render-blocking stylesheet plus a ~100KB font file from a
-     third party, it cannot fall back to tofu boxes, and the icons here now
-     match the icons a visitor sees after signing up. -->
+
+<!-- Icons are inlined from Lucide — the set the app itself renders — so the
+     marketing page and the product draw with one hand, and a CDN being down
+     cannot turn the page into tofu. -->
 <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
-<symbol id="i-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
-<symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></symbol>
-<symbol id="i-player-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
-<symbol id="i-notes" viewBox="0 0 24 24"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9.5 8h5"/><path d="M9.5 12H16"/><path d="M9.5 16H14"/></symbol>
-<symbol id="i-network" viewBox="0 0 24 24"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></symbol>
-<symbol id="i-layout-kanban" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 7v7"/><path d="M12 7v4"/><path d="M16 7v9"/></symbol>
-<symbol id="i-layout-board" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></symbol>
-<symbol id="i-books" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
-<symbol id="i-terminal-2" viewBox="0 0 24 24"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></symbol>
-<symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
-<symbol id="i-school" viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></symbol>
-<symbol id="i-note" viewBox="0 0 24 24"><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/></symbol>
-<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
-<symbol id="i-highlight" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></symbol>
-<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
-<symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
-<symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-book-open" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="i-graduation-cap" viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></symbol>
+  <symbol id="i-share-2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></symbol>
+  <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></symbol>
+  <symbol id="i-network" viewBox="0 0 24 24"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-corner-down-right" viewBox="0 0 24 24"><path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></symbol>
+  <symbol id="i-highlighter" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></symbol>
 </svg>
 
+<a class="skip" href="#main">Skip to content</a>
 
-<a class="skip" href="#main">skip to content</a>
+<div class="wash" aria-hidden="true"></div>
+<canvas id="field" aria-hidden="true"></canvas>
 
-<nav>
-  <a class="nav-logo" href="/landing">
-    <span class="nav-logo-name">braindot<span class="nav-caret"></span></span>
-  </a>
-  <div class="nav-links">
-    <a href="#features">features</a>
-    <a href="#how">how it works</a>
-    <a href="#reading">reading</a>
-    <a href="#canvas">canvas</a>
-    <a class="nav-demo" href="/demo">try demo</a>
-  </div>
-  <a class="nav-signin" href="/auth">sign in</a>
-  <a class="nav-cta" href="/auth?mode=signup">sign up</a>
-</nav>
-
-<main id="main" tabindex="-1">
-<!-- HERO -->
-<div class="hero">
-  <div class="hero-grid"></div>
-  <div class="hero-glow"></div>
-  <div class="hero-eyebrow"><span class="eyebrow-pulse"></span>now in private beta</div>
-  <h1 class="hero-h1" aria-label="Your knowledge, alive.">
-    <span class="dim" aria-hidden="true">your knowledge,</span>
-    <span class="hero-typewriter" aria-hidden="true"><span id="tw"></span><span class="tw-cursor"></span></span>
-  </h1>
-  <p class="hero-sub">Braindot is a PKM workspace where notes, reading, tasks, and ideas
-    <em>connect</em> — and stay alive. Not a filing system. A thinking environment.</p>
-  <div class="hero-actions">
-    <a class="btn-acc" href="/demo"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-player-play"/></svg> try demo — no signup</a>
-    <a class="btn-ghost" href="/auth?mode=signup">sign up free</a>
-  </div>
-
-  <div class="hero-preview">
-    <div class="ptitlebar">
-      <div class="ptb-dot" style="background:var(--red)"></div>
-      <div class="ptb-dot" style="background:var(--amb)"></div>
-      <div class="ptb-dot" style="background:var(--grn)"></div>
-      <span class="ptb-title">braindot — zettelkasten-method.md</span>
+<div class="page">
+  <nav class="bar g-chrome" aria-label="Primary">
+    <a class="mark" href="/landing">braindot<span class="caret" aria-hidden="true"></span></a>
+    <div class="bar-nav">
+      <a href="#link">Linking</a>
+      <a href="#read">Reading</a>
+      <a href="#tutor">Tutor</a>
+      <a href="#door">Your data</a>
+      <a class="bar-demo btn btn-glass btn-sm" href="/demo" style="margin-left:8px">
+        <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Open the demo
+      </a>
     </div>
-    <div class="pbody">
-      <div class="prail">
-        <div class="pri active"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-notes"/></svg></div>
-        <div class="pri"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-network"/></svg></div>
-        <div class="pri"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-books"/></svg></div>
-        <div class="pri"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-layout-board"/></svg></div>
-        <div class="pri"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-layout-kanban"/></svg></div>
-        <div class="pri" style="margin-top:auto"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-settings"/></svg></div>
-      </div>
-      <div class="pfiletree">
-        <div class="pft-sec">pinned</div>
-        <div class="pft-item active"><svg class="ic" style="font-size:11px" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg> Zettelkasten method <span class="pft-badge">12</span></div>
-        <div class="pft-item"><svg class="ic" style="font-size:11px" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg> PARA method <span class="pft-badge">7</span></div>
-        <div class="pft-sec">strategy</div>
-        <div class="pft-item"><svg class="ic" style="font-size:11px" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg> Decision fatigue</div>
-        <div class="pft-item"><svg class="ic" style="font-size:11px" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg> Mental models</div>
-        <div class="pft-sec">learning</div>
-        <div class="pft-item"><svg class="ic" style="font-size:11px" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg> Spaced repetition</div>
-        <div class="pft-item"><svg class="ic" style="font-size:11px" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg> Feynman technique</div>
-      </div>
-      <div class="peditor">
-        <div class="petabs">
-          <div class="petab active"><span class="unsaved"></span>zettelkasten-method.md</div>
-          <div class="petab">para-method.md</div>
-        </div>
-        <div class="pecontent">
-          <div class="pnmeta">
-            <span class="ptag">#strategy</span>
-            <span class="ptag" style="color:var(--grn);background:var(--grn-bg);border-color:var(--grn-bd)">#learning</span>
-            <span>Jun 30, 2026</span>
-            <span style="color:var(--grn)">● evergreen</span>
+  </nav>
+
+  <main id="main" tabindex="-1">
+
+    <!-- ============ Hero ============ -->
+    <section class="hero">
+      <div class="wrap" style="width:100%">
+        <div class="hero-pane g-pane">
+          <h1>A note is worth what it connects to.</h1>
+          <p class="lede">
+            Braindot links what you write to everything else you have written, as you
+            type. You get the backlinks, the graph, a reader that brings sources in,
+            and a tutor that can see all of it at once.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="/demo">
+              <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>
+              Open the demo
+            </a>
+            <a class="btn btn-glass" href="/auth?mode=signup">Create a vault</a>
           </div>
-          <div class="ptitle">Atomic notes and the Zettelkasten method</div>
-          <div class="psub">one idea per note · link everything · write for your future self</div>
-          <div class="ph2">the core idea</div>
-          <div class="pp">Each note should express <em>one single idea</em> completely. The power of Zettelkasten is not in individual notes but in the connections between them.</div>
-          <div class="pcallout"><p>A note that links to 10 others is worth more than 10 isolated notes. The value is in the network, not the nodes.</p></div>
-          <div class="ph2">writing principles</div>
-          <div class="pp">Write in your own words. Ask: what does this connect to? Write for your future self — assume zero context tomorrow.</div>
-        </div>
-        <div class="pstatus">
-          <span class="psi"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-check"/></svg> autosaved</span>
-          <span class="psi"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-link"/></svg> 12 links</span>
-          <span class="psi"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg> 340 words</span>
-          <span class="psi" style="margin-left:auto;color:var(--acc2)"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sparkles"/></svg> AI active</span>
+          <p class="hero-note meta">
+            <span class="dot" aria-hidden="true"></span>
+            <span>The demo needs no account. The vault drifting behind this page is
+            an example: <span class="fig">44</span> notes,
+            <span class="fig">68</span> links.</span>
+          </p>
         </div>
       </div>
-      <div class="pctx">
-        <div class="pctabs">
-          <div class="pctab active">AI</div>
-          <div class="pctab">Graph</div>
-        </div>
-        <div class="pcbody">
-          <div class="pcard">
-            <div class="pctype">missing link</div>
-            <div class="pctext"><em>bounded rationality</em> from March isn't linked — strong overlap.</div>
-            <div class="pcaction">link now ↗</div>
+    </section>
+
+    <!-- ============ The link ============ -->
+    <section class="sec" id="link">
+      <div class="wrap">
+        <div class="split split-causal rise">
+          <div class="split-say">
+            <h2>Type two brackets. Braindot does the filing.</h2>
+            <p class="body" style="margin-top:20px">
+              A link is the whole mechanism. Write <code style="font-family:var(--face-mono);color:var(--accent-lum)">[[</code>
+              and the vault completes it; the note on the other end grows a backlink
+              without being opened, and the graph redraws. Nothing to tag, nothing to
+              file, no folder to decide on at the moment you least want to.
+            </p>
           </div>
-          <div class="pcard">
-            <div class="pctype">synthesis ready</div>
-            <div class="pctext"><em>6 notes</em> on methods are dense enough to merge.</div>
-            <div class="pcaction">synthesize ↗</div>
+
+          <div class="split-effect">
+            <p class="meta" style="margin-bottom:12px">What those two links just did, elsewhere in the vault</p>
+            <div class="backlink-stack" id="bls">
+              <article class="bl" data-bl="spacing">
+                <div class="bl-head">
+                  <svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg>
+                  <span class="bl-title">Spaced repetition</span>
+                </div>
+                <p class="bl-quote">“Each review resets the forgetting curve at a slower rate of decay.”</p>
+              </article>
+              <article class="bl" data-bl="luhmann">
+                <div class="bl-head">
+                  <svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg>
+                  <span class="bl-title">Zettelkasten method</span>
+                </div>
+                <p class="bl-quote">“Luhmann's boxes were an index, not an archive — the number was the address.”</p>
+              </article>
+              <article class="bl" data-bl="retrieval">
+                <div class="bl-head">
+                  <svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg>
+                  <span class="bl-title">Retrieval practice</span>
+                </div>
+                <p class="bl-quote">“Harder recalls produce stronger memories; ease at the moment of study is a bad signal.”</p>
+              </article>
+            </div>
           </div>
-          <div class="pcard">
-            <div class="pctype">review due</div>
-            <div class="pctext">Last reviewed <em>14 days</em> ago.</div>
-            <div class="pcaction">review now ↗</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
-</div>
-
-<div class="divider"></div>
-
-<!-- STATS — illustrative, clearly labelled as an example vault -->
-<div style="padding:0 48px;max-width:1100px;margin:72px auto">
-  <div class="stats-caption">for example — a vault after a few months of steady use</div>
-  <div class="stats-row">
-    <div class="stat"><div class="stat-n"><span class="a">247</span></div><div class="stat-l">notes in your vault</div></div>
-    <div class="stat"><div class="stat-n"><span class="a">1,084</span></div><div class="stat-l">connections between ideas</div></div>
-    <div class="stat"><div class="stat-n"><span class="a">14</span><span style="font-size:22px;color:var(--t3)">d</span></div><div class="stat-l">writing streak</div></div>
-    <div class="stat"><div class="stat-n"><span class="a">0</span></div><div class="stat-l">blank pages (we fix that)</div></div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- FEATURES -->
-<div class="sec-wrap" id="features">
-  <div class="eyebrow">what's inside</div>
-  <h2 class="sec-h2">everything your brain needs,<br>on one desk</h2>
-  <p class="sec-sub">Built around one principle: notes should connect to everything, not sit in folders doing nothing.</p>
-  <div class="feat-grid">
-    <div class="feat-card">
-      <div class="ficon"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-notes"/></svg></div>
-      <h3 class="ftitle">An editor, not a text box</h3>
-      <div class="fdesc">Tabbed markdown editor with wiki-links, callout blocks, slash commands, and live backlink tracking. Writes like code, thinks like prose.</div>
-      <span class="fbadge" style="color:var(--acc2);background:var(--acc-bg);border-color:var(--acc-bd)">core</span>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--grn-bg);border-color:var(--grn-bd)"><svg class="ic" style="color:var(--grn)" aria-hidden="true" focusable="false"><use href="#i-network"/></svg></div>
-      <h3 class="ftitle">Living knowledge graph</h3>
-      <div class="fdesc">Nodes pulse and glow based on recency. Hot notes glow orange. Cold notes fade. See your active thinking — not a frozen snapshot.</div>
-      <span class="fbadge" style="color:var(--amb);background:var(--amb-bg);border-color:var(--amb-bd)">signature</span>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--amb-bg);border-color:var(--amb-bd)"><svg class="ic" style="color:var(--amb)" aria-hidden="true" focusable="false"><use href="#i-books"/></svg></div>
-      <h3 class="ftitle">Native reading layer</h3>
-      <div class="fdesc">Read epub, PDF, and articles in-app. Highlight passages, attach notes, capture directly into your vault — no clipboard, no app-switching.</div>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--grn-bg);border-color:var(--grn-bd)"><svg class="ic" style="color:var(--grn)" aria-hidden="true" focusable="false"><use href="#i-layout-board"/></svg></div>
-      <h3 class="ftitle">Freeform canvas</h3>
-      <div class="fdesc">Drag note cards anywhere. Connect them with arrows. Group related ideas. A spatial workspace for brainstorming — not a hierarchy.</div>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--blu-bg);border-color:var(--blu-bd)"><svg class="ic" style="color:var(--blu)" aria-hidden="true" focusable="false"><use href="#i-layout-kanban"/></svg></div>
-      <h3 class="ftitle">Kanban + Todos</h3>
-      <div class="fdesc">Tasks and todos in one smart split view. Every kanban card can link back to a note — so your work always connects to your thinking.</div>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--grn-bg);border-color:var(--grn-bd)"><svg class="ic" style="color:var(--grn)" aria-hidden="true" focusable="false"><use href="#i-sparkles"/></svg></div>
-      <h3 class="ftitle">AI synthesis</h3>
-      <div class="fdesc">Live suggestions in the context panel: missing links, synthesis opportunities, review reminders. AI that notices patterns, not a chatbot you have to prompt.</div>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--grn-bg);border-color:var(--grn-bd)"><svg class="ic" style="color:var(--grn)" aria-hidden="true" focusable="false"><use href="#i-school"/></svg></div>
-      <h3 class="ftitle">Study mode</h3>
-      <div class="fdesc">For when the vault is a syllabus. An interactive tutor teaches a topic in steps, asks you questions back, and draws diagrams and timetables — all saveable into the note you are studying from.</div>
-      <span class="fbadge" style="color:var(--grn);background:var(--grn-bg);border-color:var(--grn-bd)">for students</span>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--amb-bg);border-color:var(--amb-bd)"><svg class="ic" style="color:var(--amb)" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg></div>
-      <h3 class="ftitle">Daily journal</h3>
-      <div class="fdesc">One zero-friction entry point every day. No decision about where to write — just open today. On This Day resurfaces past notes automatically.</div>
-    </div>
-    <div class="feat-card">
-      <div class="ficon" style="background:var(--coral-bg);border-color:var(--coral-bd)"><svg class="ic" style="color:var(--coral)" aria-hidden="true" focusable="false"><use href="#i-terminal-2"/></svg></div>
-      <h3 class="ftitle">Command palette first</h3>
-      <div class="fdesc">⌘K for everything: jump to a note, run AI, search your vault, create a task. The UI stays out of the way — your keyboard runs the show.</div>
-    </div>
-    <div class="feat-card feat-card-wide">
-      <div class="ficon" style="background:var(--grn-bg);border-color:var(--grn-bd)"><svg class="ic" style="color:var(--grn)" aria-hidden="true" focusable="false"><use href="#i-link"/></svg></div>
-      <h3 class="ftitle">Publish a note, or a whole shelf of them</h3>
-      <div class="fdesc">Turn any note — or a folder and everything nested in it — into a link that works without an account. A published page is a snapshot, so your later edits stay private until you say otherwise, and links to notes you did not publish quietly stay plain text instead of becoming dead ends. Or take the whole vault out as markdown, whenever you want. It is your writing; the exit is not hidden.</div>
-      <span class="fbadge" style="color:var(--grn);background:var(--grn-bg);border-color:var(--grn-bd)">your data, portable</span>
-    </div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- HOW IT WORKS -->
-<div class="sec-wrap" id="how">
-  <div class="eyebrow">how it works</div>
-  <h2 class="sec-h2">capture → connect → create</h2>
-  <p class="sec-sub">Three stages, one loop. Most PKM apps break at the third stage. We're built around it.</p>
-  <div class="hiw">
-    <div class="hiw-step">
-      <div class="hiw-num"><div class="hiw-num-box">01</div><span class="hiw-num-label">capture</span></div>
-      <h3 class="hiw-title">Write without friction</h3>
-      <div class="hiw-desc">Slash commands for any block type. Paste an article and keep its structure. Highlight passages from books. Whatever you learn, it goes in — fast.</div>
-    </div>
-    <div class="hiw-step">
-      <div class="hiw-num"><div class="hiw-num-box">02</div><span class="hiw-num-label">connect</span></div>
-      <h3 class="hiw-title">Ideas find each other</h3>
-      <div class="hiw-desc">[[wiki-links]] create a living network. AI surfaces missing connections. The graph shows where your thinking is hot — and where it's going cold.</div>
-    </div>
-    <div class="hiw-step">
-      <div class="hiw-num"><div class="hiw-num-box">03</div><span class="hiw-num-label">create</span></div>
-      <h3 class="hiw-title">Your notes become things</h3>
-      <div class="hiw-desc">Synthesize highlights into evergreen notes. Export as an essay. Map your reading onto a canvas. Your knowledge is a factory floor, not an archive.</div>
-    </div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- READING SPLIT -->
-<div class="split" id="reading">
-  <div class="split-visual">
-    <div class="rv-wrap">
-      <div class="rv-lib">
-        <div class="rv-sec">reading</div>
-        <div class="rv-item active">
-          <div class="rv-thumb" style="background:var(--acc-bg);color:var(--acc2)">BS</div>
-          <div class="rv-meta-text">
-            <div class="rv-ititle">Building a Second Brain</div>
-            <div class="rv-imeta">epub · 62%</div>
-            <div class="rv-prog"><div class="rv-prog-fill" style="width:62%"></div></div>
-          </div>
-        </div>
-        <div class="rv-item">
-          <div class="rv-thumb" style="background:var(--blu-bg);color:var(--blu)">PDF</div>
-          <div class="rv-meta-text">
-            <div class="rv-ititle">Spaced repetition</div>
-            <div class="rv-imeta">paper · 88%</div>
-            <div class="rv-prog"><div class="rv-prog-fill" style="width:88%"></div></div>
-          </div>
-        </div>
-        <div class="rv-sec">news</div>
-        <div class="rv-item">
-          <div class="rv-thumb" style="background:var(--coral-bg);color:var(--coral)">RSS</div>
-          <div class="rv-meta-text">
-            <div class="rv-ititle">Knowledge Economy</div>
-            <div class="rv-imeta">Substack · today</div>
-          </div>
-        </div>
-        <div class="rv-item">
-          <div class="rv-thumb" style="background:var(--coral-bg);color:var(--coral)">RSS</div>
-          <div class="rv-meta-text">
-            <div class="rv-ititle">Why AI won't replace thinking</div>
-            <div class="rv-imeta">Atlantic · Jun 28</div>
+          <div class="note-well g-well split-show">
+            <p class="note-title">Atomic notes</p>
+            <p class="note-sub">one idea per note · written for whoever you are tomorrow</p>
+            <div class="note-body">
+              <p>
+                A note should hold one idea completely. The power is not in any single
+                note but in what it touches: a note linking to ten others is worth more
+                than ten that sit alone.
+              </p>
+              <p>
+                This is the claim behind
+                <button class="wl" data-wl="luhmann" type="button"><span class="br">[[</span>Zettelkasten method<span class="br">]]</span></button>,
+                and the reason
+                <button class="wl" data-wl="spacing" type="button"><span class="br">[[</span>Spaced repetition<span class="br">]]</span></button>
+                works better on small notes than long ones: you can only review what
+                you can hold in one piece.
+              </p>
+              <p>
+                Which is also why
+                <button class="wl" data-wl="retrieval" type="button"><span class="br">[[</span>Retrieval practice<span class="br">]]</span></button>
+                belongs here rather than in its own chapter.
+              </p>
+            </div>
           </div>
         </div>
       </div>
-      <div class="rv-reader">
-        <div class="rv-ch">chapter 7 — express</div>
-        <div class="rv-htitle">Show your work</div>
-        <div class="rv-p">The goal of a second brain is not to hoard. It is to <span class="hly">use it. Express it. Make things with it</span>. Every note is only as valuable as what you do with it.</div>
-        <div class="rv-p">Forte calls this the <span class="hlp">intermediate packet: a small, reusable unit of work complete enough to use</span> — a paragraph, a diagram, a short essay that can be recombined endlessly.</div>
-        <div class="rv-toolbar">
-          <span class="rv-tbtn"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-highlight"/></svg> highlight</span>
-          <span class="rv-tbtn"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-note"/></svg> note</span>
-          <span class="rv-tbtn" style="color:var(--acc2)"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sparkles"/></svg> ask AI</span>
+    </section>
+
+    <!-- ============ Reading ============ -->
+    <section class="sec" id="read">
+      <div class="wrap rise">
+        <h2>The reading comes to the vault.</h2>
+        <p class="lede" style="margin-top:20px">
+          EPUB and PDF open as books, paged, with your marks in the margin. arXiv and
+          Hacker News arrive as an edition. Paste a URL and the article is clipped to
+          clean markdown instead of losing its structure on the way in.
+        </p>
+      </div>
+
+      <div class="wrap">
+        <div class="shelf rise" role="list" aria-label="Sources in an example library">
+          <article class="src" role="listitem">
+            <span class="src-kind" style="background:rgba(111,99,224,.16);color:var(--accent-lum);border:1px solid rgba(157,147,255,.3)">
+              <svg class="ic" aria-hidden="true"><use href="#i-book-open"/></svg>EPUB
+            </span>
+            <h3>Building a Second Brain</h3>
+            <p class="by">Tiago Forte</p>
+            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:62%"></div></div><span class="fig">62%</span></div>
+          </article>
+          <article class="src" role="listitem">
+            <span class="src-kind" style="background:rgba(111,168,220,.16);color:#8fc4f0;border:1px solid rgba(111,168,220,.3)">
+              <svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg>ARXIV
+            </span>
+            <h3>Attention Is All You Need</h3>
+            <p class="by">Vaswani et al.</p>
+            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:38%"></div></div><span class="fig">38%</span></div>
+          </article>
+          <article class="src" role="listitem">
+            <span class="src-kind" style="background:rgba(239,180,92,.16);color:var(--amber);border:1px solid rgba(239,180,92,.3)">
+              <svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>ARTICLE
+            </span>
+            <h3>How to Take Smart Notes</h3>
+            <p class="by">clipped from the web</p>
+            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:100%"></div></div><span class="fig">read</span></div>
+          </article>
+          <article class="src" role="listitem">
+            <span class="src-kind" style="background:rgba(74,214,164,.14);color:var(--green);border:1px solid rgba(74,214,164,.28)">
+              <svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg>PDF
+            </span>
+            <h3>The Psychology of Human Misjudgment</h3>
+            <p class="by">Charlie Munger</p>
+            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:14%"></div></div><span class="fig">14%</span></div>
+          </article>
+          <article class="src" role="listitem">
+            <span class="src-kind" style="background:rgba(255,255,255,.07);color:var(--ink-t2);border:1px solid var(--glass-edge)">
+              <svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>EDITION
+            </span>
+            <h3>Today's paper</h3>
+            <p class="by">built from your sources this morning</p>
+            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:100%"></div></div><span class="fig">new</span></div>
+          </article>
         </div>
       </div>
+
+      <div class="wrap">
+        <div class="capture rise">
+          <div class="g-well" style="padding:20px 22px">
+            <p class="meta" style="margin-bottom:10px">In the reader</p>
+            <p style="color:var(--ink-t2)">
+              Forte calls this the <span class="hl-line">intermediate packet: a small,
+              reusable unit of work complete enough to use on its own</span>: a
+              paragraph, a diagram, a short essay.
+            </p>
+          </div>
+          <div class="arrow" aria-hidden="true">
+            <svg class="ic" style="width:24px;height:24px"><use href="#i-arrow-right"/></svg>
+          </div>
+          <div class="g-well" style="padding:20px 22px">
+            <p class="meta" style="margin-bottom:10px">In your vault, a minute later</p>
+            <p style="font-weight:600;margin-bottom:6px">Intermediate packets</p>
+            <p style="color:var(--ink-t3);font-size:var(--step--1)">
+              from <em style="font-style:normal;color:var(--accent-lum)">Building a Second Brain</em>,
+              p.&nbsp;114 · links to
+              <span style="color:var(--accent-lum)">Atomic notes</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ The tutor ============ -->
+    <section class="sec" id="tutor">
+      <div class="wrap narrow rise">
+        <h2 style="text-align:center">And something that has read all of it.</h2>
+        <p class="lede" style="margin:20px auto 44px;text-align:center">
+          Ask across the whole vault and get answers with the notes they came from.
+          Or hand it a topic and it teaches, asking you questions back and drawing
+          what it explains straight into the note you are studying from.
+        </p>
+
+        <div class="g-pane" style="padding:clamp(22px,3vw,34px)">
+          <div class="turn">
+            <div class="turn-who turn-you" aria-hidden="true">Y</div>
+            <div class="turn-body"><p>Teach me why spacing works. Quiz me as you go.</p></div>
+          </div>
+          <div class="turn">
+            <div class="turn-who turn-ai" aria-hidden="true">
+              <svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg>
+            </div>
+            <div class="turn-body">
+              <p style="margin-bottom:12px">
+                Start with what you already wrote in <strong>Spaced repetition</strong>:
+                each review resets the forgetting curve at a <strong>slower</strong>
+                rate of decay. So before I explain: after three reviews, is the curve
+                flatter or steeper than after one?
+              </p>
+              <div class="diagram" role="img" aria-label="A forgetting curve decaying steeply, then three review points each producing a shallower decay than the last.">
+                <svg viewBox="0 0 560 150" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="fade" x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0" stop-color="#9d93ff" stop-opacity=".85"/>
+                      <stop offset="1" stop-color="#9d93ff" stop-opacity=".35"/>
+                    </linearGradient>
+                  </defs>
+                  <line x1="18" y1="126" x2="544" y2="126" stroke="#1a2133" stroke-width="1"/>
+                  <line x1="18" y1="18" x2="18" y2="126" stroke="#1a2133" stroke-width="1"/>
+                  <path d="M18 24 C 60 96, 96 116, 150 122" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
+                  <path d="M150 24 C 214 88, 268 112, 322 120" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
+                  <path d="M322 24 C 410 78, 470 104, 544 116" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
+                  <g fill="#9d93ff">
+                    <circle cx="150" cy="24" r="3.5"/><circle cx="322" cy="24" r="3.5"/>
+                  </g>
+                  <g fill="#6f7994" font-family="JetBrains Mono, monospace" font-size="10">
+                    <text x="142" y="142">day 1</text><text x="314" y="142">day 4</text><text x="500" y="142">day 11</text>
+                  </g>
+                </svg>
+              </div>
+              <p style="margin-top:14px;color:var(--ink-t3);font-size:var(--step--1);display:flex;align-items:center;gap:7px">
+                <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>
+                Saved into <span style="color:var(--accent-lum)">Spaced repetition</span> as a diagram you can edit.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ The door ============ -->
+    <section class="sec" id="door">
+      <div class="wrap">
+        <div class="split rise">
+          <div>
+            <h2>The exit is not hidden.</h2>
+            <p class="body" style="margin-top:20px">
+              Publish one note, or a folder and everything nested inside it, to a link
+              that needs no account. A published page is a snapshot, so your later edits
+              stay private until you say otherwise, and it is unlisted unless you ask
+              for it to be found. Links to notes you did not publish quietly stay plain
+              text instead of turning into dead ends.
+            </p>
+            <p class="body" style="margin-top:16px">
+              And whenever you want, the whole vault walks out as a folder of markdown
+              files that open in anything. An export you cannot take when the service
+              is down is not much of an export.
+            </p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px">
+              <a class="btn btn-glass btn-sm" href="/demo">
+                <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Try the export in the demo
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <div class="urlbar">
+              <svg class="ic lock" aria-hidden="true"><use href="#i-link"/></svg>
+              <span class="host">braindot.app/p/</span><span class="path">quiet-index-of-methods</span>
+              <span class="tag">unlisted</span>
+            </div>
+            <ul class="tree g-well" style="padding:18px 20px">
+              <li><svg class="ic" aria-hidden="true"><use href="#i-folder"/></svg> methods/</li>
+              <li class="depth-1"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> atomic-notes.md</li>
+              <li class="depth-1"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> spaced-repetition.md</li>
+              <li class="depth-1"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> zettelkasten-method.md</li>
+              <li class="out"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> private-reading-log.md &nbsp;— not published, stays plain text</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Close ============ -->
+    <section class="sec close">
+      <div class="wrap rise">
+        <h2>Start with one note.</h2>
+        <p class="lede">
+          The demo is the whole product with an example vault in it, and it needs
+          nothing from you. If it is not the place your thinking should live, you will
+          know inside a minute.
+        </p>
+        <div class="close-cta">
+          <a class="btn btn-primary" href="/demo">
+            <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Open the demo
+          </a>
+          <a class="btn btn-glass" href="/auth?mode=signup">Create a vault</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="mark" href="/landing" style="font-size:16px">braindot<span class="caret" aria-hidden="true"></span></a>
+    <div class="foot-links">
+      <a href="#link">Linking</a>
+      <a href="#read">Reading</a>
+      <a href="#tutor">Tutor</a>
+      <a href="#door">Your data</a>
+      <a href="/demo">Demo</a>
+      <a href="/auth">Sign in</a>
     </div>
-  </div>
-  <div class="split-copy">
-    <div class="eyebrow">reading layer</div>
-    <h2 class="sec-h2">read, highlight, capture — without leaving</h2>
-    <p style="font-size:13px;color:var(--t2);line-height:1.85">Import epub books, PDFs, and research papers. Clip articles and RSS feeds. Read them in-app with a clean focus view — and highlight passages that flow directly into your vault as atomic notes.</p>
-    <p style="font-size:13px;color:var(--t2);line-height:1.85">The floating toolbar appears on any selection: highlight in yellow, purple, or green. Attach a note. Link to an existing idea. Ask AI to explain the concept.</p>
-    <div class="chip-row">
-      <span class="chip" style="color:var(--grn);border-color:var(--grn-bd);background:var(--grn-bg)">epub support</span>
-      <span class="chip" style="color:var(--blu);border-color:var(--blu-bd);background:var(--blu-bg)">PDF rendering</span>
-      <span class="chip" style="color:var(--amb);border-color:var(--amb-bd);background:var(--amb-bg)">RSS feeds</span>
-      <span class="chip" style="color:var(--acc2);border-color:var(--acc-bd);background:var(--acc-bg)">highlight → note</span>
-    </div>
-  </div>
+    <span class="copy">© 2026 Braindot</span>
+  </footer>
 </div>
-
-<div class="divider"></div>
-
-<!-- CANVAS SPLIT -->
-<div class="split flip" id="canvas">
-  <div class="split-visual">
-    <div class="cv-wrap">
-      <svg width="100%" viewBox="0 0 420 260" role="img" aria-label="Canvas view showing note cards arranged freeform with arrows connecting them">
-        <line x1="148" y1="97" x2="218" y2="118" stroke="var(--acc-bd)" stroke-width="1.2"/>
-        <line x1="148" y1="155" x2="218" y2="142" stroke="var(--acc-bd)" stroke-width="1.2"/>
-        <line x1="328" y1="128" x2="358" y2="78" stroke="var(--bd)" stroke-width="1" stroke-dasharray="4,3"/>
-        <rect x="24" y="66" width="124" height="62" rx="6" fill="var(--bg2)" stroke="var(--bd2)"/>
-        <text x="33" y="83" font-family="JetBrains Mono,monospace" font-size="7" fill="var(--t3)">NOTE</text>
-        <text x="33" y="96" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="var(--t1)">Zettelkasten</text>
-        <text x="33" y="111" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--t2)">one idea per note...</text>
-        <rect x="24" y="142" width="124" height="58" rx="6" fill="var(--bg2)" stroke="var(--bd2)"/>
-        <text x="33" y="159" font-family="JetBrains Mono,monospace" font-size="7" fill="var(--t3)">NOTE</text>
-        <text x="33" y="172" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="var(--t1)">PARA method</text>
-        <text x="33" y="187" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--t2)">organise by action...</text>
-        <rect x="218" y="100" width="130" height="66" rx="6" fill="var(--acc-bg)" stroke="var(--acc)" stroke-width="1.5"/>
-        <text x="227" y="117" font-family="JetBrains Mono,monospace" font-size="7" fill="var(--acc2)">SYNTHESIS</text>
-        <text x="227" y="132" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="var(--t1)">Unified workflow</text>
-        <text x="227" y="148" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--t2)">draft — not yet a note</text>
-        <rect x="350" y="50" width="60" height="50" rx="5" fill="var(--amb-bg)" stroke="var(--amb-bd)"/>
-        <text x="358" y="68" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--amb)">★ sticky</text>
-        <text x="358" y="82" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--amb)">revisit later</text>
-        <rect x="24" y="30" width="370" height="170" rx="8" fill="none" stroke="var(--bd)" stroke-dasharray="4,3"/>
-        <text x="30" y="22" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--t3)">note-taking methods</text>
-        <rect x="278" y="196" width="112" height="50" rx="5" fill="var(--bg2)" stroke="var(--bd2)"/>
-        <text x="286" y="213" font-family="JetBrains Mono,monospace" font-size="7" fill="var(--t3)">NOTE</text>
-        <text x="286" y="228" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" fill="var(--t1)">Spaced repetition</text>
-        <text x="286" y="238" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--t2)">1 · 7 · 30 days</text>
-      </svg>
-    </div>
-  </div>
-  <div class="split-copy">
-    <div class="eyebrow">canvas</div>
-    <h2 class="sec-h2">a corkboard for ideas — with no rules</h2>
-    <p style="font-size:13px;color:var(--t2);line-height:1.85">Drag note cards anywhere on an infinite canvas. Connect related ideas with arrows. Group them with dashed regions. Drop sticky notes for fleeting thoughts that aren't full notes yet.</p>
-    <p style="font-size:13px;color:var(--t2);line-height:1.85">Different from the mind map — canvas is freeform. No forced hierarchy. You decide the shape of the thinking, not the app.</p>
-    <div class="chip-row">
-      <span class="chip">drag &amp; drop</span>
-      <span class="chip">connectors</span>
-      <span class="chip">group regions</span>
-      <span class="chip">synthesis cards</span>
-      <span class="chip">minimap</span>
-    </div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- WHY I BUILT IT -->
-<div class="sec-wrap">
-  <div class="eyebrow">why this exists</div>
-  <h2 class="sec-h2">a note is worth more for what it connects to</h2>
-  <div class="builder-note">
-    <p>I kept starting note systems and abandoning them. The notes were fine. The problem was
-      that nothing ever came back to me — I would write something good, file it in a folder,
-      and never see it again.</p>
-    <p>So braindot is built around connection rather than storage. Notes link to each other,
-      backlinks appear on their own, and the graph shows you the shape of what you have been
-      thinking about. The AI can read across the whole vault, not one note at a time, which is
-      what makes it able to notice things you have forgotten you wrote.</p>
-    <p>It is a working beta, built in the open. If you try it and something feels wrong, I
-      would genuinely like to hear about it.</p>
-    <div class="builder-sig">
-      <span class="builder-name">Siddh</span>
-      <span class="builder-role">designer &amp; developer</span>
-    </div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- CTA -->
-<div class="cta-wrap" id="cta">
-  <div class="cta-glow"></div>
-  <div class="eyebrow" style="text-align:center">get started</div>
-  <h2 class="cta-h2">your knowledge deserves<br>a better home</h2>
-  <p class="cta-sub">Start with a demo — no signup needed. When you're ready, create an account and get your own empty vault with starter templates.</p>
-  <div class="cta-row" style="gap:12px">
-    <a class="btn-acc" href="/demo" style="text-decoration:none"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-player-play"/></svg> try demo now</a>
-    <a class="btn-ghost" href="/auth?mode=signup" style="text-decoration:none">create account</a>
-  </div>
-  <p class="cta-hint">demo has pre-loaded notes · your account starts fresh with templates</p>
-</div>
-
-</main>
-
-<footer>
-  <a class="fl" href="/landing">
-    <div class="fl-mark"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-brain"/></svg></div>
-    <span class="fl-name">Braindot</span>
-  </a>
-  <div class="flinks">
-    <a href="/landing#features">features</a>
-    <a href="/demo">demo</a>
-    <a href="/auth">sign in</a>
-    <a href="/auth?mode=signup">sign up</a>
-  </div>
-  <span class="fcopy">© 2026 Braindot. all rights reserved.</span>
-</footer>
 
 <script>
-/* Hero typewriter — cycles the second line of the headline. */
-(function () {
-  const el = document.getElementById('tw');
-  if (!el) return;
-  const phrases = ['alive.', 'connected.', 'yours.', 'growing.', 'thinking.'];
+/* ============================================================
+   The field
+   ============================================================
+   A small force-directed graph of an example vault, drawn on canvas behind
+   everything. It exists so the glass has something worth looking through:
+   a backdrop-filter over a flat colour is grey plastic.
 
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    el.textContent = phrases[0];
+   Deliberately cheap: 44 nodes, O(n^2) repulsion is 1936 pairs a frame,
+   which is nothing, and it stops entirely once it has settled or when the
+   page is not visible.
+*/
+(function () {
+  var canvas = document.getElementById('field');
+  if (!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d', { alpha: true });
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* An example vault. Real PKM subject matter so the shapes read as a mind
+     rather than as lorem, and clustered the way a vault actually clusters. */
+  var TITLES = [
+    'Atomic notes','Zettelkasten method','Spaced repetition','Retrieval practice',
+    'Forgetting curve','Interleaving','Desirable difficulty','Elaboration',
+    'PARA method','Progressive summarisation','Intermediate packets','Capture habits',
+    'Second brain','Note hygiene','Evergreen notes','Linking over filing',
+    'Decision fatigue','Mental models','Inversion','Second-order effects',
+    'Base rates','Bounded rationality','Satisficing','Opportunity cost',
+    'Deep work','Attention residue','Context switching','Shallow work',
+    'Feynman technique','Explain it simply','Gaps in understanding','Teaching to learn',
+    'Reading inbox','Marginalia','Highlight triage','Source notes',
+    'Daily journal','On this day','Weekly review','Monthly review',
+    'Graph view','Backlinks','Orphan notes','Hub notes'
+  ];
+  /* Which cluster each title belongs to — four fields of thought that touch
+     at the edges, which is what gives the graph its shape. */
+  var CLUSTER = [0,0,0,0,0,0,0,0, 1,1,1,1,1,1,1,1, 2,2,2,2,2,2,2,2,
+                 3,3,3,3, 0,0,0,0, 1,1,1,1, 3,3,3,3, 1,1,1,1];
+  var HUE = ['#9d93ff', '#6f8fe0', '#7fd6c0', '#b89bf0'];
+
+  var N = TITLES.length;
+  var nodes = [], links = [];
+  var W = 0, H = 0, dpr = 1;
+
+  function seedRandom(s) {
+    return function () { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  }
+  var rnd = seedRandom(20260916);
+
+  function build() {
+    nodes = [];
+    for (var i = 0; i < N; i++) {
+      var c = CLUSTER[i];
+      nodes.push({
+        x: (0.2 + 0.6 * rnd()) * W, y: (0.15 + 0.7 * rnd()) * H,
+        vx: 0, vy: 0, c: c, deg: 0, phase: rnd() * Math.PI * 2
+      });
+    }
+    links = [];
+    /* Link inside a cluster mostly, across it occasionally. 68 links, which is
+       the number the hero quotes — if you change one, change the other. */
+    var made = {};
+    function add(a, b) {
+      if (a === b) return;
+      var k = a < b ? a + ':' + b : b + ':' + a;
+      if (made[k]) return;
+      made[k] = 1; links.push([a, b]); nodes[a].deg++; nodes[b].deg++;
+    }
+    for (var j = 0; j < N; j++) {
+      add(j, (j + 1) % N);
+      if (rnd() > 0.45) {
+        var same = [];
+        for (var q = 0; q < N; q++) if (CLUSTER[q] === CLUSTER[j] && q !== j) same.push(q);
+        add(j, same[Math.floor(rnd() * same.length)]);
+      }
+    }
+    while (links.length < 68) add(Math.floor(rnd() * N), Math.floor(rnd() * N));
+    links.length = 68;
+  }
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function step() {
+    /* Repulsion between every pair, springs along the links, and a weak pull
+       to the centre of mass so the whole thing does not wander off screen. */
+    for (var i = 0; i < N; i++) {
+      var a = nodes[i];
+      for (var j = i + 1; j < N; j++) {
+        var b = nodes[j];
+        var dx = b.x - a.x, dy = b.y - a.y;
+        var d2 = dx * dx + dy * dy || 0.01;
+        if (d2 > 260000) continue;
+        var f = 2800 / d2;
+        var d = Math.sqrt(d2);
+        var ux = dx / d, uy = dy / d;
+        a.vx -= ux * f; a.vy -= uy * f;
+        b.vx += ux * f; b.vy += uy * f;
+      }
+    }
+    for (var l = 0; l < links.length; l++) {
+      var p = nodes[links[l][0]], q = nodes[links[l][1]];
+      var dx2 = q.x - p.x, dy2 = q.y - p.y;
+      var dd = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 0.01;
+      var target = p.c === q.c ? 132 : 290;
+      var s = (dd - target) * 0.0016;
+      var vx = (dx2 / dd) * s, vy = (dy2 / dd) * s;
+      p.vx += vx; p.vy += vy; q.vx -= vx; q.vy -= vy;
+    }
+    var cx = W * 0.68, cy = H * 0.46;
+    /* Pull toward the centre, and pull harder the further out a node is, so
+       the whole field stays inside the window instead of settling into a
+       shape wider than the screen. */
+    var reach = Math.min(W, H) * 0.66;
+    var moved = 0;
+    for (var k = 0; k < N; k++) {
+      var n = nodes[k];
+      var ox = n.x - cx, oy = n.y - cy;
+      var dist = Math.sqrt(ox * ox + oy * oy) || 0.01;
+      var pull = 0.0011 + Math.max(0, dist - reach) * 0.00040;
+      n.vx -= ox * pull; n.vy -= oy * pull;
+      n.vx *= 0.86; n.vy *= 0.86;
+      n.x += n.vx; n.y += n.vy;
+      moved += Math.abs(n.vx) + Math.abs(n.vy);
+    }
+    return moved / N;
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    for (var l = 0; l < links.length; l++) {
+      var p = nodes[links[l][0]], q = nodes[links[l][1]];
+      var cross = p.c !== q.c;
+      ctx.strokeStyle = cross ? 'rgba(157,147,255,0.16)' : 'rgba(157,147,255,0.30)';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+    }
+    for (var i = 0; i < N; i++) {
+      var n = nodes[i];
+      var r = 2.4 + Math.sqrt(n.deg) * 1.7;
+      /* A slow breath, out of phase per node, so the field is alive without
+         anything actually moving once it has settled. */
+      var pulse = reduced ? 0 : Math.sin(t * 0.0006 + n.phase) * 0.5 + 0.5;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = HUE[n.c];
+      ctx.globalAlpha = 0.55 + pulse * 0.32;
+      ctx.fill();
+      if (n.deg > 3) {
+        ctx.globalAlpha = 0.14 + pulse * 0.13;
+        ctx.beginPath(); ctx.arc(n.x, n.y, r * 3.4, 0, Math.PI * 2);
+        ctx.fillStyle = HUE[n.c]; ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  var raf = null, settled = false, frames = 0;
+  function loop(t) {
+    raf = null;
+    var energy = step();
+    frames++;
+    draw(t || 0);
+    /* Stop once it has come to rest. A force graph that never stops is a
+       laptop fan that never stops. */
+    if (energy < 0.03 && frames > 360) { settled = true; }
+    if (!settled && !document.hidden) raf = requestAnimationFrame(loop);
+    else if (!reduced && !document.hidden) raf = requestAnimationFrame(breathe);
+  }
+  function breathe(t) {
+    raf = null;
+    draw(t || 0);
+    if (!document.hidden) raf = requestAnimationFrame(breathe);
+  }
+  function start() {
+    if (raf) return;
+    raf = requestAnimationFrame(settled ? breathe : loop);
+  }
+  function stop() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+
+  resize(); build();
+  if (reduced) {
+    /* Settle it silently, then paint one still frame: the composition is the
+       point, the motion is not. */
+    for (var w = 0; w < 900; w++) step();
+    draw(0);
+  } else {
+    start();
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stop(); else if (!reduced) start();
+  });
+  var rt;
+  window.addEventListener('resize', function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () {
+      resize();
+      if (reduced) { draw(0); return; }
+      settled = false; frames = 0; start();
+    }, 180);
+  });
+})();
+
+/* ============================================================
+   The link demonstration
+   ============================================================
+   Hovering or focusing a wiki-link lights the backlink it produced. It runs
+   itself on a slow cycle until someone takes over, so the mechanism is
+   visible to a reader who never touches anything.
+*/
+(function () {
+  var wls = Array.prototype.slice.call(document.querySelectorAll('.wl'));
+  var bls = Array.prototype.slice.call(document.querySelectorAll('.bl'));
+  if (!wls.length) return;
+  var auto = null, idx = 0, taken = false;
+
+  function light(key) {
+    wls.forEach(function (w) { w.classList.toggle('on', w.dataset.wl === key); });
+    bls.forEach(function (b) { b.classList.toggle('on', b.dataset.bl === key); });
+  }
+  function cycle() { light(wls[idx % wls.length].dataset.wl); idx++; }
+  function takeOver() {
+    if (taken) return;
+    taken = true; clearInterval(auto);
+  }
+
+  wls.forEach(function (w) {
+    w.addEventListener('mouseenter', function () { takeOver(); light(w.dataset.wl); });
+    w.addEventListener('focus', function () { takeOver(); light(w.dataset.wl); });
+    w.addEventListener('click', function () { takeOver(); light(w.dataset.wl); });
+  });
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    /* Only once the section is actually on screen — a demonstration nobody
+       is looking at is just a timer. */
+    var sec = document.getElementById('link');
+    if ('IntersectionObserver' in window && sec) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting && !taken && !auto) { cycle(); auto = setInterval(cycle, 2600); }
+          else if (!e.isIntersecting && auto) { clearInterval(auto); auto = null; }
+        });
+      }, { threshold: 0.35 }).observe(sec);
+    }
+  } else {
+    light(wls[0].dataset.wl);
+  }
+})();
+
+/* ============================================================
+   Arrival
+   ============================================================
+   One authored moment, used once per section. Default is visible: if the
+   observer never fires, everything is on screen anyway.
+*/
+(function () {
+  var items = document.querySelectorAll('.rise');
+  if (!items.length) return;
+  if (!('IntersectionObserver' in window) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach(function (el) { el.classList.add('in'); });
     return;
   }
-
-  let pi = 0, ci = 0, del = false;
-  function tick() {
-    const w = phrases[pi];
-    if (!del) {
-      el.textContent = w.slice(0, ++ci);
-      if (ci === w.length) { setTimeout(() => { del = true; tick(); }, 1900); return; }
-    } else {
-      el.textContent = w.slice(0, --ci);
-      if (ci === 0) { del = false; pi = (pi + 1) % phrases.length; }
-    }
-    setTimeout(tick, del ? 55 : 88);
-  }
-  tick();
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  items.forEach(function (el) { io.observe(el); });
 })();
 </script>
 </body>

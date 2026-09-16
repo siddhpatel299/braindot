@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Source_Serif_4 } from "next/font/google";
+import { JetBrains_Mono, Source_Serif_4, Manrope } from "next/font/google";
 import "./globals.css";
 
 // Both faces are fetched at build time and served from our own origin, so a
@@ -12,6 +12,16 @@ const jetbrainsMono = JetBrains_Mono({
   style: ["normal", "italic"],
   display: "swap",
   variable: "--font-jetbrains",
+});
+
+// Manrope carries the entry world — /auth, and /landing through its own link
+// tag. It reads in the register the glass world is reaching for (tight
+// apertures, near-geometric, confident at display size) without being the
+// face every generated interface arrives wearing.
+const manrope = Manrope({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-manrope",
 });
 
 // Source Serif 4 is the edition's face. opsz is the point of using it: the
@@ -89,7 +99,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jetbrainsMono.variable} ${sourceSerif.variable}`}
+      className={`${jetbrainsMono.variable} ${sourceSerif.variable} ${manrope.variable}`}
       suppressHydrationWarning
     >
       <head>

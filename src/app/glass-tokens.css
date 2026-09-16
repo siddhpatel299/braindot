@@ -1,0 +1,226 @@
+/* ============================================================
+   Braindot — "Midnight ink": the entry world
+   ============================================================
+
+   This is the design system for the surfaces a visitor meets before they
+   have an account: /landing and /auth. It is deliberately NOT the workspace's
+   world — the workspace runs "slip-box" (warm graphite or warm paper, ink on
+   paper, apparatus in the margin), and that stays.
+
+   Two worlds is a decision, not drift. The storefront is always night: the
+   material here is real glass, and glass needs a dark ground and something
+   worth looking through to read as glass rather than as grey plastic. The
+   workspace is a surface you stare at for eight hours and it gets a choice of
+   two grounds. The thing that holds them together is the ink — iron-gall
+   indigo is the accent in both, because it is the one fixed piece of brand.
+
+   ONE FILE, TWO CONSUMERS. This is the point of the file existing:
+     - globals.css imports it, so /auth and the app can use it
+     - landing/route.ts reads it off disk and inlines it into the raw HTML
+   /landing is served outside the Next layout (the app's body is
+   `overflow:hidden`, a marketing page has to scroll), so it cannot import a
+   stylesheet the bundler owns. It used to solve that by keeping a hand-copied
+   palette, which is exactly how it ended up a whole generation behind the app.
+   Copies drift; a file does not. Add a token here, never there.
+   ============================================================ */
+
+:root {
+  /* ---- Ground -------------------------------------------------------
+     Blue-black, never neutral. A neutral grey ground under a white-alpha
+     glass fill turns the glass grey too; the blue is what keeps the
+     saturate() in the backdrop filter with something to lift. */
+  --ink-0: #05070d;   /* the page itself */
+  --ink-1: #0a0e18;   /* a raised field */
+  --ink-2: #111726;   /* a well's floor */
+  --ink-3: #1a2133;   /* a hairline, a track, a disabled fill */
+
+  /* ---- Ink ----------------------------------------------------------
+     --ink-t3 is measured, not eyeballed: 4.6:1 on --ink-0, so the quietest
+     tier is still readable. Same rule the workspace learned the hard way. */
+  --ink-t1: #f2f4f9;
+  --ink-t2: #a8b0c4;
+  --ink-t3: #6f7994;
+
+  /* ---- Accent -------------------------------------------------------
+     --accent is Braindot's iron-gall indigo, carried over unchanged: it is
+     the one piece of the old world that is brand rather than styling.
+     --accent-lum is the same ink lit from behind, for anything that emits:
+     a live node, a focus ring, a link. 7.7:1 on the ground, so it can also
+     just be text. */
+  --accent:      #6f63e0;
+  --accent-lum:  #9d93ff;
+  --accent-deep: #4a3fb8;
+  --on-accent:   #ffffff;   /* 4.6:1 on --accent — a filled button can carry it */
+
+  /* State keeps its own reserved hues, as in the workspace, so the accent
+     never has to double as a warning. */
+  --amber: #efb45c;
+  --green: #4ad6a4;
+  --red:   #ff7a72;
+
+  /* ---- Glass --------------------------------------------------------
+     Three grades, and the difference between them is the point. Glass is
+     used here as a specific effect — a pane you look at the vault through —
+     not as a finish sprayed on every box.
+
+     CHROME  floats over everything and must stay light enough to see past
+     PANE    holds the argument; heavier blur, so the graph behind goes soft
+     WELL    is where text actually lives, and is NOT glass: it is a recessed
+             opaque floor. Body copy never sits on a backdrop-filter, because
+             the contrast of a blur is whatever happens to be behind it that
+             second, and that is not a contrast ratio you can hold. */
+  --glass-chrome-fill: rgba(255, 255, 255, 0.055);
+  --glass-chrome-blur: blur(24px) saturate(180%);
+  --glass-pane-fill:   rgba(255, 255, 255, 0.075);
+  --glass-pane-blur:   blur(40px) saturate(160%);
+  --glass-edge:        rgba(255, 255, 255, 0.10);
+  --glass-edge-strong: rgba(255, 255, 255, 0.16);
+  --well-fill:         rgba(8, 11, 20, 0.90);
+
+  /* The specular line along a pane's top edge. This single inset highlight is
+     most of what separates glass from a translucent rectangle: real glass
+     catches the light at the edge where it turns. */
+  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --glass-underside: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+
+  /* ---- Elevation ----------------------------------------------------
+     Three layers, because one blurred drop shadow reads as a sticker:
+     a tight contact shadow where the object nearly touches, a mid shadow
+     for the gap, and a wide ambient one for the room. */
+  --lift-1: 0 1px 2px rgba(0, 0, 0, 0.30),
+            0 4px 12px -4px rgba(0, 0, 0, 0.40);
+  --lift-2: 0 1px 2px rgba(0, 0, 0, 0.32),
+            0 10px 28px -10px rgba(0, 0, 0, 0.50),
+            0 36px 72px -32px rgba(0, 0, 0, 0.60);
+  --lift-glow: 0 8px 32px -8px rgba(111, 99, 224, 0.45);
+
+  /* ---- Radii --------------------------------------------------------
+     Nested radii stay concentric: a child's radius is the parent's minus its
+     inset, so corners run parallel instead of crossing. */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 26px;
+  --r-xl: 34px;
+  --r-pill: 999px;
+
+  /* ---- Type ---------------------------------------------------------
+     Manrope reads in the same register as the platform faces this world is
+     reaching for — tight apertures, near-geometric, confident at display
+     size — without being the face every model reaches for. The mono is
+     Braindot's own, kept for exactly two jobs: measured values and key caps.
+     It is not the display voice and it is not decoration. */
+  --face-ui: var(--font-manrope, 'Manrope'), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --face-mono: var(--font-jetbrains, 'JetBrains Mono'), ui-monospace, 'Fira Mono', monospace;
+
+  --step--1: clamp(0.80rem, 0.78rem + 0.10vw, 0.86rem);
+  --step-0:  clamp(0.95rem, 0.92rem + 0.16vw, 1.06rem);
+  --step-1:  clamp(1.13rem, 1.05rem + 0.38vw, 1.35rem);
+  --step-2:  clamp(1.45rem, 1.27rem + 0.90vw, 2.00rem);
+  --step-3:  clamp(1.95rem, 1.55rem + 2.00vw, 3.10rem);
+  --step-4:  clamp(2.60rem, 1.75rem + 4.20vw, 4.75rem);
+
+  /* ---- Motion -------------------------------------------------------
+     One ease, used everywhere, so the whole surface moves like one object.
+     Exponential-ish out: leaves fast, lands slow, never overshoots. */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 160ms;
+  --t-mid: 320ms;
+  --t-slow: 620ms;
+}
+
+/* ============================================================
+   Material classes
+   ============================================================
+   Written once here rather than re-declared per surface, so a pane on the
+   landing page and a pane on /auth are literally the same object. */
+
+.g-chrome {
+  background: var(--glass-chrome-fill);
+  -webkit-backdrop-filter: var(--glass-chrome-blur);
+  backdrop-filter: var(--glass-chrome-blur);
+  border-bottom: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-specular);
+}
+
+.g-pane {
+  background: var(--glass-pane-fill);
+  -webkit-backdrop-filter: var(--glass-pane-blur);
+  backdrop-filter: var(--glass-pane-blur);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--glass-specular), var(--glass-underside), var(--lift-2);
+}
+
+.g-well {
+  background: var(--well-fill);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Where backdrop-filter is unavailable the fill has to carry the whole job
+   alone, or a "pane" is a 7%-white rectangle with the graph legible straight
+   through the type behind it. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .g-chrome { background: rgba(10, 14, 24, 0.94); }
+  .g-pane   { background: rgba(12, 16, 28, 0.92); }
+}
+
+/* macOS and iOS let a person ask for less see-through UI system-wide, and a
+   page built entirely out of glass is exactly what that setting is for. The
+   panes stay — they are the composition — but they stop being transparent. */
+@media (prefers-reduced-transparency: reduce) {
+  .g-chrome {
+    background: rgba(10, 14, 24, 0.96);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .g-pane {
+    background: rgba(12, 16, 28, 0.96);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ============================================================
+   Browser surfaces
+   ============================================================
+   Selection, caret, scrollbar, focus ring and tabular figures ship with
+   defaults that belong to no design system. They are the cheapest tell that
+   a page was assembled rather than built. */
+
+.world-ink ::selection {
+  background: rgba(157, 147, 255, 0.28);
+  color: var(--ink-t1);
+}
+
+.world-ink {
+  caret-color: var(--accent-lum);
+  scrollbar-color: var(--ink-3) transparent;
+  scrollbar-width: thin;
+  accent-color: var(--accent);
+}
+
+.world-ink ::-webkit-scrollbar { width: 11px; height: 11px; }
+.world-ink ::-webkit-scrollbar-track { background: transparent; }
+.world-ink ::-webkit-scrollbar-thumb {
+  background: var(--ink-3);
+  border-radius: var(--r-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.world-ink ::-webkit-scrollbar-thumb:hover { background-clip: content-box; background-color: #27304a; }
+
+.world-ink :focus-visible {
+  outline: 2px solid var(--accent-lum);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* Figures that get compared — counts, prices, times — line up in columns. */
+.world-ink .fig { font-variant-numeric: tabular-nums; }
+
+/* A link's underline should clear its descenders. */
+.world-ink a { text-underline-offset: 0.22em; text-decoration-thickness: 1px; }
