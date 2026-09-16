@@ -60,22 +60,23 @@
 
 :root {
   /* ---- Ground -------------------------------------------------------
-     Blue-black, never neutral. A neutral grey ground under a white-alpha
-     glass fill turns the glass grey too; the blue is what keeps the
-     saturate() in the backdrop filter with something to lift. */
-  --ink-0: #05070d;   /* the page itself */
-  --ink-1: #0a0e18;   /* a raised field */
-  --ink-2: #111726;   /* a well's floor */
-  --ink-3: #1a2133;   /* a hairline, a track, a disabled fill */
+     Neutral graphite with barely a cool cast. An earlier pass made this
+     blue-black and then threw saturated violet over it, which bathed every
+     surface in purple; what the saturate() needs to lift is the wash and the
+     graph, not the ground itself. */
+  --ink-0: #09090b;   /* the page itself */
+  --ink-1: #0f0f12;   /* a raised field */
+  --ink-2: #16161a;   /* a well's floor */
+  --ink-3: #1e1e24;   /* a hairline, a track, a disabled fill */
 
   /* ---- Ink ----------------------------------------------------------
      --ink-t3 is measured, not eyeballed, and measured against the surface it
      actually sits on rather than the darkest one available: it clears 4.5:1
      on the page ground AND on a floored pane, which is lighter. Same rule the
      workspace learned the hard way. */
-  --ink-t1: #f2f4f9;
-  --ink-t2: #a8b0c4;
-  --ink-t3: #7a849f;
+  --ink-t1: #f4f4f6;
+  --ink-t2: #aeaeb8;
+  --ink-t3: #8e8e9a;
 
   /* ---- Accent -------------------------------------------------------
      --accent is Braindot's iron-gall indigo, carried over unchanged: it is
@@ -117,13 +118,13 @@
      is the heavy blur, the saturation boost that lets colour behind bloom
      through, the lit edge where the pane turns, and the ground being visible
      around the pane in the first place. */
-  --glass-chrome-fill: rgba(10, 14, 26, 0.50);
-  --glass-chrome-blur: blur(28px) saturate(210%);
-  --glass-pane-fill:   rgba(10, 14, 26, 0.56);
-  --glass-pane-blur:   blur(44px) saturate(200%);
+  --glass-chrome-fill: rgba(13, 13, 16, 0.50);
+  --glass-chrome-blur: blur(28px) saturate(150%);
+  --glass-pane-fill:   rgba(13, 13, 16, 0.56);
+  --glass-pane-blur:   blur(44px) saturate(145%);
   --glass-edge:        rgba(255, 255, 255, 0.14);
   --glass-edge-strong: rgba(255, 255, 255, 0.22);
-  --well-fill:         rgba(8, 11, 20, 0.90);
+  --well-fill:         rgba(11, 11, 14, 0.90);
 
   /* The specular line along a pane's top edge. This single inset highlight is
      most of what separates glass from a translucent rectangle: real glass

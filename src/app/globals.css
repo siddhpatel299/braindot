@@ -41,92 +41,87 @@
 
 /* Dark mode (default) */
 [data-theme="dark"] {
-  /* Ground. Blue-black, never neutral: a grey ground under a white-alpha
-     glass fill turns the glass grey, and the chrome here is glass. */
-  --bg:       #06080f;
-  --bg1:      #0b0f1a;
-  --bg2:      #121827;
-  --bg3:      #1a2133;
-  --bg4:      #252d42;
-  --bd:       #1a2031;
-  --bd2:      #39435a;
-  /* Ink. Every tier is measured against every ground it is actually set on,
-     not just the darkest one — --t3 clears 4.5:1 on --bg through --bg3. */
-  --t1:       #f2f4f9;
-  --t2:       #a8b0c4;
-  --t3:       #8b94af;
+  /* Ground. Neutral graphite with barely a cool cast — near-greys, not
+     blue-black. The previous pass made the ground itself indigo and then put
+     saturated violet on top of it, which bathed the whole app in purple. The
+     colour belongs to the accent and to a faint wash, not to every surface. */
+  --bg:       #0a0a0c;
+  --bg1:      #101013;
+  --bg2:      #17171b;
+  --bg3:      #1f1f25;
+  --bg4:      #2a2a31;
+  --bd:       #1e1e23;
+  --bd2:      #383840;
+  /* Ink. Every tier measured against every ground it is set on, including a
+     glass pane over the wallpaper's brightest point. */
+  --t1:       #f4f4f6;
+  --t2:       #aeaeb8;
+  --t3:       #8e8e9a;
   --acc:      #6f63e0;
   --acc2:     #9d93ff;
-  --acc-bg:   #1c1a38;
-  --acc-bd:   #3b3480;
-  /* Ink on an accent fill. White in both themes: the accent is dark enough
-     in each that nothing else reads. */
+  --acc-bg:   #1b1930;
+  --acc-bd:   #3a3470;
   --on-acc: #ffffff;
   --grn:      #4ad6a4;
-  --grn-bg:   #07231a;
-  --grn-bd:   #17503b;
+  --grn-bg:   #0b2119;
+  --grn-bd:   #1b4a37;
   --amb:      #efb45c;
-  --amb-bg:   #241a08;
-  --amb-bd:   #4d3a17;
+  --amb-bg:   #241c0c;
+  --amb-bd:   #4d3d1c;
   --blu:      #7cb4ec;
-  --blu-bg:   #0a1c2e;
-  --blu-bd:   #1c3b5a;
+  --blu-bg:   #0e1c28;
+  --blu-bd:   #22384e;
   --red:      #ff7a72;
-  --red-bg:   #2a1114;
+  --red-bg:   #2a1416;
   --coral:    #f0996f;
-  --coral-bg: #2a1710;
-  --coral-bd: #4d2a1a;
+  --coral-bg: #2a1a12;
+  --coral-bd: #4d2f1e;
   --callout-text: #b9b2f0;
-  --selection-bg: rgba(157, 147, 255, 0.26);
-  --canvas-dot: #1a2031;
-  /* The edition: a sheet lifted off the app's ground, with two weights of
-     rule — the heavy ones between sections and the hairlines between
-     columns. */
-  --paper:  #0b0f1a;
-  --rule:   #4a5570;
-  --hair:   #1a2031;
+  --selection-bg: rgba(157, 147, 255, 0.24);
+  --canvas-dot: #1e1e23;
+  --paper:  #101013;
+  --rule:   #55555f;
+  --hair:   #1e1e23;
 }
 
 /* Light mode */
 [data-theme="light"] {
-  /* The same world in daylight. Cool near-white rather than the warm paper
-     the slip-box used: this ground has to sit under the same glass and the
-     same indigo, and warm paper under a cool blur goes muddy. */
-  --bg:       #eef1f7;
-  --bg1:      #f9fafd;
-  --bg2:      #e3e8f1;
-  --bg3:      #d5dce8;
-  --bg4:      #c3ccdb;
-  --bd:       #dce2ec;
-  --bd2:      #aeb8c9;
-  --t1:       #121620;
-  --t2:       #4d5666;
-  --t3:       #525b6d;
+  /* The same neutral in daylight: near-greys, no blue cast to speak of. */
+  --bg:       #f0f0f2;
+  --bg1:      #fafafb;
+  --bg2:      #e6e6ea;
+  --bg3:      #d9d9df;
+  --bg4:      #c8c8d0;
+  --bd:       #e2e2e7;
+  --bd2:      #b4b4be;
+  --t1:       #17171a;
+  --t2:       #55555e;
+  --t3:       #5e5e68;
   --acc:      #5449c9;
   --acc2:     #3b32a8;
-  --acc-bg:   #e8e6fb;
-  --acc-bd:   #bfb9ee;
+  --acc-bg:   #eceafb;
+  --acc-bd:   #c5bff0;
   --on-acc: #ffffff;
   --grn:      #0c7a59;
-  --grn-bg:   #e2f4ed;
-  --grn-bd:   #8fd3bb;
+  --grn-bg:   #e6f4ef;
+  --grn-bd:   #93d3bd;
   --amb:      #96590f;
-  --amb-bg:   #f8eeda;
-  --amb-bd:   #dcb87e;
+  --amb-bg:   #f8f0dd;
+  --amb-bd:   #ddbc85;
   --blu:      #1c6ca5;
-  --blu-bg:   #e3edf7;
-  --blu-bd:   #9dc3e0;
+  --blu-bg:   #e6eef6;
+  --blu-bd:   #a3c5df;
   --red:      #b4261d;
-  --red-bg:   #fae4e2;
+  --red-bg:   #fbe6e4;
   --coral:    #a8480f;
-  --coral-bg: #f9e9de;
-  --coral-bd: #e0bb9c;
+  --coral-bg: #faeae0;
+  --coral-bd: #e2bfa2;
   --callout-text: #3b32a8;
-  --selection-bg: rgba(84, 73, 201, 0.18);
-  --canvas-dot: #ccd5e3;
-  --paper:  #f9fafd;
-  --rule:   #9aa5b8;
-  --hair:   #dce2ec;
+  --selection-bg: rgba(84, 73, 201, 0.16);
+  --canvas-dot: #d2d2d9;
+  --paper:  #fafafb;
+  --rule:   #9a9aa4;
+  --hair:   #e2e2e7;
 }
 
 /* Default to dark ONLY before JS sets data-theme (prevents flash).
@@ -134,50 +129,47 @@
    as [data-theme="light"] and, coming later in the file, would override it,
    permanently defeating light mode. */
 :root:not([data-theme]) {
-  /* Ground. Blue-black, never neutral: a grey ground under a white-alpha
-     glass fill turns the glass grey, and the chrome here is glass. */
-  --bg:       #06080f;
-  --bg1:      #0b0f1a;
-  --bg2:      #121827;
-  --bg3:      #1a2133;
-  --bg4:      #252d42;
-  --bd:       #1a2031;
-  --bd2:      #39435a;
-  /* Ink. Every tier is measured against every ground it is actually set on,
-     not just the darkest one — --t3 clears 4.5:1 on --bg through --bg3. */
-  --t1:       #f2f4f9;
-  --t2:       #a8b0c4;
-  --t3:       #8b94af;
+  /* Ground. Neutral graphite with barely a cool cast — near-greys, not
+     blue-black. The previous pass made the ground itself indigo and then put
+     saturated violet on top of it, which bathed the whole app in purple. The
+     colour belongs to the accent and to a faint wash, not to every surface. */
+  --bg:       #0a0a0c;
+  --bg1:      #101013;
+  --bg2:      #17171b;
+  --bg3:      #1f1f25;
+  --bg4:      #2a2a31;
+  --bd:       #1e1e23;
+  --bd2:      #383840;
+  /* Ink. Every tier measured against every ground it is set on, including a
+     glass pane over the wallpaper's brightest point. */
+  --t1:       #f4f4f6;
+  --t2:       #aeaeb8;
+  --t3:       #8e8e9a;
   --acc:      #6f63e0;
   --acc2:     #9d93ff;
-  --acc-bg:   #1c1a38;
-  --acc-bd:   #3b3480;
-  /* Ink on an accent fill. White in both themes: the accent is dark enough
-     in each that nothing else reads. */
+  --acc-bg:   #1b1930;
+  --acc-bd:   #3a3470;
   --on-acc: #ffffff;
   --grn:      #4ad6a4;
-  --grn-bg:   #07231a;
-  --grn-bd:   #17503b;
+  --grn-bg:   #0b2119;
+  --grn-bd:   #1b4a37;
   --amb:      #efb45c;
-  --amb-bg:   #241a08;
-  --amb-bd:   #4d3a17;
+  --amb-bg:   #241c0c;
+  --amb-bd:   #4d3d1c;
   --blu:      #7cb4ec;
-  --blu-bg:   #0a1c2e;
-  --blu-bd:   #1c3b5a;
+  --blu-bg:   #0e1c28;
+  --blu-bd:   #22384e;
   --red:      #ff7a72;
-  --red-bg:   #2a1114;
+  --red-bg:   #2a1416;
   --coral:    #f0996f;
-  --coral-bg: #2a1710;
-  --coral-bd: #4d2a1a;
+  --coral-bg: #2a1a12;
+  --coral-bd: #4d2f1e;
   --callout-text: #b9b2f0;
-  --selection-bg: rgba(157, 147, 255, 0.26);
-  --canvas-dot: #1a2031;
-  /* The edition: a sheet lifted off the app's ground, with two weights of
-     rule — the heavy ones between sections and the hairlines between
-     columns. */
-  --paper:  #0b0f1a;
-  --rule:   #4a5570;
-  --hair:   #1a2031;
+  --selection-bg: rgba(157, 147, 255, 0.24);
+  --canvas-dot: #1e1e23;
+  --paper:  #101013;
+  --rule:   #55555f;
+  --hair:   #1e1e23;
 }
 
 /* State on glass. An opaque palette step used as a hover fill punches a hole
@@ -231,11 +223,11 @@
 }
 
 [data-theme="dark"], :root:not([data-theme]) {
-  --wall-base: #070a14;
-  --wall-1: rgba(96, 78, 224, 0.42);
-  --wall-2: rgba(38, 106, 196, 0.34);
-  --wall-3: rgba(132, 74, 214, 0.34);
-  --wall-4: rgba(26, 128, 150, 0.26);
+  --wall-base: #0a0a0c;
+  --wall-1: rgba(120, 116, 180, 0.09);
+  --wall-2: rgba(90, 120, 150, 0.07);
+  --wall-3: rgba(130, 124, 170, 0.06);
+  --wall-4: rgba(80, 130, 135, 0.05);
 
   /* The material. Dark and translucent rather than white and translucent:
      over a dark wallpaper a white fill lifts the panel until the quiet text
@@ -243,9 +235,9 @@
      too. What makes it read as glass is the other three things — a heavy
      blur, a saturation boost that lets the colour behind bloom through, and
      a lit edge where the pane turns. */
-  --chrome:      rgba(12, 16, 30, 0.52);
-  --chrome-2:    rgba(16, 20, 36, 0.60);
-  --chrome-blur: blur(30px) saturate(210%);
+  --chrome:      rgba(14, 14, 18, 0.52);
+  --chrome-2:    rgba(20, 20, 25, 0.60);
+  --chrome-blur: blur(30px) saturate(150%);
   --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16),
                  inset 0 0 0 1px rgba(255, 255, 255, 0.055);
   --pane-shadow: 0 1px 2px rgba(0, 0, 0, 0.34),
@@ -254,15 +246,15 @@
 }
 
 [data-theme="light"] {
-  --wall-base: #e9edf6;
-  --wall-1: rgba(120, 104, 236, 0.30);
-  --wall-2: rgba(72, 148, 224, 0.26);
-  --wall-3: rgba(158, 112, 232, 0.24);
-  --wall-4: rgba(64, 176, 196, 0.20);
+  --wall-base: #f0f0f2;
+  --wall-1: rgba(120, 112, 200, 0.09);
+  --wall-2: rgba(84, 136, 190, 0.07);
+  --wall-3: rgba(140, 118, 200, 0.06);
+  --wall-4: rgba(72, 150, 165, 0.05);
 
   --chrome:      rgba(255, 255, 255, 0.62);
   --chrome-2:    rgba(255, 255, 255, 0.72);
-  --chrome-blur: blur(30px) saturate(190%);
+  --chrome-blur: blur(30px) saturate(140%);
   --chrome-edge: inset 0 1px 0 rgba(255, 255, 255, 0.95),
                  inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   --pane-shadow: 0 1px 2px rgba(31, 41, 71, 0.10),
@@ -311,11 +303,11 @@
    for less transparency, the panes stay panes — they are the composition —
    and simply stop being see-through. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  [data-theme="dark"], :root:not([data-theme]) { --chrome: #0d1120; --chrome-2: #131829; }
+  [data-theme="dark"], :root:not([data-theme]) { --chrome: #0e0e12; --chrome-2: #141419; }
   [data-theme="light"] { --chrome: #fbfcfe; --chrome-2: #f3f5fa; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  [data-theme="dark"], :root:not([data-theme]) { --chrome: #0d1120; --chrome-2: #131829; --chrome-blur: none; }
+  [data-theme="dark"], :root:not([data-theme]) { --chrome: #0e0e12; --chrome-2: #141419; --chrome-blur: none; }
   [data-theme="light"] { --chrome: #fbfcfe; --chrome-2: #f3f5fa; --chrome-blur: none; }
 }
 
