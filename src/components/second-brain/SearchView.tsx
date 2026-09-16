@@ -208,7 +208,7 @@ export function SearchView({ notes, onOpenNote, onSynthesize }: SearchViewProps)
           {query.trim() && !searching && results.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 13, color: 'var(--t2)' }}>
-                <strong style={{ color: 'var(--t1)' }}>{results.length} results</strong>
+                <strong style={{ color: 'var(--t1)' }}>{plural(results.length, 'result')}</strong>
                 {' '}— ranked by {mode === 'keyword' ? 'keyword match' : mode === 'semantic' ? 'semantic similarity' : 'hybrid ranking'}
               </div>
               {noneContainQuery && (
@@ -219,10 +219,16 @@ export function SearchView({ notes, onOpenNote, onSynthesize }: SearchViewProps)
             </div>
           )}
 
-          {/* Searching indicator */}
+          {/* Searching indicator.
+
+              The icons in this block and the two below need `margin: 0 auto`,
+              not just a bottom margin: Tailwind's preflight sets svg to
+              display:block, and a block element does not answer to the
+              text-align:center around it — it sat against the left edge of a
+              900px column while its caption was centred in the middle. */}
           {searching && (
             <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 12 }}>
-              <RefreshCw size={16} className="sb-pulse" style={{ marginBottom: 8 }} />
+              <RefreshCw size={16} className="sb-pulse" style={{ margin: '0 auto 8px' }} />
               <div>searching {mode === 'semantic' ? 'by meaning' : 'notes'}…</div>
             </div>
           )}
@@ -230,7 +236,7 @@ export function SearchView({ notes, onOpenNote, onSynthesize }: SearchViewProps)
           {/* Empty state */}
           {!searching && query.trim() && results.length === 0 && (
             <div style={{ padding: '60px 0', textAlign: 'center' }}>
-              <Search size={32} color="var(--t3)" style={{ opacity: 0.4, marginBottom: 12 }} />
+              <Search size={32} color="var(--t3)" style={{ opacity: 0.4, margin: '0 auto 12px' }} />
               <div style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 4 }}>no results found</div>
               <div style={{ fontSize: 11, color: 'var(--t3)' }}>
                 try a different query, or switch to {mode === 'semantic' ? 'keyword' : 'semantic'} mode
@@ -241,7 +247,7 @@ export function SearchView({ notes, onOpenNote, onSynthesize }: SearchViewProps)
           {/* No query state */}
           {!query.trim() && !searching && (
             <div style={{ padding: '60px 0', textAlign: 'center' }}>
-              <Brain size={32} color="var(--acc2)" style={{ opacity: 0.6, marginBottom: 12 }} />
+              <Brain size={32} color="var(--acc2)" style={{ opacity: 0.6, margin: '0 auto 12px' }} />
               <div style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 4 }}>
                 semantic search — finds meaning, not keywords
               </div>
@@ -298,7 +304,7 @@ export function SearchView({ notes, onOpenNote, onSynthesize }: SearchViewProps)
       }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Search size={10} />
-          {results.length} results
+          {plural(results.length, 'result')}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Brain size={10} />

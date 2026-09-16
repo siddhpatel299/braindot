@@ -18,45 +18,42 @@ export interface NoteEmbedding {
 let extractorPromise: Promise<any> | null = null;
 
 /**
- * Load the Transformers.js library from CDN (returns the global).
- * This avoids bundling the full library — it's loaded as a script tag.
+ * Load Transformers.js from the CDN and hand back its `pipeline` export.
+ *
+ * This used to append a <script type="module"> and then read window.pipeline.
+ * That can never work: an ES module's exports are module exports, they are
+ * not assigned to the global object, so the lookup always came back
+ * undefined and every search fell through to the keyword path with
+ * "Transformers.js loaded but pipeline function not found" above it. Semantic
+ * search has therefore never actually run.
+ *
+ * A dynamic import() is what reads an ESM bundle's exports. The URL goes
+ * through a variable and carries both ignore comments so neither bundler
+ * tries to resolve a remote URL at build time — this has to stay a real
+ * runtime import, because the point of the CDN is to keep ~1MB of library
+ * (and the model behind it) out of our bundle for the people who never open
+ * the semantic tab.
  */
-function loadTransformersScript(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if ((window as any).TransformersPipeline) {
-      resolve((window as any).TransformersPipeline);
-      return;
+const TRANSFORMERS_CDN = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+let libPromise: Promise<any> | null = null;
+
+function loadTransformers(): Promise<any> {
+  if (libPromise) return libPromise;
+  libPromise = (async () => {
+    const mod = await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ TRANSFORMERS_CDN);
+    const pipeline = mod?.pipeline ?? mod?.default?.pipeline;
+    if (typeof pipeline !== 'function') {
+      // Keep the failure specific. "Could not load" hides whether the CDN was
+      // unreachable or the module simply changed shape under us.
+      throw new Error('Transformers.js loaded but exports no pipeline()');
     }
-    // Check if script already exists
-    const existing = document.getElementById('transformers-cdn');
-    if (existing) {
-      existing.addEventListener('load', () => {
-        resolve((window as any).pipeline || (window as any).Transformers);
-      });
-      existing.addEventListener('error', reject);
-      return;
-    }
-    const script = document.createElement('script');
-    script.id = 'transformers-cdn';
-    script.type = 'module';
-    script.src = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
-    script.onload = () => {
-      // The library exposes itself as a global with `pipeline` function
-      const lib = (window as any).pipeline || (window as any).Transformers;
-      if (lib) {
-        resolve(lib);
-      } else {
-        // Try to find it on the global object
-        const globals = (window as any);
-        const pipelineFn = globals.pipeline || (globals.Transformers && globals.Transformers.pipeline);
-        if (pipelineFn) resolve(pipelineFn);
-        else reject(new Error('Transformers.js loaded but pipeline function not found'));
-      }
-    };
-    script.onerror = () => reject(new Error('Failed to load Transformers.js from CDN'));
-    document.head.appendChild(script);
-  });
+    return pipeline;
+  })();
+  // A failed load must not be cached as a permanent failure — the usual cause
+  // is a network blip, and the next attempt should be allowed to try again.
+  libPromise.catch(() => { libPromise = null; });
+  return libPromise;
 }
 
 /**
@@ -67,10 +64,12 @@ export async function getEmbeddingPipeline(): Promise<any> {
   if (extractorPromise) return extractorPromise;
 
   extractorPromise = (async () => {
-    const pipeline = await loadTransformersScript();
+    const pipeline = await loadTransformers();
     const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
     return extractor;
   })();
+
+  extractorPromise.catch(() => { extractorPromise = null; });
 
   return extractorPromise;
 }
