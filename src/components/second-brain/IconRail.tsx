@@ -91,10 +91,9 @@ export function IconRail({ active, onSelect, onOpenPalette, onCreateNote, onSign
         width: 50,
         minWidth: 50,
         height: '100%',
-        background: 'var(--chrome)',
-        backdropFilter: 'var(--chrome-blur)',
-        WebkitBackdropFilter: 'var(--chrome-blur)',
-        boxShadow: 'var(--chrome-edge)',
+        // The rail is itself a pane, so .sb-zones > * already gives it the
+        // material, the rim and the lit edge. Setting them again here only
+        // meant two places had to agree.
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

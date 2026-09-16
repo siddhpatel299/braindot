@@ -456,7 +456,7 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
 
   if (notes.length === 0) {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <ViewHeader icon={Network} title="Graph" />
         <EmptyVault onBack={onBack} />
       </div>
@@ -464,7 +464,7 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <ViewHeader icon={Network} title="Graph" facts={facts}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 7, height: 28, padding: '0 10px',
@@ -522,8 +522,7 @@ export function GraphView({ notes, folders, onOpenNote, onBack }: GraphViewProps
         onDoubleClick={(e) => { const id = pick(e.clientX, e.clientY); if (id) onOpenNote(id); }}
         onWheel={onWheel}
         style={{
-          flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', background: 'var(--bg)',
-          cursor: panning ? 'grabbing' : hover ? 'pointer' : 'default',
+          flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden',          cursor: panning ? 'grabbing' : hover ? 'pointer' : 'default',
         }}
       >
         <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, display: 'block' }}>

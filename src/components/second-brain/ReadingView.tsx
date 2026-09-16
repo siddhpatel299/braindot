@@ -1189,7 +1189,7 @@ export function ReadingView({
   }, [onAddLibraryItem]);
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* The shared header belongs to the library, not to the book. While one
           is open the reader carries its own single 34px row, and stacking the
           two put a title bar above a chrome bar above the page — the thing the

@@ -116,10 +116,11 @@ export function EditorBar(props: EditorBarProps) {
         alignItems: 'center',
         gap: 6,
         padding: '0 6px',
-        background: 'var(--chrome)',
-        backdropFilter: 'var(--chrome-blur)',
-        WebkitBackdropFilter: 'var(--chrome-blur)',
-        boxShadow: 'var(--chrome-edge)',
+        // A tint, not a second sheet of glass. The bar has to read as chrome
+        // over the writing surface, but it is inside the editor pane — and
+        // blurring a backdrop that the pane has already blurred buys nothing
+        // and pays for a second full-width filter pass on every scroll.
+        background: 'var(--ink-hover)',
         borderBottom: '1px solid var(--bd)',
       }}
     >
@@ -173,16 +174,20 @@ export function EditorBar(props: EditorBarProps) {
                 borderRadius: 4,
                 border: 'none',
                 background: active ? 'var(--bg4)' : 'transparent',
-                color: active ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 10.5,
+                // --t2, not --t3: the bar is a light tint over the pane now,
+                // and --t3 on it measured 4.33:1 — under the 4.5 this size
+                // needs. 11px is also the floor for functional text; these are
+                // the labels that say which mode you are in.
+                color: active ? 'var(--t1)' : 'var(--t2)',
+                fontSize: 11,
                 letterSpacing: '0.07em',
                 textTransform: 'uppercase',
                 fontWeight: active ? 600 : 500,
                 fontFamily: 'inherit',
                 cursor: disabled ? 'default' : 'pointer',
               }}
-              onMouseEnter={(e) => { if (!active && !disabled) e.currentTarget.style.color = 'var(--t2)'; }}
-              onMouseLeave={(e) => { if (!active && !disabled) e.currentTarget.style.color = 'var(--t3)'; }}
+              onMouseEnter={(e) => { if (!active && !disabled) e.currentTarget.style.color = 'var(--t1)'; }}
+              onMouseLeave={(e) => { if (!active && !disabled) e.currentTarget.style.color = 'var(--t2)'; }}
             >
               {m.label}
             </button>

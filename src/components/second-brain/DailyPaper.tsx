@@ -182,7 +182,7 @@ export function DailyPaper({ edition, onSaveStory, onAddSource, onClose, shelf }
         </div>
       </div>
 
-      <div className="sb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: 'var(--bg)' }}>
+      <div className="sb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         <div style={{ fontSize: size.px }}>
           <div className="sb-paper" style={{
             maxWidth: 1180, margin: '0 auto', padding: '44px 52px 72px',
