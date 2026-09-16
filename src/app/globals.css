@@ -39,7 +39,13 @@
   --bd2:      #3b3630;
   --t1:       #efeae0;
   --t2:       #a19890;
-  --t3:       #6e665c;
+  /* --t3 is the quietest tier — section labels, note metadata, inactive tabs,
+     the status bar, empty-state hints. It was #6e665c, which measures
+     2.9-3.3:1 on the grounds it actually sits on: under the 4.5:1 that text
+     this size needs, everywhere it appeared. Raised until it clears 4.5:1
+     against --bg, --bg1 and --bg2. It is still plainly the quietest of the
+     three tiers; it is no longer the one nobody can read. */
+  --t3:       #8f867a;
   --acc:      #6f63e0;
   --acc2:     #a79ef5;
   --acc-bg:   #1e1b33;
@@ -83,7 +89,9 @@
   --bd2:      #c4bdaf;
   --t1:       #1e1b16;
   --t2:       #5b554b;
-  --t3:       #8b8478;
+  /* Same retune as the dark theme, in the other direction: on paper the
+     quiet tier has to get darker, not lighter. Was #8b8478 at ~3.1:1. */
+  --t3:       #675f54;
   --acc:      #5449c9;
   --acc2:     #3b32a8;
   --acc-bg:   #e9e7fa;
@@ -127,7 +135,13 @@
   --bd2:      #3b3630;
   --t1:       #efeae0;
   --t2:       #a19890;
-  --t3:       #6e665c;
+  /* --t3 is the quietest tier — section labels, note metadata, inactive tabs,
+     the status bar, empty-state hints. It was #6e665c, which measures
+     2.9-3.3:1 on the grounds it actually sits on: under the 4.5:1 that text
+     this size needs, everywhere it appeared. Raised until it clears 4.5:1
+     against --bg, --bg1 and --bg2. It is still plainly the quietest of the
+     three tiers; it is no longer the one nobody can read. */
+  --t3:       #8f867a;
   --acc:      #6f63e0;
   --acc2:     #a79ef5;
   --acc-bg:   #1e1b33;

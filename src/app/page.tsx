@@ -30,6 +30,7 @@ import { SearchView } from '@/components/second-brain/SearchView';
 import { GraphView } from '@/components/second-brain/GraphView';
 import { TasksPage } from '@/components/second-brain/TasksPage';
 import { CanvasView } from '@/components/second-brain/CanvasView';
+import { ViewEmptyState } from '@/components/second-brain/ViewHeader';
 import { ReadingView } from '@/components/second-brain/ReadingView';
 import { useTasks, useCanvas, useReading } from '@/hooks/useVaultData';
 import { useIsMobile, useIsNarrow } from '@/hooks/useViewport';
@@ -38,6 +39,7 @@ import { MobileTopBar } from '@/components/second-brain/MobileTopBar';
 import { MobileEditorBar } from '@/components/second-brain/MobileEditorBar';
 import { MobileSheet } from '@/components/second-brain/MobileSheet';
 import { DeskOnly } from '@/components/second-brain/DeskOnly';
+import { LayoutDashboard } from 'lucide-react';
 
 /** What the phone's top bar calls each place. The rail says it with an icon
  *  and a tooltip; a top bar has the room to just say it. */
@@ -1138,17 +1140,14 @@ export default function Home() {
               }}
             />
           ) : (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 13 }}>
-              <button
-                onClick={() => canvas.createBoard('My First Canvas')}
-                style={{
-                  background: 'var(--acc)', color: 'var(--on-acc)', border: 'none', borderRadius: 5,
-                  padding: '12px 24px', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600,
-                }}
-              >
-                + create your first canvas
-              </button>
-            </div>
+            <ViewEmptyState
+              icon={LayoutDashboard}
+              heading="Nothing on the board."
+              body="A canvas is for the thinking that will not sit in a list — ideas you want to move around, group, and join up with arrows until the shape of the argument shows itself. Drag notes in from the vault, or start with a blank sticky."
+              primaryLabel="create your first canvas"
+              onPrimary={() => canvas.createBoard('My First Canvas')}
+              secondary="notes you drag in stay linked to the note"
+            />
           )
         ) : appView === 'reading' ? (
           <ReadingView
