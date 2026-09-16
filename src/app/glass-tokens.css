@@ -69,6 +69,13 @@
   --ink-2: #16161a;   /* a well's floor */
   --ink-3: #1e1e24;   /* a hairline, a track, a disabled fill */
 
+  /* A rule drawn ON a surface rather than beside it: translucent white reads
+     as the same line over every ink grade, where a fixed grey has to be
+     re-picked per surface. Both entry surfaces use these; /landing carried a
+     private copy until /auth needed the same line. */
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.14);
+
   /* ---- Ink ----------------------------------------------------------
      --ink-t3 is measured, not eyeballed, and measured against the surface it
      actually sits on rather than the darkest one available: it clears 4.5:1

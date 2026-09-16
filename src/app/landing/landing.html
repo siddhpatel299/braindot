@@ -5,48 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Braindot — a note is worth what it connects to</title>
 <meta name="description" content="A personal knowledge workspace where every note links to the rest of your thinking. Wiki-links, automatic backlinks, a live graph, a reader that brings sources in, and an AI tutor that can see the whole vault.">
-<meta name="theme-color" content="#05070d">
+<meta name="theme-color" content="#09090b">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Braindot — a note is worth what it connects to">
 <meta property="og:description" content="Not a filing cabinet. A thinking environment. Try it without an account.">
 <meta property="og:image" content="/logo.svg">
-<!-- summary, not summary_large_image: the only mark we have is an SVG
-     logo, and every major unfurler renders an SVG in a large card as blank. -->
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="/logo.svg">
-<!-- The faces are declared in glass-tokens.css and served from this origin,
-     so there is no third-party stylesheet on the critical path. Preloaded
-     because a font referenced from inside a <style> block is only discovered
-     after the CSS has parsed, and the display face is wanted immediately. -->
 <link rel="preload" as="font" type="font/woff2" href="/fonts/manrope-latin-var.woff2" crossorigin>
 <style>
-/* The design system is injected here by landing/route.ts, read from
-   src/app/glass-tokens.css. It is not copied into this file on purpose —
-   see the comment at the top of that file. */
 /*@design-tokens@*/
 
 /* ============================================================
-   The page
+   Layout
+   ============================================================
+   One grid, one measure, one rhythm. Everything on the page aligns to the
+   same container and the same vertical step; the earlier version floated a
+   card over a full-bleed graph, which is why it read as a hobby project —
+   text on a busy ground, and no sign anywhere of the actual product.
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; }
-body, h1, h2, h3, p, figure, blockquote, ul, ol { margin: 0; padding: 0; }
+body, h1, h2, h3, h4, p, figure, ul, ol { margin: 0; padding: 0; }
 ul, ol { list-style: none; }
-
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 
 body {
   background: var(--ink-0);
   color: var(--ink-t1);
   font-family: var(--face-ui);
-  font-size: var(--step-0);
-  line-height: 1.65;
-  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
-
 a { color: inherit; }
 button, input { font: inherit; color: inherit; }
 svg.ic {
@@ -54,84 +47,71 @@ svg.ic {
   fill: none; stroke: currentColor; stroke-width: 1.75;
   stroke-linecap: round; stroke-linejoin: round;
 }
-
-/* Nothing here is a double-tap zoom target. */
 a, button { touch-action: manipulation; }
 
-/* Available to assistive tech, absent from the page. */
 .sr-only {
-  position: absolute; width: 1px; height: 1px;
-  margin: -1px; padding: 0; overflow: hidden;
-  clip-path: inset(50%); white-space: nowrap; border: 0;
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
 }
-
-/* Off-screen until focused: the first stop for a keyboard, invisible to
-   everyone else. */
 .skip {
   position: absolute; left: 0; top: 0; z-index: 90;
   background: var(--accent); color: var(--on-accent);
-  padding: 12px 18px; border-radius: 0 0 var(--r-sm) 0;
-  text-decoration: none; font-weight: 600; font-size: var(--step--1);
-  /* Clipped rather than parked off-screen: body clips the x axis, so an
-     element at left:-9999px is inside a clip it is relying on to be
-     reachable. This takes it out of the picture where it stands. */
+  padding: 12px 18px; border-radius: 0 0 10px 0;
+  text-decoration: none; font-weight: 600; font-size: 14px;
   clip-path: inset(50%);
 }
 .skip:focus { clip-path: none; }
 
-/* ---- The field --------------------------------------------------------
-   The graph is the page's ground, not an ornament on it: it is what the
-   glass is looking through, and without it every pane would blur an empty
-   colour and read as grey plastic. Fixed, so the panes travel over a vault
-   that stays put. */
-/* The luminance the glass lifts.
-   A backdrop-filter can only work with what is behind it, and a near-black
-   page crossed by hairlines gives a 40px blur nothing at all — the pane comes
-   out flat grey and the whole material fails. This is the deep colour under
-   the vault: three very soft fields in the ink's own family, never seen
-   directly as shapes, only ever as the thing the panes are lifting. */
-.wash {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    radial-gradient(1100px 820px at 72% 24%, rgba(116, 110, 186, 0.17), transparent 62%),
-    radial-gradient(900px 760px at 14% 78%, rgba(84, 118, 152, 0.11), transparent 64%),
-    radial-gradient(760px 620px at 92% 88%, rgba(132, 126, 176, 0.09), transparent 66%);
-}
-/* The wash used to drift on an infinite alternate. It is a fixed element
-   underneath four backdrop-filters, so "cheap transform" is not the whole
-   story: every step invalidated all of them. It settles once on arrival and
-   then holds. */
-@media (prefers-reduced-motion: no-preference) {
-  .wash { animation: drift 2.4s var(--ease) 1 both; }
-}
-@keyframes drift {
-  from { transform: translate3d(-2%, 1.5%, 0) scale(1.06); opacity: .6; }
-  to   { transform: none; opacity: 1; }
-}
+/* One container. Every section uses it, so every left edge lines up. */
+.wrap { width: 100%; max-width: 1140px; margin: 0 auto; padding: 0 24px; }
 
-#field {
-  position: fixed; inset: 0;
-  width: 100%; height: 100%;
-  z-index: 0; pointer-events: none;
-  /* A slow vignette so the centre of the field stays the brightest part and
-     the panes at the edges have something quiet to sit against. */
-  mask-image: radial-gradient(135% 120% at 62% 42%, #000 62%, rgba(0,0,0,.62) 100%);
-}
+/* One vertical step. */
+.sec { padding: clamp(80px, 11vh, 132px) 0; }
+.sec + .sec { border-top: 1px solid var(--hairline); }
 
-.page { position: relative; z-index: 1; }
+/* ---- Type scale -------------------------------------------------------
+   Tighter than before and fixed rather than fluid past the breakpoints: a
+   display size that keeps growing with the viewport is what made the old
+   hero feel shouty rather than confident. */
+h1 {
+  font-size: clamp(2.5rem, 1.9rem + 2.6vw, 3.75rem);
+  line-height: 1.04; letter-spacing: -0.035em; font-weight: 800;
+  text-wrap: balance;
+}
+h2 {
+  font-size: clamp(1.75rem, 1.4rem + 1.5vw, 2.5rem);
+  line-height: 1.1; letter-spacing: -0.03em; font-weight: 800;
+  text-wrap: balance;
+}
+h3 { font-size: 1.0625rem; line-height: 1.3; letter-spacing: -0.015em; font-weight: 700; }
+.lede { font-size: 1.0625rem; line-height: 1.65; color: var(--ink-t2); max-width: 58ch; }
+.body { font-size: 1rem; line-height: 1.7; color: var(--ink-t2); max-width: 62ch; }
+.mono { font-family: var(--face-mono); }
+.fig { font-variant-numeric: tabular-nums; }
+
+/* A section's own header block: label, heading, one line of lede. */
+.sec-head { max-width: 62ch; margin-bottom: clamp(32px, 4vw, 52px); }
+.sec-head h2 { margin-bottom: 14px; }
+.tagline {
+  font-family: var(--face-mono); font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent-lum); margin-bottom: 16px;
+  display: block;
+}
 
 /* ---- Chrome -----------------------------------------------------------*/
 .bar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-  height: 62px; display: flex; align-items: center; gap: 28px;
-  padding: 0 clamp(16px, 4vw, 40px);
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--ink-0) 82%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--hairline);
 }
+.bar-in { display: flex; align-items: center; gap: 28px; height: 60px; }
 .mark {
-  display: inline-flex; align-items: baseline; gap: 0;
-  font-weight: 800; font-size: 19px; letter-spacing: -0.035em;
+  display: inline-flex; align-items: baseline;
+  font-weight: 800; font-size: 18px; letter-spacing: -0.035em;
   text-decoration: none; color: var(--ink-t1);
 }
-/* The caret is the mark. It is the one thing carried over untouched. */
 .caret {
   display: inline-block; width: .5em; height: .95em;
   background: var(--accent-lum); border-radius: 1.5px;
@@ -142,311 +122,282 @@ a, button { touch-action: manipulation; }
 }
 @keyframes blink { 0%, 55% { opacity: 1 } 56%, 100% { opacity: .18 } }
 
-.bar-nav { display: flex; gap: 4px; margin-left: auto; align-items: center; }
+.bar-nav { display: flex; gap: 2px; margin-left: auto; align-items: center; }
 .bar-nav a {
-  display: inline-flex; align-items: center; min-height: 40px;
-  padding: 0 14px; border-radius: var(--r-sm);
-  font-size: var(--step--1); font-weight: 500; color: var(--ink-t2);
-  text-decoration: none; transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  display: inline-flex; align-items: center; min-height: 38px; padding: 0 12px;
+  border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--ink-t2);
+  text-decoration: none;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
-.bar-nav a:hover { color: var(--ink-t1); background: rgba(255,255,255,.06); }
+.bar-nav a:hover { color: var(--ink-t1); background: rgba(255,255,255,.055); }
 
 /* ---- Controls ---------------------------------------------------------*/
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  min-height: 48px; padding: 0 22px;
-  border-radius: var(--r-pill); border: 1px solid transparent;
-  font-size: var(--step-0); font-weight: 600; letter-spacing: -0.01em;
-  text-decoration: none; cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
-              background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 20px; border-radius: 10px;
+  border: 1px solid transparent; font-size: 15px; font-weight: 600;
+  letter-spacing: -0.005em; text-decoration: none; cursor: pointer;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+              transform var(--t-fast) var(--ease);
 }
 .btn-primary {
   background: var(--accent); color: var(--on-accent);
-  box-shadow: var(--lift-2), inset 0 1px 0 rgba(255,255,255,.24);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 1px 2px rgba(0,0,0,.4);
 }
-.btn-primary:hover { background: #7d71ee; transform: translateY(-1px); }
-.btn-primary:active { transform: translateY(0); }
-.btn-glass {
-  background: rgba(255,255,255,.07); color: var(--ink-t1);
-  border-color: var(--glass-edge-strong);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
-  box-shadow: var(--glass-specular);
+.btn-primary:hover { background: #7d71ee; }
+.btn-primary:active { transform: translateY(1px); }
+.btn-ghost {
+  background: rgba(255,255,255,.05); color: var(--ink-t1);
+  border-color: var(--hairline-strong);
 }
-.btn-glass:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.26); }
-.btn-sm { min-height: 40px; padding: 0 16px; font-size: var(--step--1); }
+.btn-ghost:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.2); }
+.btn-sm { min-height: 36px; padding: 0 14px; font-size: 14px; border-radius: 8px; }
 
-/* ---- Rhythm -----------------------------------------------------------
-   One spacing scale for the whole page, and more room above a heading than
-   below it, so a section reads as belonging to what follows. */
-.sec { padding: clamp(96px, 13vh, 172px) clamp(16px, 4vw, 40px); }
-.wrap { max-width: 1180px; margin: 0 auto; }
+/* ---- Hero -------------------------------------------------------------
+   Centred and narrow, with the product directly underneath it. The page's
+   first job is to show the thing, not to describe it over a texture. */
+.hero { padding: clamp(56px, 9vh, 96px) 0 0; text-align: center; }
+.hero-copy { max-width: 720px; margin: 0 auto; }
+.hero h1 { margin-bottom: 20px; }
+.hero .lede { margin: 0 auto 28px; }
+.hero-cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.hero-meta {
+  margin-top: 20px; font-family: var(--face-mono); font-size: 13px;
+  color: var(--ink-t3); display: inline-flex; align-items: center; gap: 8px;
+}
+.hero-meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
-h1, h2, h3 { font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; text-wrap: balance; }
-h2 { font-size: var(--step-3); }
-h3 { font-size: var(--step-1); letter-spacing: -0.02em; line-height: 1.2; }
-.lede { font-size: var(--step-1); line-height: 1.6; color: var(--ink-t2); font-weight: 400; max-width: 62ch; }
-.body { color: var(--ink-t2); max-width: 70ch; }
-.meta {
-  font-family: var(--face-mono); font-size: var(--step--1);
-  color: var(--ink-t3); letter-spacing: .01em;
+/* ---- The product frame ------------------------------------------------
+   A real picture of the app, built in markup rather than screenshotted, so
+   it stays true when the app changes and stays sharp at any density. It is
+   the hero's actual subject: everything above it is a caption. */
+.frame-wrap { margin-top: clamp(40px, 6vw, 72px); position: relative; text-align: left; }
+.frame-glow {
+  position: absolute; inset: -10% 10% 40%; z-index: 0; pointer-events: none;
+  background: radial-gradient(60% 60% at 50% 0%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%);
+  filter: blur(40px);
 }
+.frame {
+  position: relative; z-index: 1;
+  border-radius: 14px; overflow: hidden;
+  background: var(--ink-1);
+  border: 1px solid var(--hairline-strong);
+  /* No drop shadow. Black spread on a #09090b ground moves the pixels by
+     about one value step -- it reads as nothing while costing a large
+     blurred layer. What actually seats this frame is the lit edge and
+     .frame-glow above it, which is a light source rather than a bloom. */
+}
+.frame-bar {
+  height: 34px; display: flex; align-items: center; gap: 7px;
+  padding: 0 13px; border-bottom: 1px solid var(--hairline);
+  background: var(--ink-2);
+}
+.frame-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3); }
+.frame-title {
+  margin: 0 auto; font-family: var(--face-mono); font-size: 12px; color: var(--ink-t3);
+}
+.app { display: grid; grid-template-columns: 46px 190px minmax(0,1fr) 172px; height: 396px; }
+.app-rail {
+  background: var(--ink-1); border-right: 1px solid var(--hairline);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 0;
+}
+.app-rail i {
+  width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+  color: var(--ink-t3); font-size: 15px;
+}
+.app-rail i.on { background: var(--accent-bg); color: var(--accent-lum); }
+.app-list { background: var(--ink-1); border-right: 1px solid var(--hairline); padding: 10px 0; overflow: hidden; }
+.app-list-h {
+  padding: 0 12px 9px; font-family: var(--face-mono); font-size: 10px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-t3);
+}
+.app-note {
+  display: flex; align-items: center; gap: 7px; padding: 6px 12px;
+  font-size: 12.5px; color: var(--ink-t2);
+}
+.app-note.on { background: var(--accent-bg); color: var(--ink-t1); box-shadow: inset 2px 0 0 var(--accent); }
+.app-note .c { margin-left: auto; font-size: 10px; color: var(--ink-t3); font-family: var(--face-mono); }
+.app-page { background: var(--ink-0); padding: 22px 26px; overflow: hidden; }
+.app-crumb { font-family: var(--face-mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-t3); text-transform: uppercase; }
+.app-title { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; margin: 7px 0 4px; }
+.app-sub { font-size: 12px; color: var(--ink-t3); font-style: italic; margin-bottom: 13px; }
+.app-tags { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.app-tag {
+  font-family: var(--face-mono); font-size: 10px; padding: 2px 7px; border-radius: 5px;
+  background: var(--accent-bg); color: var(--accent-lum); border: 1px solid var(--accent-bd);
+}
+.app-p { font-size: 12.5px; line-height: 1.75; color: var(--ink-t2); margin-bottom: 9px; }
+.app-p em { color: var(--accent-lum); font-style: normal; }
+.app-panel { background: var(--ink-1); border-left: 1px solid var(--hairline); padding: 11px; }
+.app-panel-h {
+  font-family: var(--face-mono); font-size: 10px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ink-t3); margin-bottom: 9px;
+}
+.app-card {
+  background: var(--ink-2); border: 1px solid var(--hairline);
+  border-radius: 8px; padding: 8px 9px; margin-bottom: 6px;
+}
+.app-card b { display: block; font-size: 10px; font-family: var(--face-mono); color: var(--ink-t3); text-transform: uppercase; letter-spacing: .07em; font-weight: 400; }
+.app-card span { font-size: 11.5px; color: var(--ink-t2); line-height: 1.5; }
 
-/* ---- Hero -------------------------------------------------------------*/
-.hero {
-  min-height: 100vh; min-height: 100dvh;
-  display: flex; align-items: center;
-  padding: 108px clamp(16px, 4vw, 40px) clamp(64px, 10vh, 120px);
-}
-.hero-pane {
-  padding: clamp(28px, 4vw, 46px);
-  max-width: 560px;
-  /* The pane is the one place the graph goes soft; everything the visitor
-     has to read sits on it. */
-}
-.hero h1 { font-size: var(--step-4); margin-bottom: 20px; }
-/* 17px, per the composition. A lede that climbs with the display size
-   crowds a 560px measure. */
-.hero .lede { font-size: 17px; line-height: 1.62; margin-bottom: 30px; }
-.hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 26px; }
-.hero-note {
-  display: flex; align-items: flex-start; gap: 9px;
-  padding-top: 20px; border-top: 1px solid var(--glass-edge);
-}
-.hero-note .dot { margin-top: .55em; }
-.hero-note .dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--green); flex: none;
-}
-
-/* ---- Section 2: the link ---------------------------------------------*/
-.split {
-  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+/* ---- Two-column section ----------------------------------------------*/
+.duo {
+  display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: clamp(28px, 5vw, 72px); align-items: center;
 }
-/* Three parts on one grid so the phone can reorder them without the markup
-   deciding for it. */
-.split-causal {
-  grid-template-areas: "say show" "effect show";
-  align-items: start;
-  row-gap: 28px;
-}
-.split-say { grid-area: say; }
-.split-show { grid-area: show; align-self: center; }
-.split-effect { grid-area: effect; }
-.note-well { padding: clamp(22px, 3vw, 34px); }
-.note-well .note-title {
-  font-size: var(--step-2); font-weight: 800; letter-spacing: -0.03em;
-  line-height: 1.1; margin-bottom: 6px;
-}
-.note-well .note-sub { color: var(--ink-t3); font-size: var(--step--1); margin-bottom: 20px; }
-.note-body p { color: var(--ink-t2); margin-bottom: 14px; font-size: var(--step-0); }
-.note-body p:last-child { margin-bottom: 0; }
+.duo.flip > :first-child { order: 2; }
 
-/* The live link. This is the demonstration, so it is a real control: it
-   carries its own focus state and it drives the panel beside it. */
+/* A demonstration surface: opaque, bordered, quiet. */
+.demo {
+  background: var(--ink-1); border: 1px solid var(--hairline);
+  border-radius: 12px; padding: clamp(18px, 2.4vw, 26px);
+}
+.demo-title { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+.demo-sub { font-size: 12.5px; color: var(--ink-t3); margin-bottom: 16px; }
+.demo p { font-size: 14px; line-height: 1.75; color: var(--ink-t2); margin-bottom: 11px; }
+.demo p:last-child { margin-bottom: 0; }
+
 .wl {
-  color: var(--accent-lum); font-weight: 600;
-  background: none; border: 0; padding: 0 1px; cursor: pointer;
-  border-bottom: 1px solid rgba(157,147,255,.42);
-  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
-  border-radius: 3px;
+  color: var(--accent-lum); font-weight: 600; background: none; border: 0;
+  padding: 0 2px; cursor: pointer; border-radius: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-lum) 45%, transparent);
+  transition: background var(--t-fast) var(--ease);
 }
-.wl:hover, .wl.on {
-  background: rgba(157,147,255,.16);
-  border-bottom-color: var(--accent-lum);
-}
-.wl .br { color: rgba(157,147,255,.45); font-weight: 400; }
+.wl:hover, .wl.on { background: color-mix(in srgb, var(--accent-lum) 18%, transparent); }
+.wl .br { opacity: .45; font-weight: 400; }
 
-.backlink-stack { display: flex; flex-direction: column; gap: 12px; }
+.bl-list { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .bl {
-  padding: 16px 18px; border-radius: var(--r-md);
-  background: rgba(13,13,16,.52);
-  border: 1px solid var(--glass-edge);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  backdrop-filter: blur(20px) saturate(150%);
-  box-shadow: var(--glass-specular);
-  transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease),
-              transform var(--t-mid) var(--ease);
+  padding: 12px 14px; border-radius: 10px;
+  background: var(--ink-1); border: 1px solid var(--hairline);
+  transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease);
 }
-.bl.on {
-  border-color: rgba(157,147,255,.55);
-  background: rgba(38,32,74,.82);
-  transform: translateX(6px);
-}
-.bl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
-.bl-head svg { color: var(--accent-lum); font-size: 14px; }
-.bl-title { font-weight: 600; font-size: var(--step-0); letter-spacing: -0.015em; }
-.bl-quote { color: var(--ink-t2); font-size: var(--step--1); line-height: 1.55; }
+.bl.on { border-color: color-mix(in srgb, var(--accent-lum) 50%, transparent); background: var(--accent-bg); }
+.bl-h { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.bl-h svg { color: var(--accent-lum); font-size: 13px; }
+.bl-t { font-weight: 600; font-size: 14px; }
+.bl-q { font-size: 13px; color: var(--ink-t2); line-height: 1.55; }
 
-/* ---- Section 3: reading ----------------------------------------------
-   A shelf, not a card grid: the sources are objects of different widths and
-   they run off the right edge because a library does not end at the fold. */
+/* ---- Shelf ------------------------------------------------------------*/
 .shelf {
-  display: flex; gap: 18px; overflow-x: auto; padding: 8px 4px 24px;
-  scroll-snap-type: x proximity;
-  scrollbar-width: thin;
-  margin: 0 calc(clamp(16px, 4vw, 40px) * -1);
-  padding-left: clamp(16px, 4vw, 40px); padding-right: clamp(16px, 4vw, 40px);
+  display: grid; grid-auto-flow: column; grid-auto-columns: 196px;
+  gap: 14px; overflow-x: auto; padding-bottom: 12px;
+  scroll-snap-type: x proximity; scrollbar-width: thin;
 }
 .src {
-  scroll-snap-align: start; flex: none;
-  width: 212px; min-height: 268px;
-  border-radius: var(--r-md); padding: 20px;
-  display: flex; flex-direction: column;
-  background:
-    linear-gradient(rgba(255,255,255,.07), transparent 55%),
-    rgba(13,13,16,.54);
-  border: 1px solid var(--glass-edge);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  backdrop-filter: blur(24px) saturate(150%);
-  box-shadow: var(--glass-specular), var(--lift-1);
+  scroll-snap-align: start; border-radius: 12px; padding: 16px;
+  background: var(--ink-1); border: 1px solid var(--hairline);
+  display: flex; flex-direction: column; min-height: 176px;
 }
-.src-kind {
-  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
-  font-family: var(--face-mono); font-size: 11px; letter-spacing: .06em;
-  padding: 4px 9px; border-radius: var(--r-pill); margin-bottom: 16px;
+.src-k {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--face-mono); font-size: 11px; letter-spacing: .07em;
+  padding: 3px 9px; border-radius: 999px; margin-bottom: 14px;
 }
-.src h3 { margin-bottom: 6px; }
-.src .by { color: var(--ink-t2); font-size: var(--step--1); }
-.src .prog {
-  margin-top: auto; padding-top: 16px;
-  display: flex; align-items: center; gap: 10px;
-  font-family: var(--face-mono); font-size: 11px; color: var(--ink-t3);
-}
-.prog-track { flex: 1; height: 3px; border-radius: 2px; background: var(--ink-3); overflow: hidden; }
-.prog-fill { height: 100%; border-radius: 2px; background: var(--accent-lum); }
+.src h3 { margin-bottom: 5px; }
+.src .by { font-size: 13px; color: var(--ink-t2); }
+.src .pr { margin-top: auto; padding-top: 14px; display: flex; align-items: center; gap: 9px; font-family: var(--face-mono); font-size: 11px; color: var(--ink-t3); }
+.pr-t { flex: 1; height: 3px; border-radius: 2px; background: var(--ink-3); overflow: hidden; }
+.pr-f { height: 100%; border-radius: 2px; background: var(--accent-lum); }
 
-.capture {
-  margin-top: 34px; display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 22px; align-items: center;
+/* ---- Graph section ----------------------------------------------------
+   The graph lives here, inside a frame, instead of running loose behind the
+   whole page. It is a feature of the product; it was never a texture. */
+.graph-frame {
+  position: relative; border-radius: 12px; overflow: hidden;
+  background: var(--ink-1); border: 1px solid var(--hairline);
+  height: clamp(300px, 30vw, 420px);
 }
-.capture .arrow { color: var(--ink-t3); font-size: 20px; }
-/* A citation, set under what it cites. It is the source, not a label
-   announcing that a source is coming. */
-.cite {
-  margin-top: 14px; padding-top: 12px;
-  border-top: 1px solid var(--glass-edge);
-  font-family: var(--face-mono); font-size: 12.5px;
-  color: var(--ink-t2); letter-spacing: .01em;
-}
-.hl-line {
-  background: linear-gradient(rgba(239,180,92,.26), rgba(239,180,92,.26));
-  border-radius: 3px; padding: 1px 3px;
-  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+/* A force layout wants a squarish box. Given a 2.6:1 band it draws a blob in
+   the middle and leaves the sides bare, so it sits in a column instead. */
+.gstats { display: flex; gap: 32px; margin-top: 26px; }
+.gstats dt { font-family: var(--face-mono); font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-t3); margin-bottom: 4px; }
+.gstats dd { font-size: 25px; font-weight: 750; letter-spacing: -0.03em; color: var(--ink-t1);
+  font-variant-numeric: tabular-nums; }
+#field { position: absolute; inset: 0; width: 100%; height: 100%; }
+.graph-legend {
+  position: absolute; left: 14px; bottom: 12px; z-index: 2;
+  font-family: var(--face-mono); font-size: 11.5px; color: var(--ink-t3);
 }
 
-/* ---- Section 4: the tutor --------------------------------------------
-   The page's quiet passage. One narrow column, centred, after two dense
-   full-width ones. */
-.narrow { max-width: 720px; margin: 0 auto; }
-.turn { display: flex; gap: 14px; margin-bottom: 20px; }
-.turn-who {
-  flex: none; width: 30px; height: 30px; border-radius: 50%;
-  display: grid; place-items: center; font-size: 13px; font-weight: 700;
-  margin-top: 2px;
+/* ---- Tutor ------------------------------------------------------------*/
+.turn { display: flex; gap: 12px; margin-bottom: 16px; }
+.who {
+  flex: none; width: 27px; height: 27px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; margin-top: 1px;
 }
-.turn-you { background: var(--ink-3); color: var(--ink-t2); }
-.turn-ai { background: rgba(111,99,224,.24); color: var(--accent-lum); border: 1px solid rgba(157,147,255,.34); }
-.turn-body { padding-top: 3px; }
-.turn-body p { color: var(--ink-t2); }
-.turn-body strong { color: var(--ink-t1); font-weight: 600; }
-
-.diagram {
-  margin-top: 8px; padding: 20px; border-radius: var(--r-md);
-  background: rgba(255,255,255,.04); border: 1px solid var(--glass-edge);
-}
+.who-you { background: var(--ink-3); color: var(--ink-t2); }
+.who-ai { background: var(--accent-bg); color: var(--accent-lum); border: 1px solid var(--accent-bd); }
+.turn-b p { font-size: 14.5px; line-height: 1.7; color: var(--ink-t2); }
+.turn-b strong { color: var(--ink-t1); font-weight: 600; }
+.diagram { margin-top: 10px; padding: 16px; border-radius: 10px; background: var(--ink-2); border: 1px solid var(--hairline); }
 .diagram svg { width: 100%; height: auto; display: block; }
 
-/* ---- Section 5: the door ---------------------------------------------*/
+/* ---- Data -------------------------------------------------------------*/
 .urlbar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px; border-radius: var(--r-pill);
-  background: rgba(255,255,255,.05); border: 1px solid var(--glass-edge);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  backdrop-filter: blur(22px) saturate(160%);
-  box-shadow: var(--glass-specular);
-  font-family: var(--face-mono); font-size: var(--step--1);
-  overflow: hidden;
+  display: flex; align-items: center; gap: 9px; padding: 11px 14px;
+  border-radius: 10px; background: var(--ink-1); border: 1px solid var(--hairline);
+  font-family: var(--face-mono); font-size: 13px; overflow: hidden;
 }
-.urlbar .lock { color: var(--green); flex: none; }
 .urlbar .host { color: var(--ink-t3); }
-.urlbar .path { color: var(--ink-t1); }
 .urlbar .tag {
-  margin-left: auto; flex: none;
-  padding: 3px 9px; border-radius: var(--r-pill);
-  background: rgba(74,214,164,.14); color: var(--green);
-  border: 1px solid rgba(74,214,164,.3); font-size: 11px;
+  margin-left: auto; flex: none; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 32%, transparent);
+  font-size: 11px;
 }
-.tree { margin-top: 20px; font-family: var(--face-mono); font-size: var(--step--1); }
-.tree li { display: flex; align-items: center; gap: 8px; padding: 7px 0; color: var(--ink-t2); }
+.tree { margin-top: 12px; font-family: var(--face-mono); font-size: 13px; background: var(--ink-1); border: 1px solid var(--hairline); border-radius: 10px; padding: 14px 16px; }
+.tree li { display: flex; align-items: center; gap: 8px; padding: 5px 0; color: var(--ink-t2); }
 .tree li svg { color: var(--ink-t3); font-size: 13px; }
-.tree .depth-1 { padding-left: 22px; }
+.tree .in { padding-left: 20px; }
 .tree .out { color: var(--ink-t3); }
 
 /* ---- Close ------------------------------------------------------------*/
-.close { text-align: center; padding-bottom: clamp(80px, 12vh, 150px); }
-.close h2 { font-size: var(--step-4); margin-bottom: 18px; }
-.close .lede { margin: 0 auto 32px; }
-.close-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.close { text-align: center; }
+.close h2 { margin-bottom: 16px; }
+.close .lede { margin: 0 auto 28px; }
+.close-cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
-footer {
-  border-top: 1px solid var(--glass-edge);
-  padding: 30px clamp(16px, 4vw, 40px);
-  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
-}
-.foot-links { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+footer { border-top: 1px solid var(--hairline); padding: 28px 0; }
+.foot-in { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.foot-links { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
 .foot-links a {
-  display: inline-flex; align-items: center; min-height: 36px; padding: 0 10px;
-  font-size: var(--step--1); color: var(--ink-t2); text-decoration: none;
-  border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; min-height: 34px; padding: 0 10px;
+  font-size: 14px; color: var(--ink-t2); text-decoration: none; border-radius: 8px;
 }
-.foot-links a:hover { color: var(--ink-t1); background: rgba(255,255,255,.06); }
-.copy { font-size: var(--step--1); color: var(--ink-t3); }
+.foot-links a:hover { color: var(--ink-t1); background: rgba(255,255,255,.055); }
+.copy { font-size: 14px; color: var(--ink-t3); }
 
-/* ---- The one authored motion ------------------------------------------
-   Sections rise and settle once as they arrive, from an already-visible
-   default so nothing is ever hidden by a failed observer. Blur is part of
-   it, not just transform and opacity — it is the same material the page is
-   made of, coming into focus. */
+/* One hairline value, so every rule on the page is the same weight. */
+
+/* ---- Arrival ----------------------------------------------------------*/
 @media (prefers-reduced-motion: no-preference) {
-  .rise { opacity: 0; transform: translateY(26px); filter: blur(6px); }
+  .rise { opacity: 0; transform: translateY(16px); }
   .rise.in {
-    opacity: 1; transform: none; filter: blur(0);
-    transition: opacity var(--t-slow) var(--ease),
-                transform var(--t-slow) var(--ease),
-                filter var(--t-slow) var(--ease);
+    opacity: 1; transform: none;
+    transition: opacity .5s var(--ease), transform .5s var(--ease);
   }
 }
 
 /* ---- Responsive -------------------------------------------------------*/
 @media (max-width: 900px) {
-  .split { grid-template-columns: minmax(0, 1fr); }
-  /* Claim, then the note, then what the note produced. */
-  .split-causal { grid-template-areas: "say" "show" "effect"; }
-  .capture { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .capture .arrow { transform: rotate(90deg); justify-self: center; }
+  .duo { grid-template-columns: minmax(0, 1fr); }
+  .duo.flip > :first-child { order: 0; }
+  .app { grid-template-columns: 40px minmax(0,1fr); height: 320px; }
+  .app-panel, .app-list { display: none; }
+  .app { grid-template-columns: 40px minmax(0,1fr); }
 }
 @media (max-width: 700px) {
-  .bar { height: 56px; gap: 10px; }
-  /* The section anchors go; the demo does not. It is the cheapest way in and
-     the only one that needs no email. */
   .bar-nav a:not(.bar-demo) { display: none; }
-  .hero { padding-top: 92px; }
-  .hero-pane { padding: 24px 20px; }
   .hero-cta .btn { flex: 1 1 100%; }
 }
 </style>
 </head>
 <body>
 
-<!-- Icons are inlined from Lucide — the set the app itself renders — so the
-     marketing page and the product draw with one hand, and a CDN being down
-     cannot turn the page into tofu. -->
 <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
-  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+<symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
   <symbol id="i-book-open" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
@@ -467,402 +418,368 @@ footer {
 
 <a class="skip" href="#main">Skip to content</a>
 
-<div class="wash" aria-hidden="true"></div>
-<canvas id="field" aria-hidden="true"></canvas>
-
-<div class="page">
-  <nav class="bar g-chrome" aria-label="Primary">
+<nav class="bar" aria-label="Primary">
+  <div class="wrap bar-in">
     <a class="mark" href="/landing">braindot<span class="caret" aria-hidden="true"></span></a>
     <div class="bar-nav">
-      <a href="#link">Linking</a>
-      <a href="#read">Reading</a>
+      <a href="#linking">Linking</a>
+      <a href="#reading">Reading</a>
+      <a href="#graph">Graph</a>
       <a href="#tutor">Tutor</a>
-      <a href="#door">Your data</a>
-      <a class="bar-demo btn btn-glass btn-sm" href="/demo" style="margin-left:8px">
+      <a href="#data">Your data</a>
+      <a class="bar-demo btn btn-ghost btn-sm" href="/demo" style="margin-left:10px">
         <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Open the demo
       </a>
     </div>
-  </nav>
+  </div>
+</nav>
 
-  <main id="main" tabindex="-1">
+<main id="main" tabindex="-1">
 
-    <!-- ============ Hero ============ -->
-    <section class="hero">
-      <div class="wrap" style="width:100%">
-        <div class="hero-pane g-pane">
-          <h1>A note is worth what it connects to.</h1>
-          <p class="lede">
-            Braindot links what you write to everything else you have written, as you
-            type. You get the backlinks, the graph, a reader that brings sources in,
-            and a tutor that can see all of it at once.
-          </p>
-          <div class="hero-cta">
-            <a class="btn btn-primary" href="/demo">
-              <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>
-              Open the demo
-            </a>
-            <a class="btn btn-glass" href="/auth?mode=signup">Create a vault</a>
-          </div>
-          <p class="hero-note meta">
-            <span class="dot" aria-hidden="true"></span>
-            <span>The demo needs no account. The vault drifting behind this page is
-            an example: <span class="fig">44</span> notes,
-            <span class="fig">68</span> links.</span>
-          </p>
+  <!-- ============ Hero ============ -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <h1>A note is worth what it connects to.</h1>
+        <p class="lede">
+          Braindot links what you write to everything else you have written, as you
+          type. You get the backlinks, the graph, a reader that brings your sources
+          in, and a tutor that can see all of it at once.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="/demo">
+            <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Open the demo
+          </a>
+          <a class="btn btn-ghost" href="/auth?mode=signup">Create a vault</a>
         </div>
+        <p class="hero-meta">
+          <span class="dot" aria-hidden="true"></span>
+          No account needed. Free while in beta.
+        </p>
       </div>
-    </section>
 
-    <!-- ============ The link ============ -->
-    <section class="sec" id="link">
-      <div class="wrap">
-        <div class="split split-causal rise">
-          <div class="split-say">
-            <h2>Type two brackets. Braindot does the filing.</h2>
-            <p class="body" style="margin-top:20px">
-              A link is the whole mechanism. Write <code style="font-family:var(--face-mono);color:var(--accent-lum)">[[</code>
-              and the vault completes it; the note on the other end grows a backlink
-              without being opened, and the graph redraws. Nothing to tag, nothing to
-              file, no folder to decide on at the moment you least want to.
-            </p>
+      <div class="frame-wrap">
+        <div class="frame-glow" aria-hidden="true"></div>
+        <div class="frame" role="img" aria-label="The Braindot workspace: an icon rail, a list of notes, an open note titled Atomic notes, and a panel of suggested links.">
+          <div class="frame-bar" aria-hidden="true">
+            <span class="frame-dot"></span><span class="frame-dot"></span><span class="frame-dot"></span>
+            <span class="frame-title">atomic-notes.md</span>
           </div>
-
-          <div class="split-effect">
-            <p class="meta" style="margin-bottom:12px">What those two links just did, elsewhere in the vault</p>
-            <p class="sr-only" id="bl-status" role="status" aria-live="polite"></p>
-            <div class="backlink-stack" id="bls">
-              <article class="bl" data-bl="spacing">
-                <div class="bl-head">
-                  <svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg>
-                  <span class="bl-title">Spaced repetition</span>
-                </div>
-                <p class="bl-quote">“Each review resets the forgetting curve at a slower rate of decay.”</p>
-              </article>
-              <article class="bl" data-bl="luhmann">
-                <div class="bl-head">
-                  <svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg>
-                  <span class="bl-title">Zettelkasten method</span>
-                </div>
-                <p class="bl-quote">“Luhmann's boxes were an index, not an archive — the number was the address.”</p>
-              </article>
-              <article class="bl" data-bl="retrieval">
-                <div class="bl-head">
-                  <svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg>
-                  <span class="bl-title">Retrieval practice</span>
-                </div>
-                <p class="bl-quote">“Harder recalls produce stronger memories; ease at the moment of study is a bad signal.”</p>
-              </article>
+          <div class="app" aria-hidden="true">
+            <div class="app-rail">
+              <i class="on"><svg class="ic"><use href="#i-file-text"/></svg></i>
+              <i><svg class="ic"><use href="#i-network"/></svg></i>
+              <i><svg class="ic"><use href="#i-book-open"/></svg></i>
+              <i><svg class="ic"><use href="#i-square-kanban"/></svg></i>
+              <i><svg class="ic"><use href="#i-search"/></svg></i>
             </div>
-          </div>
-
-          <div class="note-well g-well split-show">
-            <p class="note-title">Atomic notes</p>
-            <p class="note-sub">one idea per note · written for whoever you are tomorrow</p>
-            <div class="note-body">
-              <p>
+            <div class="app-list">
+              <div class="app-list-h">Resources</div>
+              <div class="app-note on"><svg class="ic" style="font-size:12px"><use href="#i-file-text"/></svg>Atomic notes<span class="c">12</span></div>
+              <div class="app-note"><svg class="ic" style="font-size:12px"><use href="#i-file-text"/></svg>Zettelkasten<span class="c">9</span></div>
+              <div class="app-note"><svg class="ic" style="font-size:12px"><use href="#i-file-text"/></svg>Spaced repetition<span class="c">7</span></div>
+              <div class="app-note"><svg class="ic" style="font-size:12px"><use href="#i-file-text"/></svg>Retrieval practice</div>
+              <div class="app-list-h" style="padding-top:14px">Learning</div>
+              <div class="app-note"><svg class="ic" style="font-size:12px"><use href="#i-file-text"/></svg>Forgetting curve</div>
+              <div class="app-note"><svg class="ic" style="font-size:12px"><use href="#i-file-text"/></svg>Interleaving</div>
+            </div>
+            <div class="app-page">
+              <div class="app-crumb">Resources › PKM</div>
+              <div class="app-title">Atomic notes</div>
+              <div class="app-sub">one idea per note · written for whoever you are tomorrow</div>
+              <div class="app-tags">
+                <span class="app-tag">#method</span><span class="app-tag">#writing</span>
+              </div>
+              <p class="app-p">
                 A note should hold one idea completely. The power is not in any single
                 note but in what it touches: a note linking to ten others is worth more
                 than ten that sit alone.
               </p>
-              <p>
-                This is the claim behind
-                <button class="wl" data-wl="luhmann" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Zettelkasten method<span class="br">]]</span></button>,
-                and the reason
-                <button class="wl" data-wl="spacing" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Spaced repetition<span class="br">]]</span></button>
-                works better on small notes than long ones: you can only review what
-                you can hold in one piece.
+              <p class="app-p">
+                This is the claim behind <em>[[Zettelkasten]]</em>, and the reason
+                <em>[[Spaced repetition]]</em> works better on small notes than long ones.
               </p>
-              <p>
-                Which is also why
-                <button class="wl" data-wl="retrieval" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Retrieval practice<span class="br">]]</span></button>
-                belongs here rather than in its own chapter.
-              </p>
+            </div>
+            <div class="app-panel">
+              <div class="app-panel-h">Suggested</div>
+              <div class="app-card"><b>Missing link</b><span>Bounded rationality overlaps here.</span></div>
+              <div class="app-card"><b>Synthesis ready</b><span>Six notes on method are dense enough to merge.</span></div>
+              <div class="app-card"><b>Review due</b><span>Last opened 14 days ago.</span></div>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ============ Reading ============ -->
-    <section class="sec" id="read">
-      <div class="wrap rise">
+  <!-- ============ Linking ============ -->
+  <section class="sec" id="linking">
+    <div class="wrap">
+      <div class="duo rise">
+        <div>
+          <span class="tagline">Linking</span>
+          <h2>Type two brackets. Braindot does the filing.</h2>
+          <p class="body" style="margin-top:16px">
+            A link is the whole mechanism. Write <span class="mono" style="color:var(--accent-lum)">[[</span>
+            and the vault completes it; the note on the other end grows a backlink
+            without being opened, and the graph redraws. Nothing to tag, nothing to
+            file, no folder to decide on at the moment you least want to.
+          </p>
+          <p class="sr-only" id="bl-status" role="status" aria-live="polite"></p>
+          <div class="bl-list" id="bls">
+            <article class="bl" data-bl="luhmann">
+              <div class="bl-h"><svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg><span class="bl-t">Zettelkasten method</span></div>
+              <p class="bl-q">“Luhmann's boxes were an index, not an archive — the number was the address.”</p>
+            </article>
+            <article class="bl" data-bl="spacing">
+              <div class="bl-h"><svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg><span class="bl-t">Spaced repetition</span></div>
+              <p class="bl-q">“Each review resets the forgetting curve at a slower rate of decay.”</p>
+            </article>
+            <article class="bl" data-bl="retrieval">
+              <div class="bl-h"><svg class="ic" aria-hidden="true"><use href="#i-corner-down-right"/></svg><span class="bl-t">Retrieval practice</span></div>
+              <p class="bl-q">“Harder recalls produce stronger memories; ease at the moment of study is a bad signal.”</p>
+            </article>
+          </div>
+        </div>
+
+        <div class="demo">
+          <p class="demo-title">Atomic notes</p>
+          <p class="demo-sub">one idea per note · written for whoever you are tomorrow</p>
+          <p>
+            A note should hold one idea completely. The power is not in any single
+            note but in what it touches: a note linking to ten others is worth more
+            than ten that sit alone.
+          </p>
+          <p>
+            This is the claim behind
+            <button class="wl" data-wl="luhmann" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Zettelkasten method<span class="br">]]</span></button>,
+            and the reason
+            <button class="wl" data-wl="spacing" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Spaced repetition<span class="br">]]</span></button>
+            works better on small notes than long ones: you can only review what you
+            can hold in one piece.
+          </p>
+          <p>
+            Which is also why
+            <button class="wl" data-wl="retrieval" type="button" aria-pressed="false" aria-controls="bls"><span class="br">[[</span>Retrieval practice<span class="br">]]</span></button>
+            belongs here rather than in its own chapter.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Reading ============ -->
+  <section class="sec" id="reading">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="tagline">Reading</span>
         <h2>The reading comes to the vault.</h2>
-        <p class="lede" style="margin-top:20px">
+        <p class="lede">
           EPUB and PDF open as books, paged, with your marks in the margin. arXiv and
           Hacker News arrive as an edition. Paste a URL and the article is clipped to
           clean markdown instead of losing its structure on the way in.
         </p>
       </div>
+      <div class="shelf rise" role="list" aria-label="Sources in an example library">
+        <article class="src" role="listitem">
+          <span class="src-k" style="background:var(--accent-bg);color:var(--accent-lum);border:1px solid var(--accent-bd)"><svg class="ic" aria-hidden="true"><use href="#i-book-open"/></svg>EPUB</span>
+          <h3>Building a Second Brain</h3><p class="by">Tiago Forte</p>
+          <div class="pr"><div class="pr-t"><div class="pr-f" style="width:62%"></div></div><span class="fig">62%</span></div>
+        </article>
+        <article class="src" role="listitem">
+          <span class="src-k" style="background:color-mix(in srgb,var(--blu) 14%,transparent);color:var(--blu);border:1px solid color-mix(in srgb,var(--blu) 32%,transparent)"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg>ARXIV</span>
+          <h3>Attention Is All You Need</h3><p class="by">Vaswani et al.</p>
+          <div class="pr"><div class="pr-t"><div class="pr-f" style="width:38%"></div></div><span class="fig">38%</span></div>
+        </article>
+        <article class="src" role="listitem">
+          <span class="src-k" style="background:color-mix(in srgb,var(--amber) 14%,transparent);color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 32%,transparent)"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>ARTICLE</span>
+          <h3>How to Take Smart Notes</h3><p class="by">clipped from the web</p>
+          <div class="pr"><div class="pr-t"><div class="pr-f" style="width:100%"></div></div><span class="fig">read</span></div>
+        </article>
+        <article class="src" role="listitem">
+          <span class="src-k" style="background:color-mix(in srgb,var(--green) 13%,transparent);color:var(--green);border:1px solid color-mix(in srgb,var(--green) 30%,transparent)"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg>PDF</span>
+          <h3>The Psychology of Human Misjudgment</h3><p class="by">Charlie Munger</p>
+          <div class="pr"><div class="pr-t"><div class="pr-f" style="width:14%"></div></div><span class="fig">14%</span></div>
+        </article>
+        <article class="src" role="listitem">
+          <span class="src-k" style="background:rgba(255,255,255,.06);color:var(--ink-t2);border:1px solid var(--hairline)"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>EDITION</span>
+          <h3>Today's paper</h3><p class="by">built from your sources this morning</p>
+          <div class="pr"><div class="pr-t"><div class="pr-f" style="width:100%"></div></div><span class="fig">new</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
 
-      <div class="wrap">
-        <div class="shelf rise" role="list" aria-label="Sources in an example library">
-          <article class="src" role="listitem">
-            <span class="src-kind" style="background:rgba(111,99,224,.16);color:var(--accent-lum);border:1px solid rgba(157,147,255,.3)">
-              <svg class="ic" aria-hidden="true"><use href="#i-book-open"/></svg>EPUB
-            </span>
-            <h3>Building a Second Brain</h3>
-            <p class="by">Tiago Forte</p>
-            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:62%"></div></div><span class="fig">62%</span></div>
-          </article>
-          <article class="src" role="listitem">
-            <span class="src-kind" style="background:rgba(111,168,220,.16);color:#8fc4f0;border:1px solid rgba(111,168,220,.3)">
-              <svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg>ARXIV
-            </span>
-            <h3>Attention Is All You Need</h3>
-            <p class="by">Vaswani et al.</p>
-            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:38%"></div></div><span class="fig">38%</span></div>
-          </article>
-          <article class="src" role="listitem">
-            <span class="src-kind" style="background:rgba(239,180,92,.16);color:var(--amber);border:1px solid rgba(239,180,92,.3)">
-              <svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>ARTICLE
-            </span>
-            <h3>How to Take Smart Notes</h3>
-            <p class="by">clipped from the web</p>
-            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:100%"></div></div><span class="fig">read</span></div>
-          </article>
-          <article class="src" role="listitem">
-            <span class="src-kind" style="background:rgba(74,214,164,.14);color:var(--green);border:1px solid rgba(74,214,164,.28)">
-              <svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg>PDF
-            </span>
-            <h3>The Psychology of Human Misjudgment</h3>
-            <p class="by">Charlie Munger</p>
-            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:14%"></div></div><span class="fig">14%</span></div>
-          </article>
-          <article class="src" role="listitem">
-            <span class="src-kind" style="background:rgba(255,255,255,.07);color:var(--ink-t2);border:1px solid var(--glass-edge)">
-              <svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>EDITION
-            </span>
-            <h3>Today's paper</h3>
-            <p class="by">built from your sources this morning</p>
-            <div class="prog"><div class="prog-track"><div class="prog-fill" style="width:100%"></div></div><span class="fig">new</span></div>
-          </article>
+  <!-- ============ Graph ============ -->
+  <section class="sec" id="graph">
+    <div class="wrap">
+      <div class="duo rise">
+        <div>
+          <span class="tagline">Graph</span>
+          <h2>The shape of what you know.</h2>
+          <p class="body" style="margin-top:16px">
+            Every link you write draws itself. Notes sit where their connections
+            put them, the well-linked ones grow, and the clusters you did not plan
+            turn up on their own — this one has four, and nobody filed a thing.
+          </p>
+          <dl class="gstats">
+            <div><dt>Notes</dt><dd>44</dd></div>
+            <div><dt>Links</dt><dd>68</dd></div>
+            <div><dt>Clusters</dt><dd>4</dd></div>
+          </dl>
+        </div>
+        <div class="graph-frame">
+          <canvas id="field" aria-hidden="true"></canvas>
+          <p class="graph-legend">An example vault</p>
         </div>
       </div>
+    </div>
+  </section>
 
-      <div class="wrap">
-        <div class="capture rise">
-          <div class="g-well" style="padding:20px 22px">
-            <p style="color:var(--ink-t2)">
-              Forte calls this the <span class="hl-line">intermediate packet: a small,
-              reusable unit of work complete enough to use on its own</span>: a
-              paragraph, a diagram, a short essay.
-            </p>
-            <p class="cite">Building a Second Brain &middot; page&nbsp;114</p>
-          </div>
-          <div class="arrow" aria-hidden="true">
-            <svg class="ic" style="width:24px;height:24px"><use href="#i-arrow-right"/></svg>
-          </div>
-          <div class="g-well" style="padding:20px 22px">
-            <p style="font-weight:700;font-size:var(--step-1);letter-spacing:-0.02em;margin-bottom:8px">Intermediate packets</p>
-            <p style="color:var(--ink-t2);font-size:var(--step--1);line-height:1.6">
-              A note of your own, holding the passage and a line about why it
-              mattered, already linked to
-              <span style="color:var(--accent-lum)">Atomic notes</span>.
-            </p>
-            <p class="cite">New note · captured a minute ago</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ The tutor ============ -->
-    <section class="sec" id="tutor">
-      <div class="wrap narrow rise">
-        <h2 style="text-align:center">And something that has read all of it.</h2>
-        <p class="lede" style="margin:20px auto 44px;text-align:center">
-          Ask across the whole vault and get answers with the notes they came from.
-          Or hand it a topic and it teaches, asking you questions back and drawing
-          what it explains straight into the note you are studying from.
-        </p>
-
-        <div class="g-pane" style="padding:clamp(22px,3vw,34px)">
+  <!-- ============ Tutor ============ -->
+  <section class="sec" id="tutor">
+    <div class="wrap">
+      <div class="duo flip rise">
+        <div class="demo">
           <div class="turn">
-            <div class="turn-who turn-you" aria-hidden="true">Y</div>
-            <div class="turn-body"><p>Teach me why spacing works. Quiz me as you go.</p></div>
+            <div class="who who-you" aria-hidden="true">Y</div>
+            <div class="turn-b"><p>Teach me why spacing works. Quiz me as you go.</p></div>
           </div>
-          <div class="turn">
-            <div class="turn-who turn-ai" aria-hidden="true">
-              <svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg>
-            </div>
-            <div class="turn-body">
-              <p style="margin-bottom:12px">
+          <div class="turn" style="margin-bottom:0">
+            <div class="who who-ai" aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg></div>
+            <div class="turn-b">
+              <p style="margin-bottom:10px">
                 Start with what you already wrote in <strong>Spaced repetition</strong>:
                 each review resets the forgetting curve at a <strong>slower</strong>
                 rate of decay. So before I explain: after three reviews, is the curve
                 flatter or steeper than after one?
               </p>
               <div class="diagram" role="img" aria-label="A forgetting curve decaying steeply, then three review points each producing a shallower decay than the last.">
-                <svg viewBox="0 0 560 150" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <linearGradient id="fade" x1="0" x2="1" y1="0" y2="0">
-                      <stop offset="0" stop-color="#9d93ff" stop-opacity=".85"/>
-                      <stop offset="1" stop-color="#9d93ff" stop-opacity=".35"/>
-                    </linearGradient>
-                  </defs>
-                  <line x1="18" y1="126" x2="544" y2="126" stroke="#1a2133" stroke-width="1"/>
-                  <line x1="18" y1="18" x2="18" y2="126" stroke="#1a2133" stroke-width="1"/>
-                  <path d="M18 24 C 60 96, 96 116, 150 122" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
-                  <path d="M150 24 C 214 88, 268 112, 322 120" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
-                  <path d="M322 24 C 410 78, 470 104, 544 116" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
-                  <g fill="#9d93ff">
-                    <circle cx="150" cy="24" r="3.5"/><circle cx="322" cy="24" r="3.5"/>
-                  </g>
-                  <g fill="#6f7994" font-family="JetBrains Mono, monospace" font-size="10">
-                    <text x="142" y="142">day 1</text><text x="314" y="142">day 4</text><text x="500" y="142">day 11</text>
-                  </g>
+                <svg viewBox="0 0 520 130" xmlns="http://www.w3.org/2000/svg">
+                  <defs><linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="#9d93ff" stop-opacity=".9"/><stop offset="1" stop-color="#9d93ff" stop-opacity=".35"/></linearGradient></defs>
+                  <line x1="16" y1="108" x2="506" y2="108" stroke="#2a2a31" stroke-width="1"/>
+                  <path d="M16 22 C 54 84, 88 100, 138 106" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
+                  <path d="M138 22 C 198 76, 248 96, 300 104" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
+                  <path d="M300 22 C 384 68, 440 90, 506 100" fill="none" stroke="url(#fade)" stroke-width="2.25" stroke-linecap="round"/>
+                  <g fill="#9d93ff"><circle cx="138" cy="22" r="3.5"/><circle cx="300" cy="22" r="3.5"/></g>
+                  <g fill="#8e8e9a" font-family="JetBrains Mono, monospace" font-size="10"><text x="130" y="124">day 1</text><text x="292" y="124">day 4</text><text x="466" y="124">day 11</text></g>
                 </svg>
               </div>
-              <p style="margin-top:14px;color:var(--ink-t3);font-size:var(--step--1);display:flex;align-items:center;gap:7px">
+              <p style="margin-top:12px;color:var(--ink-t3);font-size:13px;display:flex;align-items:center;gap:6px">
                 <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>
                 Saved into <span style="color:var(--accent-lum)">Spaced repetition</span> as a diagram you can edit.
               </p>
             </div>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- ============ The door ============ -->
-    <section class="sec" id="door">
-      <div class="wrap">
-        <div class="split rise">
-          <div>
-            <h2>The exit is not hidden.</h2>
-            <p class="body" style="margin-top:20px">
-              Publish one note, or a folder and everything nested inside it, to a link
-              that needs no account. A published page is a snapshot, so your later edits
-              stay private until you say otherwise, and it is unlisted unless you ask
-              for it to be found. Links to notes you did not publish quietly stay plain
-              text instead of turning into dead ends.
-            </p>
-            <p class="body" style="margin-top:16px">
-              And whenever you want, the whole vault walks out as a folder of markdown
-              files that open in anything. An export you cannot take when the service
-              is down is not much of an export.
-            </p>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px">
-              <a class="btn btn-glass btn-sm" href="/demo">
-                <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Try the export in the demo
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <div class="urlbar">
-              <svg class="ic lock" aria-hidden="true"><use href="#i-link"/></svg>
-              <span class="host">braindot.app/p/</span><span class="path">quiet-index-of-methods</span>
-              <span class="tag">unlisted</span>
-            </div>
-            <ul class="tree g-well" style="padding:18px 20px">
-              <li><svg class="ic" aria-hidden="true"><use href="#i-folder"/></svg> methods/</li>
-              <li class="depth-1"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> atomic-notes.md</li>
-              <li class="depth-1"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> spaced-repetition.md</li>
-              <li class="depth-1"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> zettelkasten-method.md</li>
-              <li class="out"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> private-reading-log.md &nbsp;— not published, stays plain text</li>
-            </ul>
-          </div>
+        <div>
+          <span class="tagline">Tutor</span>
+          <h2>And something that has read all of it.</h2>
+          <p class="body" style="margin-top:16px">
+            Ask across the whole vault and get answers with the notes they came from.
+            Or hand it a topic and it teaches, asking you questions back and drawing
+            what it explains straight into the note you are studying from.
+          </p>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ============ Close ============ -->
-    <section class="sec close">
-      <div class="wrap rise">
-        <h2>Start with one note.</h2>
-        <p class="lede">
-          The demo is the whole product with an example vault in it, and it needs
-          nothing from you. If it is not the place your thinking should live, you will
-          know inside a minute.
-        </p>
-        <div class="close-cta">
-          <a class="btn btn-primary" href="/demo">
-            <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Open the demo
-          </a>
-          <a class="btn btn-glass" href="/auth?mode=signup">Create a vault</a>
+  <!-- ============ Your data ============ -->
+  <section class="sec" id="data">
+    <div class="wrap">
+      <div class="duo rise">
+        <div>
+          <span class="tagline">Your data</span>
+          <h2>The exit is not hidden.</h2>
+          <p class="body" style="margin-top:16px">
+            Publish one note, or a folder and everything nested inside it, to a link
+            that needs no account. A published page is a snapshot, so your later edits
+            stay private until you say otherwise, and it is unlisted unless you ask
+            for it to be found.
+          </p>
+          <p class="body" style="margin-top:14px">
+            And whenever you want, the whole vault walks out as a folder of markdown
+            files that open in anything. An export you cannot take when the service is
+            down is not much of an export.
+          </p>
+        </div>
+        <div>
+          <div class="urlbar">
+            <svg class="ic" aria-hidden="true" style="color:var(--green)"><use href="#i-link"/></svg>
+            <span class="host">braindot.app/p/</span><span>quiet-index-of-methods</span>
+            <span class="tag">unlisted</span>
+          </div>
+          <ul class="tree">
+            <li><svg class="ic" aria-hidden="true"><use href="#i-folder"/></svg> methods/</li>
+            <li class="in"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> atomic-notes.md</li>
+            <li class="in"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> spaced-repetition.md</li>
+            <li class="in"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> zettelkasten-method.md</li>
+            <li class="out"><svg class="ic" aria-hidden="true"><use href="#i-file-text"/></svg> private-reading-log.md — not published</li>
+          </ul>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </section>
 
-  <footer>
+  <!-- ============ Close ============ -->
+  <section class="sec close">
+    <div class="wrap rise">
+      <h2>Start with one note.</h2>
+      <p class="lede">
+        The demo is the whole product with an example vault in it, and it needs
+        nothing from you. If it is not where your thinking should live, you will know
+        inside a minute.
+      </p>
+      <div class="close-cta">
+        <a class="btn btn-primary" href="/demo">
+          <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Open the demo
+        </a>
+        <a class="btn btn-ghost" href="/auth?mode=signup">Create a vault</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-in">
     <a class="mark" href="/landing" style="font-size:16px">braindot<span class="caret" aria-hidden="true"></span></a>
     <div class="foot-links">
-      <a href="#link">Linking</a>
-      <a href="#read">Reading</a>
-      <a href="#tutor">Tutor</a>
-      <a href="#door">Your data</a>
-      <a href="/demo">Demo</a>
-      <a href="/auth">Sign in</a>
+      <a href="#linking">Linking</a><a href="#reading">Reading</a><a href="#graph">Graph</a>
+      <a href="#tutor">Tutor</a><a href="#data">Your data</a>
+      <a href="/demo">Demo</a><a href="/auth">Sign in</a>
     </div>
     <span class="copy">© 2026 Braindot</span>
-  </footer>
-</div>
+  </div>
+</footer>
 
 <script>
-/* ============================================================
-   The field
-   ============================================================
-   A small force-directed graph of an example vault, drawn on canvas behind
-   everything. It exists so the glass has something worth looking through:
-   a backdrop-filter over a flat colour is grey plastic.
-
-   Deliberately cheap: 44 nodes, O(n^2) repulsion is 1936 pairs a frame,
-   which is nothing. It runs while it is finding its shape and then stops
-   dead — every repaint here invalidates four 40px backdrop-filters stacked
-   above it, so an idle animation would cost far more than it is worth.
-*/
+/* The graph, now a figure inside its own section rather than a texture behind
+   the page. Same seeded simulation; it just has a box to live in, which means
+   it can be sized to that box instead of fighting the whole viewport. */
 (function () {
   var canvas = document.getElementById('field');
   if (!canvas || !canvas.getContext) return;
   var ctx = canvas.getContext('2d', { alpha: true });
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* An example vault. Real PKM subject matter so the shapes read as a mind
-     rather than as lorem, and clustered the way a vault actually clusters. */
-  var TITLES = [
-    'Atomic notes','Zettelkasten method','Spaced repetition','Retrieval practice',
-    'Forgetting curve','Interleaving','Desirable difficulty','Elaboration',
-    'PARA method','Progressive summarisation','Intermediate packets','Capture habits',
-    'Second brain','Note hygiene','Evergreen notes','Linking over filing',
-    'Decision fatigue','Mental models','Inversion','Second-order effects',
-    'Base rates','Bounded rationality','Satisficing','Opportunity cost',
-    'Deep work','Attention residue','Context switching','Shallow work',
-    'Feynman technique','Explain it simply','Gaps in understanding','Teaching to learn',
-    'Reading inbox','Marginalia','Highlight triage','Source notes',
-    'Daily journal','On this day','Weekly review','Monthly review',
-    'Graph view','Backlinks','Orphan notes','Hub notes'
-  ];
-  /* Which cluster each title belongs to — four fields of thought that touch
-     at the edges, which is what gives the graph its shape. */
   var CLUSTER = [0,0,0,0,0,0,0,0, 1,1,1,1,1,1,1,1, 2,2,2,2,2,2,2,2,
                  3,3,3,3, 0,0,0,0, 1,1,1,1, 3,3,3,3, 1,1,1,1];
-  var HUE = ['#9d93ff', '#6f8fe0', '#7fd6c0', '#b89bf0'];
+  var HUE = ['#9d93ff', '#8fa6e8', '#7fd6c0', '#b0a0e8'];
+  var N = CLUSTER.length;
+  var nodes = [], links = [], W = 0, H = 0, scale = 1;
+  var MIN_SEP2 = 36, MAX_V = 6, PAD = 14;
 
-  var N = TITLES.length;
-  var nodes = [], links = [];
-  var W = 0, H = 0, dpr = 1;
-  /* One number tying the field's size to the window's, so a phone gets a
-     vault that fits in it rather than the middle of a laptop's. */
-  var scale = 1;
-
-  function seedRandom(s) {
-    return function () { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
-  }
-  var rnd = seedRandom(20260916);
+  function seeded(s) { return function () { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; }; }
 
   function build() {
+    var rnd = seeded(20260916);
     nodes = [];
     for (var i = 0; i < N; i++) {
-      var c = CLUSTER[i];
-      nodes.push({
-        x: (0.2 + 0.6 * rnd()) * W, y: (0.15 + 0.7 * rnd()) * H,
-        vx: 0, vy: 0, c: c, deg: 0, phase: rnd() * Math.PI * 2
-      });
+      nodes.push({ x: (0.15 + 0.7 * rnd()) * W, y: (0.15 + 0.7 * rnd()) * H,
+                   vx: 0, vy: 0, c: CLUSTER[i], deg: 0, phase: rnd() * Math.PI * 2 });
     }
-    links = [];
-    /* Link inside a cluster mostly, across it occasionally. 68 links, which is
-       the number the hero quotes — if you change one, change the other. */
-    var made = {};
+    links = []; var made = {};
     function add(a, b) {
       if (a === b) return;
       var k = a < b ? a + ':' + b : b + ':' + a;
@@ -882,54 +799,62 @@ footer {
   }
 
   function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = window.innerWidth; H = window.innerHeight;
-    scale = Math.max(0.42, Math.min(1.1, Math.min(W, H) / 860));
+    var r = canvas.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height;
+    if (!W || !H) return false;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    scale = Math.max(0.5, Math.min(1.15, Math.min(W, H) / 420));
+    return true;
   }
 
   function step() {
-    /* Repulsion between every pair, springs along the links, and a weak pull
-       to the centre of mass so the whole thing does not wander off screen. */
     for (var i = 0; i < N; i++) {
       var a = nodes[i];
       for (var j = i + 1; j < N; j++) {
         var b = nodes[j];
-        var dx = b.x - a.x, dy = b.y - a.y;
-        var d2 = dx * dx + dy * dy || 0.01;
-        if (d2 > 420000 * scale * scale) continue;
-        var f = 4400 * scale / d2;
-        var d = Math.sqrt(d2);
-        var ux = dx / d, uy = dy / d;
-        a.vx -= ux * f; a.vy -= uy * f;
-        b.vx += ux * f; b.vy += uy * f;
+        var dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy;
+        if (d2 > 160000 * scale * scale) continue;
+        /* Repulsion is inverse-square, so two nodes that land on top of each
+           other used to divide by a 0.01 floor and get a ~190,000x impulse.
+           That threw them to infinity, and Infinity - Infinity poisoned every
+           other node within nine frames. Canvas drops non-finite path ops
+           silently, so the whole graph just stopped drawing. Floor the
+           separation at 6px instead: no pair can push harder than that. */
+        if (d2 < MIN_SEP2) d2 = MIN_SEP2;
+        var f = 1900 * scale / d2, d = Math.sqrt(d2);
+        a.vx -= dx / d * f; a.vy -= dy / d * f; b.vx += dx / d * f; b.vy += dy / d * f;
       }
     }
     for (var l = 0; l < links.length; l++) {
       var p = nodes[links[l][0]], q = nodes[links[l][1]];
-      var dx2 = q.x - p.x, dy2 = q.y - p.y;
-      var dd = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 0.01;
-      var target = (p.c === q.c ? 176 : 384) * scale;
-      var s = (dd - target) * 0.0015;
-      var vx = (dx2 / dd) * s, vy = (dy2 / dd) * s;
-      p.vx += vx; p.vy += vy; q.vx -= vx; q.vy -= vy;
+      var ddx = q.x - p.x, ddy = q.y - p.y;
+      var dd = Math.sqrt(ddx * ddx + ddy * ddy) || 0.01;
+      var target = (p.c === q.c ? 60 : 130) * scale;
+      var s = (dd - target) * 0.0022;
+      p.vx += ddx / dd * s; p.vy += ddy / dd * s;
+      q.vx -= ddx / dd * s; q.vy -= ddy / dd * s;
     }
-    var cx = W * 0.68, cy = H * 0.46;
-    /* Pull toward the centre, and pull harder the further out a node is, so
-       the whole field stays inside the window instead of settling into a
-       shape wider than the screen. */
-    var reach = Math.max(W, H) * 0.70;
-    var moved = 0;
+    /* The basin is an ellipse the shape of the frame, not a circle. A circular
+       basin in a wide box draws a circle in the middle and leaves the sides
+       empty; this fills whatever aspect the layout hands it. */
+    var cx = W / 2, cy = H / 2, rx = W * 0.44, ry = H * 0.44, moved = 0;
     for (var k = 0; k < N; k++) {
       var n = nodes[k];
       var ox = n.x - cx, oy = n.y - cy;
-      var dist = Math.sqrt(ox * ox + oy * oy) || 0.01;
-      var pull = 0.0007 + Math.max(0, dist - reach) * 0.00055;
+      var ux = ox / rx, uy = oy / ry;
+      var nd = Math.sqrt(ux * ux + uy * uy);
+      var pull = 0.0016 + Math.max(0, nd - 1) * 0.22;
       n.vx -= ox * pull; n.vy -= oy * pull;
       n.vx *= 0.86; n.vy *= 0.86;
+      /* Belt and braces: a speed cap and a hard clamp mean no seed, and no
+         box, can put a node somewhere the canvas cannot draw it. */
+      var sp = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+      if (sp > MAX_V) { n.vx = n.vx / sp * MAX_V; n.vy = n.vy / sp * MAX_V; }
       n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(PAD, Math.min(W - PAD, n.x));
+      n.y = Math.max(PAD, Math.min(H - PAD, n.y));
       moved += Math.abs(n.vx) + Math.abs(n.vy);
     }
     return moved / N;
@@ -937,117 +862,75 @@ footer {
 
   function draw(t) {
     ctx.clearRect(0, 0, W, H);
-    /* One pulse value per node per frame, because the links need it too: a
-       link brightens with whichever of its two notes is lit, which is the
-       whole argument of the page drawn in one channel. */
     var pulses = new Array(N);
     for (var pi = 0; pi < N; pi++) {
       pulses[pi] = reduced ? 0.45 : Math.sin(t * 0.0006 + nodes[pi].phase) * 0.5 + 0.5;
     }
     ctx.lineWidth = 1;
     for (var l = 0; l < links.length; l++) {
-      var ai = links[l][0], bi = links[l][1];
-      var p = nodes[ai], q = nodes[bi];
+      var ai = links[l][0], bi = links[l][1], p = nodes[ai], q = nodes[bi];
       var wake = pulses[ai] > pulses[bi] ? pulses[ai] : pulses[bi];
-      var base = p.c !== q.c ? 0.11 : 0.20;
-      ctx.strokeStyle = 'rgba(157,147,255,' + (base + wake * 0.22).toFixed(3) + ')';
+      var base = p.c !== q.c ? 0.10 : 0.18;
+      ctx.strokeStyle = 'rgba(157,147,255,' + (base + wake * 0.2).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
     }
     for (var i = 0; i < N; i++) {
-      var n = nodes[i];
-      var r = 2.4 + Math.sqrt(n.deg) * 1.7;
-      var pulse = pulses[i];
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      var n = nodes[i], r = (2.2 + Math.sqrt(n.deg) * 1.55) * scale;
+      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
       ctx.fillStyle = HUE[n.c];
-      ctx.globalAlpha = 0.55 + pulse * 0.32;
+      ctx.globalAlpha = 0.55 + pulses[i] * 0.3;
       ctx.fill();
       if (n.deg > 3) {
-        ctx.globalAlpha = 0.14 + pulse * 0.13;
-        ctx.beginPath(); ctx.arc(n.x, n.y, r * 3.4, 0, Math.PI * 2);
-        ctx.fillStyle = HUE[n.c]; ctx.fill();
+        ctx.globalAlpha = 0.12 + pulses[i] * 0.1;
+        ctx.beginPath(); ctx.arc(n.x, n.y, r * 3.2, 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
     }
   }
 
   var raf = null, settled = false, frames = 0;
+  function warm(cap) { for (var i = 0; i < cap; i++) if (step() < 0.05 && i > 120) return; }
   function loop(t) {
     raf = null;
-    var energy = step();
-    frames++;
+    var e = step(); frames++;
     draw(t || 0);
-    /* Stop once it has come to rest, and mean it. A force graph that never
-       stops is a laptop fan that never stops — and here each frame also makes
-       every pane above it re-blur. */
-    if (energy < 0.055 && frames > 45) {
-      settled = true;
-      draw(0);
-      return;
-    }
+    if (e < 0.05 && frames > 40) { settled = true; draw(0); return; }
     if (!document.hidden) raf = requestAnimationFrame(loop);
   }
-  function start() {
-    if (raf || settled) return;
-    raf = requestAnimationFrame(loop);
-  }
-  function stop() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+  function start() { if (raf || settled) return; raf = requestAnimationFrame(loop); }
 
-  resize(); build();
-  /* Most of the settling is not worth watching: from a random scatter it takes
-     the better part of two thousand frames to find its shape, and the first
-     nine tenths of that is noise. Run it forward before the first paint so the
-     page opens on a field that is nearly settled, and animate only the last
-     part of the move. */
-  /* Runs only as far as it needs to. step() reports the field's energy, so
-     this stops the moment the layout is quiet instead of always paying for the
-     worst case — a phone settles in a few hundred steps where a wide desktop
-     wants a couple of thousand, and the cap is there for the pathological
-     case rather than the normal one. */
-  function warm(cap) {
-    for (var i = 0; i < cap; i++) {
-      if (step() < 0.05 && i > 150) return i;
-    }
-    return cap;
+  function boot() {
+    if (!resize()) return false;
+    build(); warm(reduced ? 2200 : 1800); draw(0);
+    if (!reduced) start();
+    return true;
   }
-  if (reduced) {
-    /* The composition is the point; the motion is not. */
-    warm(2600);
-    draw(0);
-  } else {
-    warm(3000);
-    draw(0);
-    start();
-  }
+  /* The frame has a clamp()'d height, so it may measure zero before layout
+     settles; retry on the next frame rather than drawing into nothing. */
+  if (!boot()) requestAnimationFrame(boot);
 
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) stop(); else if (!reduced) start();
+    if (document.hidden && raf) { cancelAnimationFrame(raf); raf = null; }
   });
   var rt;
   window.addEventListener('resize', function () {
     clearTimeout(rt);
     rt = setTimeout(function () {
-      resize();
-      if (reduced) { warm(2600); draw(0); return; }
-      settled = false; frames = 0; warm(900); start();
-    }, 180);
+      if (!resize()) return;
+      build(); warm(1800); settled = false; frames = 0; draw(0);
+      if (!reduced) start();
+    }, 200);
   });
 })();
 
-/* ============================================================
-   The link demonstration
-   ============================================================
-   Hovering or focusing a wiki-link lights the backlink it produced. It runs
-   itself on a slow cycle until someone takes over, so the mechanism is
-   visible to a reader who never touches anything.
-*/
+/* The wiki-link demonstration. */
 (function () {
   var wls = Array.prototype.slice.call(document.querySelectorAll('.wl'));
   var bls = Array.prototype.slice.call(document.querySelectorAll('.bl'));
   if (!wls.length) return;
   var auto = null, idx = 0, taken = false;
-
   var status = document.getElementById('bl-status');
+
   function light(key) {
     wls.forEach(function (w) {
       var on = w.dataset.wl === key;
@@ -1059,49 +942,35 @@ footer {
       b.classList.toggle('on', on);
       if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
     });
-    /* Only announce once a person has taken over. The idle cycle would
-       otherwise interrupt a screen reader every 2.6 seconds, forever. */
     if (taken && status) {
       var live = bls.filter(function (b) { return b.dataset.bl === key; })[0];
-      var title = live && live.querySelector('.bl-title');
+      var title = live && live.querySelector('.bl-t');
       status.textContent = title ? ('Backlink from ' + title.textContent) : '';
     }
   }
   function cycle() { light(wls[idx % wls.length].dataset.wl); idx++; }
-  function takeOver() {
-    if (taken) return;
-    taken = true; clearInterval(auto);
-  }
+  function takeOver() { if (!taken) { taken = true; clearInterval(auto); } }
 
   wls.forEach(function (w) {
-    w.addEventListener('mouseenter', function () { takeOver(); light(w.dataset.wl); });
-    w.addEventListener('focus', function () { takeOver(); light(w.dataset.wl); });
-    w.addEventListener('click', function () { takeOver(); light(w.dataset.wl); });
+    ['mouseenter', 'focus', 'click'].forEach(function (ev) {
+      w.addEventListener(ev, function () { takeOver(); light(w.dataset.wl); });
+    });
   });
 
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    /* Only once the section is actually on screen — a demonstration nobody
-       is looking at is just a timer. */
-    var sec = document.getElementById('link');
-    if ('IntersectionObserver' in window && sec) {
-      new IntersectionObserver(function (es) {
-        es.forEach(function (e) {
-          if (e.isIntersecting && !taken && !auto) { cycle(); auto = setInterval(cycle, 2600); }
-          else if (!e.isIntersecting && auto) { clearInterval(auto); auto = null; }
-        });
-      }, { threshold: 0.35 }).observe(sec);
-    }
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+    var sec = document.getElementById('linking');
+    new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (e.isIntersecting && !taken && !auto) { cycle(); auto = setInterval(cycle, 2600); }
+        else if (!e.isIntersecting && auto) { clearInterval(auto); auto = null; }
+      });
+    }, { threshold: 0.3 }).observe(sec);
   } else {
     light(wls[0].dataset.wl);
   }
 })();
 
-/* ============================================================
-   Arrival
-   ============================================================
-   One authored moment, used once per section. Default is visible: if the
-   observer never fires, everything is on screen anyway.
-*/
+/* Arrival. Visible by default; the observer only ever adds. */
 (function () {
   var items = document.querySelectorAll('.rise');
   if (!items.length) return;
@@ -1114,8 +983,11 @@ footer {
     entries.forEach(function (e) {
       if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
     });
-  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
   items.forEach(function (el) { io.observe(el); });
+  /* If the observer never fires — a hidden tab, a throttled compositor — the
+     page must not stay blank. */
+  setTimeout(function () { items.forEach(function (el) { el.classList.add('in'); }); }, 2500);
 })();
 </script>
 </body>

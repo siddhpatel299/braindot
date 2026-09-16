@@ -1,13 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef, useMemo } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
-import {
-  ArrowRight, Eye, EyeOff, Play, Link2, GraduationCap, BookOpen,
-  Loader2, CircleAlert,
-} from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Play, Loader2, CircleAlert } from 'lucide-react';
 
 function friendlyAuthError(raw: string, mode: 'signin' | 'signup'): string {
   const msg = raw.toLowerCase();
@@ -29,74 +26,17 @@ function friendlyAuthError(raw: string, mode: 'signin' | 'signup'): string {
 }
 
 /**
- * The field behind the card.
+ * What is on the other side of the form, said in the page's own voice.
  *
- * The landing page runs a real force simulation; this page does not need one —
- * it is a form, and a physics loop behind a password field is spend with no
- * return. What it does need is structure behind the glass, so this is a fixed
- * constellation laid out from a seeded PRNG: same shape every load, no work
- * after the first paint.
+ * These were three icon pips: identical rounded squares holding three
+ * different glyphs, which is decoration standing in for a reason to read the
+ * sentence. A mono label on a hairline rule says the same thing and matches
+ * how /landing labels everything else.
  */
-function Constellation() {
-  const { nodes, edges } = useMemo(() => {
-    // The LCG is unrolled into a fixed table rather than read through a
-    // closure, so nothing is reassigned across renders — same numbers every
-    // time, which is the point: the constellation should not reshuffle itself
-    // when React re-renders the form around it.
-    const COUNT = 34;
-    const r: number[] = [];
-    let s = 20260916;
-    for (let i = 0; i < COUNT * 4; i++) {
-      s = (s * 1664525 + 1013904223) % 4294967296;
-      r.push(s / 4294967296);
-    }
-
-    const n = Array.from({ length: COUNT }, (_, i) => ({
-      x: r[i * 4] * 100,
-      y: r[i * 4 + 1] * 100,
-      r: 0.28 + r[i * 4 + 2] * 0.72,
-    }));
-
-    const e: Array<[number, number]> = [];
-    for (let i = 0; i < n.length; i++) {
-      // Join each node to its nearest one or two neighbours: that is what
-      // makes a graph read as a graph rather than as scattered dots.
-      const near = n
-        .map((m, j) => ({ j, d: (m.x - n[i].x) ** 2 + (m.y - n[i].y) ** 2 }))
-        .filter((m) => m.j !== i)
-        .sort((a, b) => a.d - b.d)
-        .slice(0, r[i * 4 + 3] > 0.55 ? 2 : 1);
-      for (const m of near) if (i < m.j) e.push([i, m.j]);
-    }
-    return { nodes: n, edges: e };
-  }, []);
-
-  return (
-    <svg
-      className="auth-field-svg"
-      viewBox="0 0 100 100"
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <g stroke="rgba(157,147,255,0.26)" strokeWidth="0.09">
-        {edges.map(([a, b], i) => (
-          <line key={i} x1={nodes[a].x} y1={nodes[a].y} x2={nodes[b].x} y2={nodes[b].y} />
-        ))}
-      </g>
-      <g fill="#9d93ff">
-        {nodes.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={p.r * 0.42} opacity={0.35 + p.r * 0.4} />
-        ))}
-      </g>
-    </svg>
-  );
-}
-
-const PROOF = [
-  { icon: Link2, text: 'Every note links to the rest of your thinking, and the backlinks write themselves.' },
-  { icon: BookOpen, text: 'EPUB, PDF, arXiv and articles open in-app; what you highlight lands in the vault.' },
-  { icon: GraduationCap, text: 'A tutor that has read all of it — and draws what it explains into the note.' },
+const POINTS = [
+  { k: 'Links', v: 'Type two brackets and the vault completes the link. The note on the other end grows a backlink without being opened.' },
+  { k: 'Reading', v: 'EPUB, PDF, arXiv and articles open in-app, and what you highlight lands in the vault as a note you can link to.' },
+  { k: 'Tutor', v: 'A tutor that has read all of it — and draws what it explains straight into the note you are writing.' },
 ];
 
 function AuthContent() {
@@ -171,40 +111,41 @@ function AuthContent() {
 
   return (
     <div className="auth world-ink">
-      <div className="auth-wash" aria-hidden="true" />
-      <Constellation />
-
-      {/* ---------- The tell: what is on the other side of this form ------- */}
-      <aside className="auth-tell">
-        <a
-          href="/landing"
-          style={{ textDecoration: 'none', color: 'var(--ink-t1)', fontWeight: 800, fontSize: 20, letterSpacing: '-0.035em', display: 'inline-flex', alignItems: 'baseline' }}
-        >
-          braindot<span className="sb-caret sb-caret-blink" />
-        </a>
-        <h1>Your notes, and everything they touch.</h1>
-        <p className="sub">
-          A thinking environment rather than a filing cabinet. Write in markdown,
-          link as you go, and let the graph show you the shape of what you know.
-        </p>
-        <ul className="auth-proof">
-          {PROOF.map(({ icon: Icon, text }) => (
-            <li key={text}>
-              <span className="pip" aria-hidden="true"><Icon size={14} strokeWidth={1.9} /></span>
-              <span className="t">{text}</span>
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      {/* ---------- The form ---------------------------------------------- */}
-      <main className="auth-form-col">
-        <div className="auth-card g-pane">
-          {/* Shown only once the tell is gone, so the page still says whose it is. */}
-          <a className="auth-brand" href="/landing">
+      {/* ---------- The bar: the same one /landing has ---------------------
+          A sign-in screen with no way back is a trap, and a wordmark alone is
+          not a way back. */}
+      <header className="auth-bar">
+        <div className="auth-bar-in">
+          <a className="auth-mark" href="/landing">
             braindot<span className="sb-caret sb-caret-blink" />
           </a>
+          <span className="sp" />
+          <a className="lnk" href="/demo">Demo</a>
+          <a className="lnk" href="/landing">Back to site</a>
+        </div>
+      </header>
 
+      <main className="auth-main">
+        {/* ---------- The tell -------------------------------------------- */}
+        <section className="auth-tell">
+          <span className="auth-tagline">{signup ? 'Create a vault' : 'Sign in'}</span>
+          <h1>Your notes, and everything they touch.</h1>
+          <p className="sub">
+            A thinking environment rather than a filing cabinet. Write in markdown,
+            link as you go, and let the graph show you the shape of what you know.
+          </p>
+          <ul className="auth-points">
+            {POINTS.map(({ k, v }) => (
+              <li key={k}>
+                <span className="k">{k}</span>
+                <span className="v">{v}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* ---------- The form -------------------------------------------- */}
+        <div className="auth-card">
           <div className="auth-switch" role="group" aria-label="Sign in or create an account">
             {(['signin', 'signup'] as const).map((m) => (
               <button
