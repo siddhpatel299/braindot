@@ -236,7 +236,7 @@ export function TasksPage({
   const editing = editingId ? tasks.find((t) => t.id === editingId) ?? null : null;
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--lg-near)' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
       <ViewHeader icon={KanbanSquare} title="Tasks" facts={tasks.length === 0 ? undefined : facts}>
         <span style={{ fontSize: 10.5, color: 'var(--t3)', whiteSpace: 'nowrap' }}>group by</span>
         <HeaderSegment

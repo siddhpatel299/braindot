@@ -494,7 +494,8 @@ export function NotesSidebar({
         <div
           className="sb-scroll"
           style={{
-            width: 48, minWidth: 48, height: '100%',            display: 'flex', flexDirection: 'column',
+            width: 48, minWidth: 48, height: '100%', background: 'var(--bg)',
+            display: 'flex', flexDirection: 'column',
             alignItems: 'center', padding: '8px 0 10px', gap: 5, overflowY: 'auto', flexShrink: 0,
           }}
         >
@@ -572,8 +573,10 @@ export function NotesSidebar({
         style={{
           width: fill ? 'auto' : 240, minWidth: fill ? 0 : 240,
           flex: fill ? 1 : undefined, height: '100%',
-          background: 'var(--lg-mid)',
-          boxShadow: 'var(--lg-specular)',
+          background: 'var(--chrome-2)',
+          backdropFilter: 'var(--chrome-blur)',
+          WebkitBackdropFilter: 'var(--chrome-blur)',
+          boxShadow: 'var(--chrome-edge)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}
       >

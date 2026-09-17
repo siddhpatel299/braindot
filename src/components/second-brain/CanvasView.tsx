@@ -503,7 +503,7 @@ export function CanvasView({
   ].join(' · ') + (tool !== 'select' ? ` · ${tool} mode` : '');
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
       <ViewHeader
         icon={BoxIcon}
         title={
