@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
 import type * as identity from "../identity.js";
+import type * as passwordReset from "../passwordReset.js";
 import type * as publish from "../publish.js";
 import type * as rateLimit from "../rateLimit.js";
 
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   functions: typeof functions;
   http: typeof http;
   identity: typeof identity;
+  passwordReset: typeof passwordReset;
   publish: typeof publish;
   rateLimit: typeof rateLimit;
 }>;

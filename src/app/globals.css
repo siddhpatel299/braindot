@@ -1654,6 +1654,38 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
 }
 .auth-error svg { flex: none; margin-top: 2px; color: var(--red); }
 
+/* Same shape as the error, in the card's own colour rather than the alarm
+   one: "the code has left" is news, not a failure, and the card should not
+   change height depending on which of the two it is showing. */
+.auth-note {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 11px 13px; margin-bottom: 18px;
+  border-radius: 10px; font-size: 13.5px; line-height: 1.5;
+  background: rgba(157, 147, 255, 0.10);
+  border: 1px solid rgba(157, 147, 255, 0.28);
+  color: var(--ink-t2);
+}
+.auth-note svg { flex: none; margin-top: 2px; color: var(--accent-lum); }
+
+/* Eight digits being copied off a phone. Mono and widely tracked so the eye
+   can keep its place halfway through. */
+.auth-code {
+  font-family: var(--face-mono);
+  font-size: 18px; letter-spacing: 0.2em; text-align: center;
+}
+
+/* "Forgot password?" belongs on the Password label's own line — beside the
+   field it is about, not stranded at the bottom of the card. */
+.auth-label .lbl-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.auth-aside {
+  appearance: none; background: none; border: 0; cursor: pointer; padding: 1px 4px;
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--accent-lum);
+  border-radius: 5px; text-underline-offset: 2px;
+}
+.auth-aside:hover { background: rgba(157, 147, 255, 0.12); text-decoration: underline; }
+
 .auth-or {
   display: flex; align-items: center; gap: 14px;
   margin: 20px 0; font-size: 11.5px; color: var(--ink-t3);
@@ -1682,6 +1714,11 @@ li, a, label, code, pre, th, td, small, strong, em, b, i {
   border-radius: 5px; text-underline-offset: 2px; text-decoration: underline;
 }
 .auth-foot button:hover { background: rgba(157, 147, 255, 0.12); }
+/* Counting down to the next resend. Still readable, plainly not pressable. */
+.auth-foot button:disabled {
+  color: var(--ink-t3); cursor: default; text-decoration: none;
+}
+.auth-foot button:disabled:hover { background: none; }
 
 @media (max-width: 900px) {
   /* The pitch was already made on the page before this one; on a phone the

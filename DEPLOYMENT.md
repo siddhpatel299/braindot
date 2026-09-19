@@ -84,6 +84,31 @@ want left open. Everything else in the app is unaffected.
 For local development, put the same variable in `.env.local` and run the
 `convex env set` above against your dev deployment.
 
+### 4c. `AUTH_RESEND_KEY` — required to email password-reset codes
+
+"Forgot password?" on `/auth` sends an eight-digit code to the address on the
+account. The send is Resend's HTTP API, called from Convex, so the key lives on
+the **Convex deployment** rather than on Vercel:
+
+```bash
+npx convex env set AUTH_RESEND_KEY re_your_key_here
+npx convex env set AUTH_EMAIL_FROM "braindot <no-reply@yourdomain.com>"
+```
+
+`AUTH_EMAIL_FROM` is optional and defaults to Resend's `onboarding@resend.dev`
+sandbox sender, which **only delivers to the address that owns the Resend
+account** — fine for trying it out, useless for real users. Verify a domain in
+Resend and point `AUTH_EMAIL_FROM` at it before anyone else needs to reset.
+
+Without `AUTH_RESEND_KEY` the flow still runs, but the code is written to the
+Convex log instead of being emailed (`npx convex logs`), and nobody but you can
+complete a reset. Nothing is ever returned to the browser — a reset code on
+screen would be a reset available to anyone who can reach the form.
+
+Reset also needs `SITE_URL` set on the same deployment. It already is on
+production (step 2); a deployment without it answers "Password reset is not
+switched on for this deployment yet" rather than pretending to send.
+
 ### 5. Finalize the auth URL
 
 After the first deploy you'll have a real URL (e.g. `https://braindot.vercel.app`).

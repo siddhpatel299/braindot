@@ -1,4 +1,5 @@
 import { mutation, internalMutation } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 // ============================================================
@@ -42,10 +43,46 @@ function assertCaller(secret: string) {
 }
 
 /**
- * Spend one unit against `key`, and say whether it was there to spend.
+ * The counter itself, with no opinion about who is allowed to turn it.
  *
  * Returns rather than throws when the limit is hit: a caller over quota is an
  * ordinary answer the route turns into a 429, not an error worth logging.
+ */
+async function spendOne(
+  ctx: MutationCtx,
+  key: string,
+  limit: number,
+  windowMs: number,
+) {
+  const now = Date.now();
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const resetAt = windowStart + windowMs;
+
+  const row = await ctx.db
+    .query("rateLimits")
+    .withIndex("byKey", (q) => q.eq("key", key))
+    .first();
+
+  // No row, or one left over from a window that has since rolled.
+  if (!row || row.windowStart !== windowStart) {
+    const fields = { key, windowStart, count: 1, expiresAt: resetAt };
+    if (row) await ctx.db.patch(row._id, fields);
+    else await ctx.db.insert("rateLimits", fields);
+    return { ok: true, remaining: Math.max(0, limit - 1), resetAt };
+  }
+
+  if (row.count >= limit) {
+    return { ok: false, remaining: 0, resetAt };
+  }
+
+  await ctx.db.patch(row._id, { count: row.count + 1 });
+  return { ok: true, remaining: Math.max(0, limit - row.count - 1), resetAt };
+}
+
+/**
+ * Spend one unit against `key` on behalf of the Next.js server.
+ *
+ * Public, so it carries the shared secret — see {@link assertCaller}.
  */
 export const consume = mutation({
   args: {
@@ -56,31 +93,24 @@ export const consume = mutation({
   },
   handler: async (ctx, args) => {
     assertCaller(args.secret);
-
-    const now = Date.now();
-    const windowStart = Math.floor(now / args.windowMs) * args.windowMs;
-    const resetAt = windowStart + args.windowMs;
-
-    const row = await ctx.db
-      .query("rateLimits")
-      .withIndex("byKey", (q) => q.eq("key", args.key))
-      .first();
-
-    // No row, or one left over from a window that has since rolled.
-    if (!row || row.windowStart !== windowStart) {
-      const fields = { key: args.key, windowStart, count: 1, expiresAt: resetAt };
-      if (row) await ctx.db.patch(row._id, fields);
-      else await ctx.db.insert("rateLimits", fields);
-      return { ok: true, remaining: Math.max(0, args.limit - 1), resetAt };
-    }
-
-    if (row.count >= args.limit) {
-      return { ok: false, remaining: 0, resetAt };
-    }
-
-    await ctx.db.patch(row._id, { count: row.count + 1 });
-    return { ok: true, remaining: Math.max(0, args.limit - row.count - 1), resetAt };
+    return spendOne(ctx, args.key, args.limit, args.windowMs);
   },
+});
+
+/**
+ * The same counter for callers already inside the deployment.
+ *
+ * Password reset meters itself through this: the send happens in a Convex
+ * action, which has no secret to present and needs none, because an internal
+ * mutation is unreachable from a browser to begin with.
+ */
+export const spend = internalMutation({
+  args: {
+    key: v.string(),
+    limit: v.number(),
+    windowMs: v.number(),
+  },
+  handler: async (ctx, args) => spendOne(ctx, args.key, args.limit, args.windowMs),
 });
 
 /**
